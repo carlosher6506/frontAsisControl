@@ -1,0 +1,155 @@
+<div>
+
+  <!-- Encabezado -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">Año Escolar</h4>
+      <p class="text-muted small mb-0">Gestión de ciclos escolares</p>
+    </div>
+    <button class="btn btn-dark"
+      data-bs-toggle="modal" data-bs-target="#modalCiclo"
+      (click)="abrirModalCrear()">
+      <i class="bi bi-plus-lg me-2"></i>Nuevo ciclo
+    </button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+
+      @if (isLoading) {
+        <div class="d-flex justify-content-center py-5">
+          <div class="spinner-border text-dark"></div>
+        </div>
+      } @else if (ciclos.length === 0) {
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+          <p class="mb-0">No hay ciclos escolares registrados</p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th class="ps-4">#</th>
+                <th>Ciclo escolar</th>
+                <th>Fecha inicio</th>
+                <th>Fecha fin</th>
+                <th>Estado</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (ciclo of ciclos; track ciclo.id) {
+                <tr>
+                  <td class="ps-4 text-muted small">{{ ciclo.id }}</td>
+                  <td class="fw-semibold">{{ ciclo.nombre }}</td>
+                  <td class="small text-muted">{{ formatearFecha(ciclo.fecha_inicio) }}</td>
+                  <td class="small text-muted">{{ formatearFecha(ciclo.fecha_fin) }}</td>
+                  <td>
+                    @if (ciclo.activo) {
+                      <span class="badge bg-success">
+                        <i class="bi bi-check-circle me-1"></i>Activo
+                      </span>
+                    } @else {
+                      <span class="badge bg-secondary">Inactivo</span>
+                    }
+                  </td>
+                  <td class="text-end pe-4">
+                    <!-- Activar -->
+                    @if (!ciclo.activo) {
+                      <button class="btn btn-sm btn-outline-success me-2"
+                        (click)="activar(ciclo)"
+                        title="Activar ciclo">
+                        <i class="bi bi-check-circle"></i>
+                      </button>
+                    }
+                    <!-- Editar -->
+                    <button class="btn btn-sm btn-outline-dark me-2"
+                      data-bs-toggle="modal" data-bs-target="#modalCiclo"
+                      (click)="abrirModalEditar(ciclo)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <!-- Eliminar -->
+                    <button class="btn btn-sm btn-outline-danger"
+                      (click)="eliminar(ciclo)"
+                      [disabled]="ciclo.activo">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL CICLO ══════════ -->
+<div class="modal fade" id="modalCiclo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-calendar me-2"></i>
+          {{ modoEdicion ? 'Editar ciclo' : 'Nuevo ciclo escolar' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <form [formGroup]="form" novalidate>
+
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nombre del ciclo</label>
+            <input type="text" class="form-control"
+              [class.is-invalid]="nombre.invalid && nombre.touched"
+              [class.is-valid]="nombre.valid && nombre.touched"
+              formControlName="nombre" placeholder="Ej: 2025-2026" />
+            <div class="invalid-feedback">El nombre es requerido</div>
+          </div>
+
+          <!-- Fecha inicio -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Fecha de inicio</label>
+            <input type="date" class="form-control"
+              [class.is-invalid]="fecha_inicio.invalid && fecha_inicio.touched"
+              [class.is-valid]="fecha_inicio.valid && fecha_inicio.touched"
+              formControlName="fecha_inicio" />
+            <div class="invalid-feedback">La fecha de inicio es requerida</div>
+          </div>
+
+          <!-- Fecha fin -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Fecha de fin</label>
+            <input type="date" class="form-control"
+              [class.is-invalid]="fecha_fin.invalid && fecha_fin.touched"
+              [class.is-valid]="fecha_fin.valid && fecha_fin.touched"
+              formControlName="fecha_fin" />
+            <div class="invalid-feedback">La fecha de fin es requerida</div>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-dark"
+          [disabled]="isSubmitting" (click)="guardar()">
+          @if (isSubmitting) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          {{ modoEdicion ? 'Actualizar' : 'Crear ciclo' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

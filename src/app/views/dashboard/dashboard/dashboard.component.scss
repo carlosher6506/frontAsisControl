@@ -1,0 +1,124 @@
+@use 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+$sidebar-width       : 240px;
+$sidebar-collapsed   : 68px;
+$sidebar-bg          : #0a0a0a;
+$navbar-height       : 60px;
+$accent              : #008dceb9;
+
+// ── Layout principal ─────────────────────────────────────────────
+.dashboard-wrapper {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+// ── Sidebar ──────────────────────────────────────────────────────
+.sidebar {
+  width: $sidebar-width;
+  background-color: $sidebar-bg;
+  height: 100vh;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.3s ease;
+
+  .sidebar-logo {
+    width: 55px;
+    height: 55px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+}
+
+// Sidebar colapsado
+.sidebar-collapsed .sidebar {
+  width: $sidebar-collapsed;
+}
+
+// ── Menú items ───────────────────────────────────────────────────
+.nav-item {
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  margin: 2px 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  .nav-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+
+  .nav-label {
+    font-size: 0.875rem;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  &.active {
+    background-color: $accent;
+    color: #fff !important;
+  }
+}
+
+// ── Avatar sidebar ───────────────────────────────────────────────
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: $accent;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+// ── Contenido principal ──────────────────────────────────────────
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  background-color: #f4f6f9;
+  min-width: 0;
+}
+
+// ── Navbar ───────────────────────────────────────────────────────
+.top-navbar {
+  height: $navbar-height;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+// Avatar navbar
+.user-avatar-nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: $accent;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+// ── Página activa ────────────────────────────────────────────────
+.page-content {
+  overflow-y: auto;
+}

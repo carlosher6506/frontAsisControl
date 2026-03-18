@@ -1,0 +1,125 @@
+<div>
+
+  <!-- Saludo -->
+  <div class="mb-4">
+    <h4 class="fw-bold mb-1">{{ getSaludo() }}, {{ usuario?.nombre }}</h4>
+    <p class="text-muted small mb-0">Bienvenido al panel de control de AsistControl</p>
+  </div>
+
+  <!-- Stats -->
+  @if (isLoading) {
+    <div class="row g-3 mb-4">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="col-6 col-md-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="rounded-3 bg-secondary placeholder-glow flex-shrink-0"
+                style="width:48px; height:48px;">
+                <span class="placeholder w-100 h-100 rounded-3"></span>
+              </div>
+              <div class="w-100 placeholder-glow">
+                <p class="placeholder col-8 mb-1"></p>
+                <p class="placeholder col-4 mb-0"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="row g-3 mb-4">
+
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-dark text-white d-flex align-items-center
+                        justify-content-center flex-shrink-0"
+              style="width:48px; height:48px; font-size:1.3rem;">
+              <i class="bi bi-person-fill"></i>
+            </div>
+            <div>
+              <p class="text-muted small mb-0">Estudiantes</p>
+              <h4 class="fw-bold mb-0">{{ stats?.totalEstudiantes }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-secondary text-white d-flex align-items-center
+                        justify-content-center flex-shrink-0"
+              style="width:48px; height:48px; font-size:1.3rem;">
+              <i class="bi bi-collection-fill"></i>
+            </div>
+            <div>
+              <p class="text-muted small mb-0">Grupos</p>
+              <h4 class="fw-bold mb-0">{{ stats?.totalGrupos }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-warning text-dark d-flex align-items-center
+                        justify-content-center flex-shrink-0"
+              style="width:48px; height:48px; font-size:1.3rem;">
+              <i class="bi bi-clipboard-check"></i>
+            </div>
+            <div>
+              <p class="text-muted small mb-0">Evaluaciones</p>
+              <h4 class="fw-bold mb-0">{{ stats?.totalEvaluaciones }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-danger text-white d-flex align-items-center
+                        justify-content-center flex-shrink-0"
+              style="width:48px; height:48px; font-size:1.3rem;">
+              <i class="bi bi-journal-check"></i>
+            </div>
+            <div>
+              <p class="text-muted small mb-0">Tareas</p>
+              <h4 class="fw-bold mb-0">{{ stats?.totalTareas }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  }
+
+  <!-- Módulos -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 pb-0">
+      <h6 class="fw-bold mb-0">Acceso rápido</h6>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        @for (mod of modulosFiltrados; track mod.label) {
+          <div class="col-6 col-md-3 col-lg-2">
+            <a
+              [routerLink]="mod.route"
+              class="card border-0 bg-light text-decoration-none text-center
+                     p-3 h-100 d-flex flex-column align-items-center
+                     justify-content-center"
+              style="border-radius:12px; transition: all 0.2s ease;"
+            >
+              <i class="bi bi-{{ mod.icon }} fs-2 mb-2" style="color:#e8560a;"></i>
+              <p class="fw-semibold small mb-1 text-dark">{{ mod.label }}</p>
+              <p class="text-muted mb-0" style="font-size:0.75rem;">{{ mod.desc }}</p>
+            </a>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+</div>

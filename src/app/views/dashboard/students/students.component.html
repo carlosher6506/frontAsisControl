@@ -1,0 +1,299 @@
+<div>
+
+  <!-- Encabezado -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">Estudiantes</h4>
+      <p class="text-muted small mb-0">Gestión de alumnos del sistema</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-dark"
+        data-bs-toggle="modal" data-bs-target="#modalExcel">
+        <i class="bi bi-file-earmark-excel me-2"></i>Importar Excel
+      </button>
+      <button class="btn btn-dark"
+        data-bs-toggle="modal" data-bs-target="#modalAlumno"
+        (click)="abrirModalCrear()">
+        <i class="bi bi-plus-lg me-2"></i>Nuevo alumno
+      </button>
+    </div>
+  </div>
+
+  <!-- Buscador -->
+  <div class="mb-3">
+    <div class="input-group" style="max-width:340px;">
+      <span class="input-group-text bg-white border-end-0">
+        <i class="bi bi-search text-muted"></i>
+      </span>
+      <input type="text" class="form-control border-start-0"
+        placeholder="Buscar por nombre o matrícula..."
+        [(ngModel)]="textoBusqueda" />
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+
+      @if (isLoading) {
+        <div class="d-flex justify-content-center py-5">
+          <div class="spinner-border text-dark"></div>
+        </div>
+      } @else if (alumnosFiltrados.length === 0) {
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-person-x fs-1 d-block mb-2"></i>
+          <p class="mb-0">
+            {{ textoBusqueda ? 'No se encontraron resultados' : 'No hay alumnos registrados' }}
+          </p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th class="ps-4">#</th>
+                <th>Nombre</th>
+                <th>Matrícula</th>
+                <th>Nivel educativo</th>
+                <th>Grado/Semestre</th>
+                <th>Grupo</th>
+                <th>Ciclo escolar</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (alumno of alumnosFiltrados; track alumno.id) {
+                <tr>
+                  <td class="ps-4 text-muted small">{{ alumno.id }}</td>
+                  <td class="fw-semibold">{{ alumno.nombre }}</td>
+                  <td>
+                    <span class="badge bg-secondary">{{ alumno.matricula }}</span>
+                  </td>
+                  <td class="small">{{ alumno.nivel_educativo }}</td>
+                  <td class="small">{{ alumno.nivel_academico }}</td>
+                  <td>
+                    <span class="badge bg-dark">{{ alumno.grupo_nombre }}</span>
+                  </td>
+                  <td class="small text-muted">{{ alumno.ciclo_escolar }}</td>
+                  <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-dark me-2"
+                      data-bs-toggle="modal" data-bs-target="#modalAlumno"
+                      (click)="abrirModalEditar(alumno)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                      (click)="eliminar(alumno)">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL ALUMNO ══════════ -->
+<div class="modal fade" id="modalAlumno" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-person me-2"></i>
+          {{ modoEdicion ? 'Editar alumno' : 'Nuevo alumno' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <form [formGroup]="form" novalidate>
+
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nombre completo</label>
+            <input type="text" class="form-control"
+              [class.is-invalid]="nombre.invalid && nombre.touched"
+              [class.is-valid]="nombre.valid && nombre.touched"
+              formControlName="nombre" placeholder="Ej: Juan Pérez" />
+            <div class="invalid-feedback">
+              @if (nombre.errors?.['required']) { El nombre es requerido }
+              @if (nombre.errors?.['minlength']) { Mínimo 3 caracteres }
+            </div>
+          </div>
+
+          <!-- Solo al crear -->
+          @if (!modoEdicion) {
+
+            <!-- Matrícula -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Matrícula</label>
+              <input type="text" class="form-control"
+                [class.is-invalid]="matricula.invalid && matricula.touched"
+                [class.is-valid]="matricula.valid && matricula.touched"
+                formControlName="matricula" placeholder="Ej: 2024001" />
+              <div class="invalid-feedback">La matrícula es requerida</div>
+            </div>
+
+            <!-- Nivel Educativo -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Nivel educativo</label>
+              <select class="form-select"
+                [(ngModel)]="nivelEducativoSeleccionado"
+                [ngModelOptions]="{standalone: true}"
+                (change)="onNivelEducativoChange()">
+                <option [value]="null" disabled>Selecciona un nivel</option>
+                @for (nivel of nivelesEducativos; track nivel.id) {
+                  <option [value]="nivel.id">{{ nivel.nombre }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Grado / Semestre -->
+            @if (nivelEducativoSeleccionado) {
+              <div class="mb-3">
+                <label class="form-label fw-semibold small">Grado / Semestre</label>
+                <select class="form-select"
+                  [(ngModel)]="nivelAcademicoSeleccionado"
+                  [ngModelOptions]="{standalone: true}"
+                  (change)="onNivelAcademicoChange()">
+                  <option [value]="null" disabled>Selecciona el grado</option>
+                  @for (na of nivelesAcademicosFiltrados; track na.id) {
+                    <option [value]="na.id">{{ na.nombre }}</option>
+                  }
+                </select>
+              </div>
+            }
+
+            <!-- Grupo -->
+            @if (nivelAcademicoSeleccionado) {
+              <div class="mb-3">
+                <label class="form-label fw-semibold small">Grupo</label>
+                <select class="form-select"
+                  [class.is-invalid]="grupo_id.invalid && grupo_id.touched"
+                  formControlName="grupo_id">
+                  <option value="" disabled>Selecciona el grupo</option>
+                  @if (gruposFiltrados.length === 0) {
+                    <option disabled>No hay grupos para este grado</option>
+                  }
+                  @for (g of gruposFiltrados; track g.id) {
+                    <option [value]="g.id">{{ g.nombre }}</option>
+                  }
+                </select>
+                <div class="invalid-feedback">El grupo es requerido</div>
+              </div>
+            }
+
+          }
+
+        </form>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-dark"
+          [disabled]="isSubmitting" (click)="guardar()">
+          @if (isSubmitting) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          {{ modoEdicion ? 'Actualizar' : 'Crear alumno' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL EXCEL ══════════ -->
+<div class="modal fade" id="modalExcel" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-file-earmark-excel me-2"></i>Importar desde Excel
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+
+        <!-- Instrucciones -->
+        <div class="alert alert-dark d-flex gap-3 align-items-start">
+          <i class="bi bi-info-circle fs-5 flex-shrink-0"></i>
+          <div class="small">
+            <p class="fw-semibold mb-1">El archivo Excel debe tener estas columnas:</p>
+            <p class="mb-0">
+              <span class="badge bg-secondary me-1">nombre</span>
+              <span class="badge bg-secondary me-1">matricula</span>
+              <span class="badge bg-secondary">grupo</span>
+              — El grupo debe coincidir exactamente con el nombre (A, B, C...)
+            </p>
+          </div>
+        </div>
+
+        <!-- Input archivo -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Selecciona el archivo</label>
+          <input type="file" class="form-control" accept=".xlsx,.xls"
+            (change)="onArchivoExcel($event)" />
+        </div>
+
+        <!-- Preview -->
+        @if (alumnosExcel.length > 0) {
+          <div>
+            <p class="fw-semibold small mb-2">
+              Vista previa — {{ alumnosExcel.length }} alumnos encontrados:
+            </p>
+            <div class="table-responsive" style="max-height:250px; overflow-y:auto;">
+              <table class="table table-sm table-bordered align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Matrícula</th>
+                    <th>Grupo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (a of alumnosExcel; track a.matricula) {
+                    <tr>
+                      <td>{{ a.nombre }}</td>
+                      <td>{{ a.matricula }}</td>
+                      <td>{{ a.grupo }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-sm btn-outline-dark"
+          (click)="descargarPlantilla()">
+          <i class="bi bi-download me-1"></i>Descargar plantilla
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-dark"
+          [disabled]="alumnosExcel.length === 0 || importando"
+          (click)="importarExcel()">
+          @if (importando) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          Importar {{ alumnosExcel.length > 0 ? '(' + alumnosExcel.length + ')' : '' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

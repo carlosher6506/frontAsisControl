@@ -1,0 +1,194 @@
+<div>
+
+  <!-- Encabezado -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">Usuarios</h4>
+      <p class="text-muted small mb-0">Gestión de usuarios del sistema</p>
+    </div>
+    <button
+      class="btn btn-dark"
+      data-bs-toggle="modal"
+      data-bs-target="#modalUsuario"
+      (click)="abrirModalCrear()"
+    >
+      <i class="bi bi-plus-lg me-2"></i>Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+
+      @if (isLoading) {
+        <div class="d-flex justify-content-center align-items-center py-5">
+          <div class="spinner-border text-dark"></div>
+        </div>
+      } @else if (usuarios.length === 0) {
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-people fs-1 d-block mb-2"></i>
+          <p class="mb-0">No hay usuarios registrados</p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th class="ps-4">#</th>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (usuario of usuarios; track usuario.id) {
+                <tr>
+                  <td class="ps-4 text-muted small">{{ usuario.id }}</td>
+                  <td class="fw-semibold">{{ usuario.nombre }}</td>
+                  <td class="text-muted small">{{ usuario.email }}</td>
+                  <td>
+                    <span class="badge {{ getBadgeRol(usuario.rol) }}">
+                      {{ usuario.rol }}
+                    </span>
+                  </td>
+                  <td class="text-end pe-4">
+                    <button
+                      class="btn btn-sm btn-outline-dark me-2"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalUsuario"
+                      (click)="abrirModalEditar(usuario)"
+                    >
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-danger"
+                      (click)="eliminar(usuario)"
+                    >
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════ MODAL ══════════════ -->
+<div class="modal fade" id="modalUsuario" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-person me-2"></i>
+          {{ modoEdicion ? 'Editar usuario' : 'Nuevo usuario' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <form [formGroup]="form" novalidate>
+
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nombre completo</label>
+            <input
+              type="text"
+              class="form-control"
+              [class.is-invalid]="nombre.invalid && nombre.touched"
+              [class.is-valid]="nombre.valid && nombre.touched"
+              formControlName="nombre"
+              placeholder="Ej: Juan Pérez"
+            />
+            <div class="invalid-feedback">
+              @if (nombre.errors?.['required']) { El nombre es requerido }
+              @if (nombre.errors?.['minlength']) { Mínimo 3 caracteres }
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Correo electrónico</label>
+            <input
+              type="email"
+              class="form-control"
+              [class.is-invalid]="email.invalid && email.touched"
+              [class.is-valid]="email.valid && email.touched"
+              formControlName="email"
+              placeholder="ejemplo@escuela.com"
+            />
+            <div class="invalid-feedback">
+              @if (email.errors?.['required']) { El correo es requerido }
+              @if (email.errors?.['email']) { Ingresa un correo válido }
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">
+              Contraseña
+              @if (modoEdicion) {
+                <span class="text-muted fw-normal">(dejar vacío para no cambiar)</span>
+              }
+            </label>
+            <input
+              type="password"
+              class="form-control"
+              [class.is-invalid]="password.invalid && password.touched"
+              [class.is-valid]="password.valid && password.touched"
+              formControlName="password"
+              placeholder="••••••••"
+            />
+            <div class="invalid-feedback">
+              @if (password.errors?.['required']) { La contraseña es requerida }
+              @if (password.errors?.['minlength']) { Mínimo 6 caracteres }
+            </div>
+          </div>
+
+          <!-- Rol -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Rol</label>
+            <select
+              class="form-select"
+              [class.is-invalid]="rol.invalid && rol.touched"
+              [class.is-valid]="rol.valid && rol.touched"
+              formControlName="rol"
+            >
+              <option value="" disabled>Selecciona un rol</option>
+              @for (r of roles; track r) {
+                <option [value]="r">{{ r }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">El rol es requerido</div>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-dark"
+          [disabled]="isSubmitting"
+          (click)="guardar()"
+        >
+          @if (isSubmitting) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          {{ modoEdicion ? 'Actualizar' : 'Crear usuario' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

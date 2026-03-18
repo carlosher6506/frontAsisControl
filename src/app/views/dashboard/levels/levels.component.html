@@ -1,0 +1,312 @@
+<div>
+
+  <!-- Encabezado -->
+  <div class="mb-4">
+    <h4 class="fw-bold mb-1">Niveles</h4>
+    <p class="text-muted small mb-0">Configuración de niveles educativos y académicos</p>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ══════════ SECCIÓN NIVELES EDUCATIVOS ══════════ -->
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+
+        <div class="card-header bg-white border-0 pt-3 d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="fw-bold mb-0">Niveles Educativos</h6>
+            <p class="text-muted mb-0" style="font-size:0.75rem;">
+              Ej: Primaria, Secundaria, Preparatoria
+            </p>
+          </div>
+          <button class="btn btn-dark btn-sm"
+            data-bs-toggle="modal" data-bs-target="#modalEducativo"
+            (click)="abrirModalCrearEducativo()">
+            <i class="bi bi-plus-lg me-1"></i>Nuevo
+          </button>
+        </div>
+
+        <div class="card-body p-0">
+          @if (isLoadingEducativos) {
+            <div class="d-flex justify-content-center py-4">
+              <div class="spinner-border spinner-border-sm text-dark"></div>
+            </div>
+          } @else if (nivelesEducativos.length === 0) {
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-diagram-3 fs-2 d-block mb-2"></i>
+              <p class="small mb-0">No hay niveles educativos registrados</p>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="ps-3">Nombre</th>
+                    <th>Estructura</th>
+                    <th>Cal. mín.</th>
+                    <th class="text-end pe-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (nivel of nivelesEducativos; track nivel.id) {
+                    <tr>
+                      <td class="ps-3 fw-semibold small">{{ nivel.nombre }}</td>
+                      <td>
+                        <span class="badge bg-secondary">{{ nivel.tipo_estructura }}</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-dark">{{ nivel.calificacion_minima_aprobatoria }}</span>
+                        @if (nivel.forzar_minimo) {
+                          <span class="badge bg-warning text-dark ms-1">forzado</span>
+                        }
+                      </td>
+                      <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-outline-dark me-2"
+                          data-bs-toggle="modal" data-bs-target="#modalEducativo"
+                          (click)="abrirModalEditarEducativo(nivel)">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                          (click)="eliminarEducativo(nivel)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════ SECCIÓN NIVELES ACADÉMICOS ══════════ -->
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+
+        <div class="card-header bg-white border-0 pt-3 d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="fw-bold mb-0">Grados / Semestres</h6>
+            <p class="text-muted mb-0" style="font-size:0.75rem;">
+              Ej: 1°, 2°, 3° dentro de cada nivel
+            </p>
+          </div>
+          <button class="btn btn-dark btn-sm"
+            data-bs-toggle="modal" data-bs-target="#modalAcademico"
+            (click)="abrirModalCrearAcademico()"
+            [disabled]="nivelesEducativos.length === 0">
+            <i class="bi bi-plus-lg me-1"></i>Nuevo
+          </button>
+        </div>
+
+        <div class="card-body p-0">
+          @if (isLoadingAcademicos) {
+            <div class="d-flex justify-content-center py-4">
+              <div class="spinner-border spinner-border-sm text-dark"></div>
+            </div>
+          } @else if (nivelesAcademicos.length === 0) {
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-list-ol fs-2 d-block mb-2"></i>
+              <p class="small mb-0">
+                @if (nivelesEducativos.length === 0) {
+                  Primero crea un nivel educativo
+                } @else {
+                  No hay grados/semestres registrados
+                }
+              </p>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="ps-3">Nombre</th>
+                    <th>Nivel educativo</th>
+                    <th>Orden</th>
+                    <th class="text-end pe-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (nivel of nivelesAcademicos; track nivel.id) {
+                    <tr>
+                      <td class="ps-3 fw-semibold small">{{ nivel.nombre }}</td>
+                      <td>
+                        <span class="badge bg-dark">
+                          {{ getNombreNivelEducativo(nivel.nivel_educativo_id) }}
+                        </span>
+                      </td>
+                      <td class="text-muted small">{{ nivel.orden }}</td>
+                      <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-outline-dark me-2"
+                          data-bs-toggle="modal" data-bs-target="#modalAcademico"
+                          (click)="abrirModalEditarAcademico(nivel)">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                          (click)="eliminarAcademico(nivel)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ MODAL NIVEL EDUCATIVO ══════════ -->
+<div class="modal fade" id="modalEducativo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-diagram-3 me-2"></i>
+          {{ modoEdicionEducativo ? 'Editar nivel educativo' : 'Nuevo nivel educativo' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <form [formGroup]="formEducativo" novalidate>
+
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nombre</label>
+            <input type="text" class="form-control"
+              [class.is-invalid]="eNombre.invalid && eNombre.touched"
+              [class.is-valid]="eNombre.valid && eNombre.touched"
+              formControlName="nombre" placeholder="Ej: Primaria, Secundaria" />
+            <div class="invalid-feedback">El nombre es requerido</div>
+          </div>
+
+          <!-- Tipo estructura -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Tipo de estructura</label>
+            <select class="form-select"
+              [class.is-invalid]="eTipo.invalid && eTipo.touched"
+              formControlName="tipo_estructura">
+              <option value="" disabled>Selecciona el tipo</option>
+              @for (tipo of tiposEstructura; track tipo.value) {
+                <option [value]="tipo.value">{{ tipo.label }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">El tipo es requerido</div>
+          </div>
+
+          <!-- Calificación mínima -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Calificación mínima aprobatoria</label>
+            <input type="number" class="form-control"
+              [class.is-invalid]="eCalMin.invalid && eCalMin.touched"
+              [class.is-valid]="eCalMin.valid && eCalMin.touched"
+              formControlName="calificacion_minima_aprobatoria"
+              min="0" max="10" step="0.5" />
+            <div class="invalid-feedback">Valor entre 0 y 10</div>
+          </div>
+
+          <!-- Forzar mínimo -->
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox"
+                id="forzarMinimo" formControlName="forzar_minimo" />
+              <label class="form-check-label small fw-semibold" for="forzarMinimo">
+                Forzar calificación mínima
+              </label>
+            </div>
+            <small class="text-muted">
+              Si está activo, las calificaciones menores al mínimo se redondean al mínimo en lugar de 5
+            </small>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-dark"
+          [disabled]="isSubmittingEducativo" (click)="guardarEducativo()">
+          @if (isSubmittingEducativo) { <span class="spinner-border spinner-border-sm me-2"></span> }
+          {{ modoEdicionEducativo ? 'Actualizar' : 'Crear nivel' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL NIVEL ACADÉMICO ══════════ -->
+<div class="modal fade" id="modalAcademico" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-list-ol me-2"></i>
+          {{ modoEdicionAcademico ? 'Editar grado/semestre' : 'Nuevo grado/semestre' }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <form [formGroup]="formAcademico" novalidate>
+
+          <!-- Nivel educativo -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nivel educativo</label>
+            <select class="form-select"
+              [class.is-invalid]="aNivelId.invalid && aNivelId.touched"
+              formControlName="nivel_educativo_id">
+              <option value="" disabled>Selecciona el nivel</option>
+              @for (nivel of nivelesEducativos; track nivel.id) {
+                <option [value]="nivel.id">{{ nivel.nombre }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">El nivel educativo es requerido</div>
+          </div>
+
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nombre del grado/semestre</label>
+            <input type="text" class="form-control"
+              [class.is-invalid]="aNombre.invalid && aNombre.touched"
+              [class.is-valid]="aNombre.valid && aNombre.touched"
+              formControlName="nombre" placeholder="Ej: 1°, 2°, Primero" />
+            <div class="invalid-feedback">El nombre es requerido</div>
+          </div>
+
+          <!-- Orden -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Orden</label>
+            <input type="number" class="form-control"
+              [class.is-invalid]="aOrden.invalid && aOrden.touched"
+              [class.is-valid]="aOrden.valid && aOrden.touched"
+              formControlName="orden" placeholder="Ej: 1, 2, 3" min="1" />
+            <div class="invalid-feedback">El orden es requerido y debe ser mayor a 0</div>
+            <small class="text-muted">Define el orden de aparición en los listados</small>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-dark"
+          [disabled]="isSubmittingAcademico" (click)="guardarAcademico()">
+          @if (isSubmittingAcademico) { <span class="spinner-border spinner-border-sm me-2"></span> }
+          {{ modoEdicionAcademico ? 'Actualizar' : 'Crear grado' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
