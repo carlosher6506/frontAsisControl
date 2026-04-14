@@ -1,0 +1,26 @@
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+
+@media print {
+  // Oculta todo el layout del dashboard
+  app-root > * { display: none !important; }
+
+  // Muestra solo la boleta
+  app-root app-ratings { display: block !important; }
+  app-root app-ratings .no-print { display: none !important; }
+  app-root app-ratings #boleta {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    background: white;
+    z-index: 9999;
+  }
+
+  // Estilos generales de impresión
+  * { -webkit-print-color-adjust: exact !important; }
+  body { background: white !important; margin: 0 !important; }
+  .sidebar, .top-navbar, .no-print { display: none !important; }
+}

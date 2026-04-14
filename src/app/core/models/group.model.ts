@@ -4,6 +4,9 @@ export interface Grupo {
   ciclo_escolar_id: number;
   maestro_id: number;
   nombre: string;
+  nivel_academico?: string;
+  nivel_educativo?: string;
+  ciclo_escolar?: string;
 }
 
 export interface CrearGrupo {

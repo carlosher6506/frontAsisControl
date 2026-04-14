@@ -1,0 +1,130 @@
+<video class="video-bg" autoplay muted loop playsinline>
+  <source src="/images/bg-login2.mp4" type="video/mp4" />
+</video>
+
+<div class="min-vh-100 bg-dark d-flex align-items-start justify-content-center px-3 py-5">
+  <div class="w-100" style="max-width:700px;">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+      <img src="/images/icon_2.png" alt="Logo" width="150" height="150" class="object-fit-contain mb-2" />
+      <h4 class="fw-bold text-white mb-1">Consulta de calificaciones</h4>
+      <p class="text-white-50 small">Ingresa tu matrícula para ver tus calificaciones</p>
+    </div>
+
+    <!-- Buscador -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+      <div class="card-body p-4">
+        <div class="input-group">
+          <input type="text" class="form-control"
+            [(ngModel)]="matricula"
+            placeholder="Ingresa tu matrícula..."
+            (keyup.enter)="buscar()" />
+          <button class="btn btn-dark px-4" (click)="buscar()" [disabled]="isLoading">
+            @if (isLoading) {
+              <span class="spinner-border spinner-border-sm"></span>
+            } @else {
+              <i class="bi bi-search"></i>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resultado -->
+    @if (resultado) {
+      <div class="card border-0 shadow-sm" id="boleta-alumno" style="border-radius:16px;">
+
+        <!-- Acciones -->
+        <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center no-print">
+          <h6 class="fw-bold mb-0">
+            <i class="bi bi-file-earmark-text me-2"></i>Boleta de calificaciones
+          </h6>
+          <button class="btn btn-sm btn-outline-dark" (click)="imprimirBoleta()">
+            <i class="bi bi-printer me-1"></i>Imprimir / PDF
+          </button>
+        </div>
+
+        <div class="card-body p-4">
+
+          <!-- Info alumno -->
+          <div class="text-center mb-4">
+            <h5 class="fw-bold mb-1">BOLETA DE CALIFICACIONES</h5>
+            <p class="text-muted small mb-0">{{ resultado.alumno.ciclo_escolar }}</p>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <p class="small mb-1"><strong>Alumno:</strong> {{ resultado.alumno.nombre }}</p>
+              <p class="small mb-1"><strong>Matrícula:</strong> {{ resultado.alumno.matricula }}</p>
+            </div>
+            <div class="col-6">
+              <p class="small mb-1"><strong>Nivel:</strong> {{ resultado.alumno.nivel_educativo }}</p>
+              <p class="small mb-1"><strong>Grado:</strong> {{ resultado.alumno.nivel_academico }} {{ resultado.alumno.grupo_nombre }}</p>
+            </div>
+          </div>
+
+          <hr />
+
+          <!-- Calificaciones por materia -->
+          @for (materia of materiasUnicas; track materia) {
+            <div class="mb-4">
+              <h6 class="fw-bold mb-2">{{ materia }}</h6>
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle mb-0">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Periodo</th>
+                      <th class="text-center">Calificación</th>
+                      <th class="text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of getCalificacionesPorMateria(materia); track item.periodo) {
+                      <tr>
+                        <td class="small">
+                          {{ item.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial' }}
+                          {{ item.periodo }}
+                        </td>
+                        <td class="fw-bold text-center">
+                          {{ calcularCalificacionFinal(item) }}
+                        </td>
+                        <td class="text-center">
+                          <span class="badge {{ getBadge(calcularCalificacionFinal(item), item.calificacion_minima_aprobatoria) }}">
+                            {{ calcularCalificacionFinal(item) >= item.calificacion_minima_aprobatoria ? 'Aprobado' : 'Reprobado' }}
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                    <!-- Promedio final -->
+                    <tr class="table-dark">
+                      <td class="fw-bold small">Promedio final</td>
+                      <td class="fw-bold text-center">
+                        {{
+                          (getCalificacionesPorMateria(materia)
+                            .reduce((s, i) => s + calcularCalificacionFinal(i), 0) /
+                            getCalificacionesPorMateria(materia).length
+                          ) | number:'1.1-1'
+                        }}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+        </div>
+      </div>
+    }
+
+    <!-- Volver al login -->
+    <div class="text-center mt-4">
+      <a routerLink="/login" class="text-white-50 small">
+        <i class="bi bi-arrow-left me-1"></i>Volver al inicio
+      </a>
+    </div>
+
+  </div>
+</div>

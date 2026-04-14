@@ -1,0 +1,87 @@
+<video class="video-bg" autoplay muted loop playsinline>
+  <source src="/images/bg-login2.mp4" type="video/mp4" />
+</video>
+
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-dark px-3">
+
+  <div class="card shadow-lg border-0 w-100" style="max-width:460px; border-radius:20px; overflow:hidden;">
+
+    <div class="card-header bg-black text-white text-center border-0 py-4">
+      <img src="/images/icon_2.png" alt="Logo" width="70" height="70" class="object-fit-contain mb-2" />
+      <h4 class="fw-bold mb-1">Crear cuenta</h4>
+    </div>
+
+    <div class="card-body p-4">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+
+        <!-- Nombre -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Nombre completo</label>
+          <input type="text" class="form-control"
+            [class.is-invalid]="nombre.invalid && nombre.touched"
+            [class.is-valid]="nombre.valid && nombre.touched"
+            formControlName="nombre" placeholder="Ej: Juan Pérez" />
+          <div class="invalid-feedback">
+            @if (nombre.errors?.['required']) { El nombre es requerido }
+            @if (nombre.errors?.['minlength']) { Mínimo 3 caracteres }
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Correo electrónico</label>
+          <input type="email" class="form-control"
+            [class.is-invalid]="email.invalid && email.touched"
+            [class.is-valid]="email.valid && email.touched"
+            formControlName="email" placeholder="ejemplo@correo.com" />
+          <div class="invalid-feedback">
+            @if (email.errors?.['required']) { El correo es requerido }
+            @if (email.errors?.['email']) { Correo inválido }
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Contraseña</label>
+          <div class="input-group">
+            <input [type]="showPassword ? 'text' : 'password'" class="form-control"
+              [class.is-invalid]="password.invalid && password.touched"
+              [class.is-valid]="password.valid && password.touched"
+              formControlName="password" placeholder="Mínimo 6 caracteres" />
+            <button type="button" class="btn btn-light border"
+              (click)="showPassword = !showPassword">
+              <i class="bi bi-{{ showPassword ? 'eye-slash' : 'eye' }}"></i>
+            </button>
+            <div class="invalid-feedback">
+              @if (password.errors?.['required']) { La contraseña es requerida }
+              @if (password.errors?.['minlength']) { Mínimo 6 caracteres }
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirmar -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold small">Confirmar contraseña</label>
+          <input type="password" class="form-control"
+            [class.is-invalid]="(confirmar.touched && form.errors?.['noCoinciden']) || (confirmar.invalid && confirmar.touched)"
+            formControlName="confirmar" placeholder="Repite tu contraseña" />
+          @if (confirmar.touched && form.errors?.['noCoinciden']) {
+            <div class="text-danger small mt-1">Las contraseñas no coinciden</div>
+          }
+        </div>
+
+        <button type="submit" class="btn btn-dark w-100 py-2 fw-bold" [disabled]="isLoading">
+          @if (isLoading) { <span class="spinner-border spinner-border-sm me-2"></span> }
+          Crear cuenta
+        </button>
+
+      </form>
+    </div>
+
+    <div class="card-footer bg-light border-0 text-center py-3">
+      <span class="small text-muted">¿Ya tienes cuenta?</span>
+      <a routerLink="/login" class="small fw-semibold text-dark ms-1">Iniciar sesión</a>
+    </div>
+
+  </div>
+</div>

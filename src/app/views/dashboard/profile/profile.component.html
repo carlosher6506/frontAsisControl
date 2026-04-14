@@ -1,0 +1,114 @@
+<div>
+
+  <div class="mb-4">
+    <h4 class="fw-bold mb-1">Mi perfil</h4>
+    <p class="text-muted small mb-0">Información profesional del maestro</p>
+  </div>
+
+  @if (isLoading) {
+    <div class="d-flex justify-content-center py-5">
+      <div class="spinner-border text-dark"></div>
+    </div>
+  } @else {
+    <div class="row g-4">
+
+      <!-- Avatar y datos básicos -->
+      <div class="col-12 col-lg-3">
+        <div class="card border-0 shadow-sm text-center p-4">
+          <div class="rounded-circle bg-dark text-white d-flex align-items-center
+                      justify-content-center mx-auto mb-3"
+            style="width:80px;height:80px;font-size:2rem;font-weight:700;">
+            {{ usuario?.nombre?.charAt(0)?.toUpperCase() }}
+          </div>
+          <h6 class="fw-bold mb-0">{{ usuario?.nombre }}</h6>
+          <p class="text-muted small mb-1">{{ usuario?.rol }}</p>
+          <p class="text-muted small mb-0">{{ perfil?.email }}</p>
+          @if (perfil?.especialidad) {
+            <span class="badge bg-dark mt-2">{{ perfil?.especialidad }}</span>
+          }
+        </div>
+      </div>
+
+      <!-- Formulario -->
+      <div class="col-12 col-lg-9">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-0 pt-3 pb-0">
+            <h6 class="fw-bold mb-0">Información profesional</h6>
+          </div>
+          <div class="card-body">
+            <form [formGroup]="form" novalidate>
+              <div class="row g-3">
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Nombre(s)</label>
+                  <input type="text" class="form-control"
+                    formControlName="nombre" placeholder="Ej: Juan Carlos" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Apellidos</label>
+                  <input type="text" class="form-control"
+                    formControlName="apellido" placeholder="Ej: García López" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Teléfono</label>
+                  <input type="tel" class="form-control"
+                    formControlName="telefono" placeholder="Ej: 6441234567" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Especialidad</label>
+                  <input type="text" class="form-control"
+                    formControlName="especialidad" placeholder="Ej: Matemáticas" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Carrera</label>
+                  <input type="text" class="form-control"
+                    formControlName="carrera" placeholder="Ej: Ing. en Sistemas" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">Código Classroom</label>
+                  <input type="text" class="form-control"
+                    formControlName="codigo_classroom" placeholder="Ej: abc123" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">CURP</label>
+                  <input type="text" class="form-control"
+                    formControlName="curp" placeholder="18 caracteres"
+                    maxlength="18" style="text-transform:uppercase;" />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-semibold small">RFC</label>
+                  <input type="text" class="form-control"
+                    formControlName="rfc" placeholder="13 caracteres"
+                    maxlength="13" style="text-transform:uppercase;" />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-semibold small">Dirección</label>
+                  <textarea class="form-control" rows="2"
+                    formControlName="direccion"
+                    placeholder="Calle, número, colonia, ciudad..."></textarea>
+                </div>
+
+              </div>
+            </form>
+          </div>
+          <div class="card-footer bg-white border-0 pt-0 pb-3 px-4">
+            <button class="btn btn-dark px-4" (click)="guardar()" [disabled]="isSubmitting">
+              @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+              <i class="bi bi-save me-2"></i>Guardar perfil
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  }
+
+</div>

@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './views/auth/login/login.component';
 import { authGuard } from './views/guards/auth.guard';
 import { noAuthGuard } from './views/guards/no-auth.guard';
+import { RegisterComponent } from './views/auth/register/register.component';
+import { StudentGradesComponent } from './views/auth/student-grades/student-grades.component';
 
 export const routes: Routes = [
   {
@@ -13,6 +15,15 @@ export const routes: Routes = [
     path: 'login',
     component: LoginComponent,
     canActivate: [noAuthGuard]
+  },
+  {
+    path: 'register',
+    component: RegisterComponent,
+    canActivate: [noAuthGuard]
+  },
+  {
+    path: 'student-grades',
+    component: StudentGradesComponent
   },
   {
     path: 'dashboard',
@@ -49,6 +60,30 @@ export const routes: Routes = [
         path: 'levels',
         loadComponent: () =>
           import('./views/dashboard/levels/levels.component').then(m => m.LevelsComponent)
+      },
+      {
+        path: 'evaluations',
+        loadComponent: () =>
+          import('./views/dashboard/evaluations/evaluations.component').then(m => m.EvaluationsComponent)
+      },
+      {
+        path: 'subjects',
+        loadComponent: () =>
+          import('./views/dashboard/subjects/subjects.component').then(m => m.SubjectsComponent)
+      },
+      {
+        path: 'tasks',
+        loadComponent: () =>
+          import('./views/dashboard/tasks/tasks.component').then(m => m.TasksComponent)
+      },
+      {
+        path: 'ratings',
+        loadComponent: () =>
+          import('./views/dashboard/ratings/ratings.component').then(m => m.RatingsComponent)
+      },
+      { path: 'profile',
+        loadComponent: () =>
+          import('./views/dashboard/profile/profile.component').then(m => m.ProfileComponent)
       },
       { path: '**', redirectTo: '' }
     ]
