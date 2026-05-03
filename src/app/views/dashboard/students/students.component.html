@@ -99,7 +99,7 @@
 
 <!-- ══════════ MODAL ALUMNO ══════════ -->
 <div class="modal fade" id="modalAlumno" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
 
       <div class="modal-header bg-dark text-white border-0">
@@ -118,7 +118,6 @@
             <label class="form-label fw-semibold small">Nombre completo</label>
             <input type="text" class="form-control"
               [class.is-invalid]="nombre.invalid && nombre.touched"
-              [class.is-valid]="nombre.valid && nombre.touched"
               formControlName="nombre" placeholder="Ej: Juan Pérez" />
             <div class="invalid-feedback">
               @if (nombre.errors?.['required']) { El nombre es requerido }
@@ -126,53 +125,61 @@
             </div>
           </div>
 
-          <!-- Solo al crear -->
-          @if (!modoEdicion) {
-
-            <!-- Matrícula -->
-            <div class="mb-3">
-              <label class="form-label fw-semibold small">Matrícula</label>
-              <input type="text" class="form-control"
-                [class.is-invalid]="matricula.invalid && matricula.touched"
-                [class.is-valid]="matricula.valid && matricula.touched"
-                formControlName="matricula" placeholder="Ej: 2024001" />
+          <!-- Matrícula (siempre visible) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Matrícula</label>
+            <input type="text" class="form-control"
+              [class.is-invalid]="matricula.invalid && matricula.touched"
+              formControlName="matricula" placeholder="Ej: 2024001" />
+            @if (!modoEdicion) {
               <div class="invalid-feedback">La matrícula es requerida</div>
-            </div>
+            }
+          </div>
 
-            <!-- Nivel Educativo -->
+          <!-- Nivel Educativo (siempre visible) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Nivel educativo</label>
+            <select class="form-select"
+              [(ngModel)]="nivelEducativoSeleccionado"
+              [ngModelOptions]="{standalone: true}"
+              (change)="onNivelEducativoChange()">
+              <option [value]="null" disabled>Selecciona un nivel</option>
+              @for (nivel of nivelesEducativos; track nivel.id) {
+                <option [value]="nivel.id">{{ nivel.nombre }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Grado / Semestre -->
+          @if (nivelEducativoSeleccionado) {
             <div class="mb-3">
-              <label class="form-label fw-semibold small">Nivel educativo</label>
+              <label class="form-label fw-semibold small">Grado / Semestre</label>
               <select class="form-select"
-                [(ngModel)]="nivelEducativoSeleccionado"
+                [(ngModel)]="nivelAcademicoSeleccionado"
                 [ngModelOptions]="{standalone: true}"
-                (change)="onNivelEducativoChange()">
-                <option [value]="null" disabled>Selecciona un nivel</option>
-                @for (nivel of nivelesEducativos; track nivel.id) {
-                  <option [value]="nivel.id">{{ nivel.nombre }}</option>
+                (change)="onNivelAcademicoChange()">
+                <option [value]="null" disabled>Selecciona el grado</option>
+                @for (na of nivelesAcademicosFiltrados; track na.id) {
+                  <option [value]="na.id">{{ na.nombre }}</option>
                 }
               </select>
             </div>
+          }
 
-            <!-- Grado / Semestre -->
-            @if (nivelEducativoSeleccionado) {
-              <div class="mb-3">
-                <label class="form-label fw-semibold small">Grado / Semestre</label>
-                <select class="form-select"
-                  [(ngModel)]="nivelAcademicoSeleccionado"
-                  [ngModelOptions]="{standalone: true}"
-                  (change)="onNivelAcademicoChange()">
-                  <option [value]="null" disabled>Selecciona el grado</option>
-                  @for (na of nivelesAcademicosFiltrados; track na.id) {
-                    <option [value]="na.id">{{ na.nombre }}</option>
-                  }
-                </select>
-              </div>
-            }
+          <!-- Grupos disponibles -->
+          @if (nivelAcademicoSeleccionado) {
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">
+                @if (modoEdicion) {
+                  Grupos asignados
+                  <span class="text-muted fw-normal">(selecciona uno o más)</span>
+                } @else {
+                  Grupo
+                }
+              </label>
 
-            <!-- Grupo -->
-            @if (nivelAcademicoSeleccionado) {
-              <div class="mb-3">
-                <label class="form-label fw-semibold small">Grupo</label>
+              @if (!modoEdicion) {
+                <!-- Crear: select simple -->
                 <select class="form-select"
                   [class.is-invalid]="grupo_id.invalid && grupo_id.touched"
                   formControlName="grupo_id">
@@ -185,9 +192,36 @@
                   }
                 </select>
                 <div class="invalid-feedback">El grupo es requerido</div>
-              </div>
-            }
-
+              } @else {
+                <!-- Editar: checkboxes para múltiples grupos -->
+                @if (gruposFiltrados.length === 0) {
+                  <p class="text-muted small">No hay grupos disponibles para este nivel</p>
+                } @else {
+                  <div class="d-flex flex-wrap gap-2">
+                    @for (g of gruposFiltrados; track g.id) {
+                      <button type="button"
+                        class="btn btn-sm"
+                        [class.btn-dark]="isGrupoSeleccionado(g.id)"
+                        [class.btn-outline-dark]="!isGrupoSeleccionado(g.id)"
+                        (click)="toggleGrupo(g.id)">
+                        <i class="bi me-1"
+                          [class.bi-check-circle-fill]="isGrupoSeleccionado(g.id)"
+                          [class.bi-circle]="!isGrupoSeleccionado(g.id)">
+                        </i>
+                        Grupo {{ g.nombre }}
+                      </button>
+                    }
+                  </div>
+                  @if (gruposSeleccionados.length === 0) {
+                    <div class="text-danger small mt-1">Selecciona al menos un grupo</div>
+                  } @else {
+                    <div class="text-muted small mt-1">
+                      {{ gruposSeleccionados.length }} grupo(s) seleccionado(s)
+                    </div>
+                  }
+                }
+              }
+            </div>
           }
 
         </form>

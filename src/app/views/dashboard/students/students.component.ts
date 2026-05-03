@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { StudentsService } from '../../../core/services/students.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { Alumno, CrearAlumno, ActualizarAlumno } from '../../../core/models/student.model';
+import { Alumno, CrearAlumno } from '../../../core/models/student.model';
 import { GroupsService } from '../../../core/services/groups.service';
 import { EducationLevelsService } from '../../../core/services/education-levels.service';
 import { AcademicLevelsService } from '../../../core/services/academic-levels.service';
@@ -26,24 +26,11 @@ export class StudentsComponent implements OnInit {
   nivelesEducativos: NivelEducativo[] = [];
   nivelesAcademicos: NivelAcademico[] = [];
 
-  // Selects encadenados
   nivelEducativoSeleccionado: number | null = null;
   nivelAcademicoSeleccionado: number | null = null;
 
-  // Filtrados por selección
-  get nivelesAcademicosFiltrados(): NivelAcademico[] {
-    if (!this.nivelEducativoSeleccionado) return [];
-    return this.nivelesAcademicos.filter(
-      na => na.nivel_educativo_id === Number(this.nivelEducativoSeleccionado) // ← agrega Number()
-    );
-  }
-
-  get gruposFiltrados(): Grupo[] {
-    if (!this.nivelAcademicoSeleccionado) return [];
-    return this.grupos.filter(
-      g => g.nivel_academico_id === Number(this.nivelAcademicoSeleccionado) // ← agrega Number()
-    );
-  }
+  // Grupos seleccionados en edición (múltiple)
+  gruposSeleccionados: number[] = [];
 
   isLoading = true;
   isSubmitting = false;
@@ -51,7 +38,6 @@ export class StudentsComponent implements OnInit {
   alumnoSeleccionado: Alumno | null = null;
   textoBusqueda = '';
 
-  // Excel
   alumnosExcel: { nombre: string; matricula: string; grupo: string }[] = [];
   importando = false;
 
@@ -76,12 +62,10 @@ export class StudentsComponent implements OnInit {
     this.cargarDatos();
   }
 
-  // ------ Getters form ------
   get nombre()    { return this.form.get('nombre')!; }
   get matricula() { return this.form.get('matricula')!; }
   get grupo_id()  { return this.form.get('grupo_id')!; }
 
-  // ------ Filtro búsqueda ------
   get alumnosFiltrados(): Alumno[] {
     if (!this.textoBusqueda.trim()) return this.alumnos;
     const texto = this.textoBusqueda.toLowerCase();
@@ -91,60 +75,110 @@ export class StudentsComponent implements OnInit {
     );
   }
 
-  // ------ Nombre del grupo en tabla ------
-  getNombreGrupo(grupo_id: number): string {
-    const grupo = this.grupos.find(g => g.id === grupo_id);
-    if (!grupo) return `Grupo ${grupo_id}`;
-    const nivel = this.nivelesAcademicos.find(n => n.id === grupo.nivel_academico_id);
-    return nivel ? `${nivel.nombre} ${grupo.nombre}` : grupo.nombre;
+  get nivelesAcademicosFiltrados(): NivelAcademico[] {
+    if (!this.nivelEducativoSeleccionado) return [];
+    return this.nivelesAcademicos.filter(
+      na => na.nivel_educativo_id === Number(this.nivelEducativoSeleccionado)
+    );
   }
 
-  // ------ Cargar todos los datos ------
+  get gruposFiltrados(): Grupo[] {
+    if (!this.nivelAcademicoSeleccionado) return [];
+    return this.grupos.filter(
+      g => g.nivel_academico_id === Number(this.nivelAcademicoSeleccionado)
+    );
+  }
+
   cargarDatos(): void {
     this.isLoading = true;
     this.studentsService.obtenerAlumnos().subscribe({
       next: (data) => { this.alumnos = data; this.isLoading = false; },
       error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos'); this.isLoading = false; }
     });
-    this.groupsService.obtenerGrupos().subscribe({
-      next: (data) => this.grupos = data
-    });
-    this.educationLevelsService.obtenerNiveles().subscribe({
-      next: (data) => this.nivelesEducativos = data
-    });
-    this.academicLevelsService.obtenerNiveles().subscribe({
-      next: (data) => this.nivelesAcademicos = data
-    });
+    this.groupsService.obtenerGrupos().subscribe({ next: (data) => this.grupos = data });
+    this.educationLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesEducativos = data });
+    this.academicLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesAcademicos = data });
   }
 
-  // ------ Cuando cambia nivel educativo ------
   onNivelEducativoChange(): void {
     this.nivelAcademicoSeleccionado = null;
     this.form.get('grupo_id')!.setValue('');
+    this.gruposSeleccionados = [];
   }
 
-  // ------ Cuando cambia nivel académico ------
   onNivelAcademicoChange(): void {
     this.form.get('grupo_id')!.setValue('');
+    this.gruposSeleccionados = [];
   }
 
-  // ------ Abrir modal crear ------
+  // Toggle selección de grupo en modo edición
+  toggleGrupo(grupoId: number): void {
+    const idx = this.gruposSeleccionados.indexOf(grupoId);
+    if (idx === -1) {
+      this.gruposSeleccionados.push(grupoId);
+    } else {
+      this.gruposSeleccionados.splice(idx, 1);
+    }
+  }
+
+  isGrupoSeleccionado(grupoId: number): boolean {
+    return this.gruposSeleccionados.includes(grupoId);
+  }
+
   abrirModalCrear(): void {
     this.modoEdicion = false;
     this.alumnoSeleccionado = null;
     this.nivelEducativoSeleccionado = null;
     this.nivelAcademicoSeleccionado = null;
+    this.gruposSeleccionados = [];
     this.form.reset();
+    // Restaurar validadores para creación
+    this.form.get('matricula')!.setValidators(Validators.required);
+    this.form.get('grupo_id')!.setValidators(Validators.required);
+    this.form.get('matricula')!.updateValueAndValidity();
+    this.form.get('grupo_id')!.updateValueAndValidity();
   }
 
-  // ------ Abrir modal editar ------
   abrirModalEditar(alumno: Alumno): void {
     this.modoEdicion = true;
     this.alumnoSeleccionado = alumno;
-    this.form.patchValue({ nombre: alumno.nombre });
+    this.gruposSeleccionados = [];
+
+    // Quitar validadores que no aplican en edición
+    this.form.get('matricula')!.clearValidators();
+    this.form.get('grupo_id')!.clearValidators();
+    this.form.get('matricula')!.updateValueAndValidity();
+    this.form.get('grupo_id')!.updateValueAndValidity();
+
+    this.form.patchValue({
+      nombre:    alumno.nombre,
+      matricula: alumno.matricula
+    });
+
+    // Precargar nivel educativo/académico del alumno para mostrar grupos disponibles
+    if (alumno.grupo_id) {
+      const grupo = this.grupos.find(g => g.id === alumno.grupo_id);
+      if (grupo) {
+        const nivelAcademico = this.nivelesAcademicos.find(na => na.id === grupo.nivel_academico_id);
+        if (nivelAcademico) {
+          this.nivelEducativoSeleccionado = nivelAcademico.nivel_educativo_id;
+          this.nivelAcademicoSeleccionado = nivelAcademico.id;
+        }
+      }
+    }
+
+    // Cargar grupos actuales del alumno
+    this.studentsService.obtenerGruposDeAlumno(alumno.id).subscribe({
+      next: (grupos) => {
+        this.gruposSeleccionados = grupos.map((g: any) => g.id);
+      },
+      error: () => {
+        // Si falla, al menos marcar el grupo principal
+        if (alumno.grupo_id) this.gruposSeleccionados = [alumno.grupo_id];
+      }
+    });
   }
 
-  // ------ Guardar ------
   guardar(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -153,10 +187,30 @@ export class StudentsComponent implements OnInit {
     this.isSubmitting = true;
 
     if (this.modoEdicion && this.alumnoSeleccionado) {
-      const data: ActualizarAlumno = { nombre: this.form.value.nombre };
+      if (this.gruposSeleccionados.length === 0) {
+        this.sweetAlert.error('Error', 'Debes seleccionar al menos un grupo');
+        this.isSubmitting = false;
+        return;
+      }
+
+      const data = {
+        nombre:    this.form.value.nombre,
+        matricula: this.form.value.matricula || this.alumnoSeleccionado.matricula,
+        grupo_id:  this.gruposSeleccionados[0],
+        grupo_ids: this.gruposSeleccionados
+      };
+
       this.studentsService.actualizarAlumno(this.alumnoSeleccionado.id, data).subscribe({
-        next: () => { this.sweetAlert.toast('Alumno actualizado', 'success'); this.cerrarModal(); this.cargarDatos(); this.isSubmitting = false; },
-        error: () => { this.sweetAlert.error('Error', 'No se pudo actualizar'); this.isSubmitting = false; }
+        next: () => {
+          this.sweetAlert.toast('Alumno actualizado', 'success');
+          this.cerrarModal();
+          this.cargarDatos();
+          this.isSubmitting = false;
+        },
+        error: (err) => {
+          this.sweetAlert.error('Error', err?.error?.message || 'No se pudo actualizar');
+          this.isSubmitting = false;
+        }
       });
     } else {
       const data: CrearAlumno = {
@@ -165,13 +219,17 @@ export class StudentsComponent implements OnInit {
         grupo_id:  Number(this.form.value.grupo_id)
       };
       this.studentsService.crearAlumno(data).subscribe({
-        next: () => { this.sweetAlert.toast('Alumno creado', 'success'); this.cerrarModal(); this.cargarDatos(); this.isSubmitting = false; },
+        next: () => {
+          this.sweetAlert.toast('Alumno creado', 'success');
+          this.cerrarModal();
+          this.cargarDatos();
+          this.isSubmitting = false;
+        },
         error: () => { this.sweetAlert.error('Error', 'No se pudo crear el alumno'); this.isSubmitting = false; }
       });
     }
   }
 
-  // ------ Eliminar ------
   async eliminar(alumno: Alumno): Promise<void> {
     const result = await this.sweetAlert.confirmDelete(`¿Eliminar a ${alumno.nombre}?`);
     if (result.isConfirmed) {
@@ -182,62 +240,40 @@ export class StudentsComponent implements OnInit {
     }
   }
 
-  // ------ Importar Excel ------
   onArchivoExcel(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
-
-    const file = input.files[0];
     const reader = new FileReader();
-
     reader.onload = (e) => {
       const data = new Uint8Array(e.target!.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-
-      // Espera columnas: nombre, matricula, grupo
       this.alumnosExcel = rows.map(r => ({
         nombre:    r['nombre']    || r['Nombre']    || '',
         matricula: r['matricula'] || r['Matricula'] || '',
         grupo:     r['grupo']     || r['Grupo']     || ''
       })).filter(r => r.nombre);
     };
-
-    reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(input.files[0]);
   }
 
   async importarExcel(): Promise<void> {
     if (!this.alumnosExcel.length) return;
-
-    const result = await this.sweetAlert.confirm(
-      `¿Importar ${this.alumnosExcel.length} alumnos?`,
-      'Se crearán todos los alumnos del archivo Excel'
-    );
-
+    const result = await this.sweetAlert.confirm(`¿Importar ${this.alumnosExcel.length} alumnos?`, '');
     if (!result.isConfirmed) return;
 
     this.importando = true;
     this.sweetAlert.loading('Importando...', 'Creando alumnos');
-
-    let exitosos = 0;
-    let fallidos = 0;
+    let exitosos = 0, fallidos = 0;
 
     for (const alumno of this.alumnosExcel) {
-      // Busca el grupo por nombre
-      const grupo = this.grupos.find(
-        g => g.nombre.toLowerCase() === alumno.grupo.toLowerCase()
-      );
-
+      const grupo = this.grupos.find(g => g.nombre.toLowerCase() === alumno.grupo.toLowerCase());
       if (!grupo) { fallidos++; continue; }
-
       try {
         await new Promise<void>((resolve, reject) => {
-          this.studentsService.crearAlumno({
-            nombre:    alumno.nombre,
-            matricula: alumno.matricula,
-            grupo_id:  grupo.id
-          }).subscribe({ next: () => resolve(), error: () => reject() });
+          this.studentsService.crearAlumno({ nombre: alumno.nombre, matricula: alumno.matricula, grupo_id: grupo.id })
+            .subscribe({ next: () => resolve(), error: () => reject() });
         });
         exitosos++;
       } catch { fallidos++; }
@@ -246,38 +282,34 @@ export class StudentsComponent implements OnInit {
     this.sweetAlert.closeLoading();
     this.importando = false;
     this.alumnosExcel = [];
-
     if (fallidos === 0) {
-      this.sweetAlert.success('¡Importación exitosa!', `${exitosos} alumnos creados correctamente`);
+      this.sweetAlert.success('¡Importación exitosa!', `${exitosos} alumnos creados`);
     } else {
-      this.sweetAlert.warning('Importación parcial', `${exitosos} creados, ${fallidos} fallaron (grupo no encontrado)`);
+      this.sweetAlert.warning('Importación parcial', `${exitosos} creados, ${fallidos} fallaron`);
     }
-
     this.cargarDatos();
     this.cerrarModalExcel();
   }
+
   descargarPlantilla(): void {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
-      ['nombre', 'matricula', 'grupo'],  // ← encabezados
-      ['Juan Pérez', '2024001', 'A'],    // ← fila de ejemplo
-      ['María García', '2024002', 'B'],  // ← fila de ejemplo
+      ['nombre', 'matricula', 'grupo'],
+      ['Juan Pérez', '2024001', 'A'],
+      ['María García', '2024002', 'B'],
     ]);
-
-    // Ancho de columnas
     ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 10 }];
-
     XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
     XLSX.writeFile(wb, 'plantilla_alumnos.xlsx');
   }
 
-  // ------ Cerrar modales ------
   cerrarModal(): void {
     this.form.reset();
     this.modoEdicion = false;
     this.alumnoSeleccionado = null;
     this.nivelEducativoSeleccionado = null;
     this.nivelAcademicoSeleccionado = null;
+    this.gruposSeleccionados = [];
     const modal = document.getElementById('modalAlumno');
     if (modal) (window as any).bootstrap.Modal.getInstance(modal)?.hide();
   }

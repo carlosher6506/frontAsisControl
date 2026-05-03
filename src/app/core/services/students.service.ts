@@ -37,4 +37,8 @@ export class StudentsService {
   obtenerAlumnosPorGrupo(grupo_id: number): Observable<Alumno[]> {
     return this.http.get<Alumno[]>(`${this.apiUrl}/grupo/${grupo_id}`);
   }
+
+  obtenerGruposDeAlumno(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${id}/grupos`);
+  }
 }
