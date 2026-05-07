@@ -70,27 +70,21 @@ export class SubjectsComponent implements OnInit {
     this.isLoadingMaterias = true;
     this.isLoadingAsignaciones = true;
 
+    // El backend ya filtra por maestro_id automáticamente
     this.materiasService.obtenerMaterias().subscribe({
       next: (data) => { this.materias = data; this.isLoadingMaterias = false; },
       error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las materias'); this.isLoadingMaterias = false; }
     });
 
+    // El backend ya filtra por maestro_id, no necesitamos filtrar en frontend
     this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
-      next: (data) => {
-        this.grupoMaterias = this.esAdmin
-          ? data
-          : data.filter(gm => gm.maestro_id === this.usuario?.id);
-        this.isLoadingAsignaciones = false;
-      },
+      next: (data) => { this.grupoMaterias = data; this.isLoadingAsignaciones = false; },
       error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las asignaciones'); this.isLoadingAsignaciones = false; }
     });
 
+    // Grupos: el backend ya filtra por maestro también
     this.groupsService.obtenerGrupos().subscribe({
-      next: (data) => {
-        this.grupos = this.esAdmin
-          ? data
-          : data.filter(g => g.maestro_id === this.usuario?.id);
-      }
+      next: (data) => { this.grupos = data; }
     });
 
     if (this.esAdmin) {
