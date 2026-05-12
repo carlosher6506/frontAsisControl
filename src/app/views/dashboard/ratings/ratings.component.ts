@@ -87,8 +87,7 @@ export class RatingsComponent implements OnInit {
   }
 
   get alumnosFiltrados(): Alumno[] {
-    if (!this.grupoSeleccionado) return [];
-    return this.alumnos.filter(a => a.grupo_id === Number(this.grupoSeleccionado));
+    return this.alumnos;
   }
 
   get configEvaluacion(): ConfiguracionEvaluacion | null {
@@ -119,9 +118,6 @@ export class RatingsComponent implements OnInit {
     });
     this.evaluationsService.obtenerEvaluaciones().subscribe({
       next: (data) => this.evaluaciones = data
-    });
-    this.studentsService.obtenerAlumnos().subscribe({
-      next: (data) => this.alumnos = data
     });
   }
 
@@ -162,6 +158,14 @@ export class RatingsComponent implements OnInit {
     this.periodoSeleccionado = 1;
     this.mostrarBoleta = false;
     this.boleta = null;
+    this.alumnos = []; // limpiar lista anterior
+
+    if (this.grupoSeleccionado) {
+      this.studentsService.obtenerAlumnosPorGrupo(Number(this.grupoSeleccionado)).subscribe({
+        next: (data) => this.alumnos = data,
+        error: () => this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos')
+      });
+    }
   }
 
   onMateriaChange(id: number): void {
