@@ -22,7 +22,7 @@
             <i class="bi bi-clipboard-check me-2"></i>Configuraciones
           </h6>
           <p class="text-muted mb-0" style="font-size:0.75rem;">
-            Clic para ver etiquetas — clic de nuevo para cerrar
+            Clic para ver etiquetas - clic de nuevo para cerrar
           </p>
         </div>
         <div class="card-body p-0">
@@ -84,7 +84,7 @@
               </div>
               @if (!esPorPuntos) {
                 <span class="badge bg-secondary">
-                  Evaluación por promedio — no requiere etiquetas
+                  Evaluación por promedio - no requiere etiquetas
                 </span>
               }
             </div>
@@ -230,14 +230,14 @@
           <div class="mb-3">
             <label class="form-label fw-semibold small">Grupo</label>
             <select class="form-select"
-              [class.is-invalid]="formEvaluacion.get('grupo_id')!.invalid && formEvaluacion.get('grupo_id')!.touched"
+              [class.is-invalid]="  formEvaluacion.get('grupo_id')!.invalid && formEvaluacion.get('grupo_id')!.touched"
               formControlName="grupo_id">
               <option value="" disabled>Selecciona el grupo</option>
               @if (gruposDisponibles.length === 0) {
                 <option disabled>Todos los grupos ya tienen configuración</option>
               }
               @for (g of gruposDisponibles; track g.id) {
-                <option [value]="g.id">{{ g.nombre }}</option>
+                <option [value]="g.id">{{g.nivel_educativo}} {{g.nivel_academico}} {{ g.nombre }}</option>
               }
             </select>
             <div class="invalid-feedback">El grupo es requerido</div>

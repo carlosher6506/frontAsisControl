@@ -1,3 +1,7 @@
+@use 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+
 // ── Wrapper ──────────────────────────────────────────────────────
 .login-wrapper {
   position: relative;
@@ -73,4 +77,67 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+
+
+
+.switch-tabs {
+  position: relative;
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 16px;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.switch-indicator {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: calc(50% - 5px);
+  height: calc(100% - 10px);
+  background: #111827;
+  border-radius: 12px;
+  transition: all .35s cubic-bezier(.68,-0.55,.27,1.55);
+  box-shadow: 0 10px 25px rgba(0,0,0,.12);
+}
+
+.switch-indicator.right {
+  left: calc(50%);
+}
+
+.switch-btn {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: .3s;
+  color: #64748b;
+}
+
+.switch-btn.active {
+  color: white;
+}
+
+.card-body {
+  animation: fadeSlide .4s ease;
+}
+
+@keyframes fadeSlide {
+
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
 }

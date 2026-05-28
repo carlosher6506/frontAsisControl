@@ -109,23 +109,20 @@ export class EvaluationsComponent implements OnInit {
   cargarDatos(): void {
     this.isLoadingEvaluaciones = true;
 
+    // Primero carga grupos, luego evaluaciones que dependen de ellos
     this.groupsService.obtenerGrupos().subscribe({
       next: (data) => {
-        this.grupos = this.esAdmin ? data : data.filter(g => g.maestro_id === this.usuario?.id);
-      }
-    });
+        this.grupos = data;
 
-    this.evaluationsService.obtenerEvaluaciones().subscribe({
-      next: (data) => {
-        this.evaluaciones = this.esAdmin
-          ? data
-          : data.filter(e => {
-              const grupo = this.grupos.find(g => g.id === e.grupo_id);
-              return grupo?.maestro_id === this.usuario?.id;
-            });
-        this.isLoadingEvaluaciones = false;
-      },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar'); this.isLoadingEvaluaciones = false; }
+        // Ahora sí carga evaluaciones, grupos ya están disponibles
+        this.evaluationsService.obtenerEvaluaciones().subscribe({
+          next: (evData) => {
+            this.evaluaciones = evData;
+            this.isLoadingEvaluaciones = false;
+          },
+          error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar'); this.isLoadingEvaluaciones = false; }
+        });
+      }
     });
 
     this.etiquetasService.obtenerEtiquetas().subscribe({

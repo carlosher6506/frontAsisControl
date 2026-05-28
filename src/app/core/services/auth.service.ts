@@ -20,7 +20,8 @@ export class AuthService {
       .pipe(
         tap(response => {
           localStorage.setItem('token', response.token);
-          localStorage.setItem('usuario', JSON.stringify(response.usuario)); // ← era "user"
+          localStorage.setItem('usuario', JSON.stringify(response.usuario));
+          localStorage.setItem('login_time', Date.now().toString());
         })
       );
   }

@@ -33,19 +33,6 @@
 
     <hr class="border-secondary mx-3 my-0" />
 
-    <!-- Usuario -->
-    <div class="d-flex align-items-center gap-2 px-3 py-3">
-      <div class="user-avatar d-flex align-items-center justify-content-center">
-        {{ usuario?.nombre?.charAt(0)?.toUpperCase() }}
-      </div>
-      @if (sidebarOpen) {
-        <div class="overflow-hidden">
-          <p class="text-white fw-semibold mb-0 text-truncate small">{{ usuario?.nombre }}</p>
-          <p class="mb-0 text-truncate text-info" style="font-size:0.75rem;">{{ usuario?.rol }}</p>
-        </div>
-      }
-    </div>
-
   </aside>
 
   <!-- ═══════════════ CONTENIDO ═══════════════ -->

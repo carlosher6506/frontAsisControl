@@ -48,25 +48,28 @@ export class ProfileComponent implements OnInit {
   cargarPerfil(): void {
     this.isLoading = true;
     this.profileService.obtenerPerfil().subscribe({
-      next: (data) => {
+      next: (data) =>{
         this.perfil = data;
-        if (data.existe) {
-          this.form.patchValue({
-            nombre:           data.nombre || '',
-            apellido:         data.apellido || '',
-            telefono:         data.telefono || '',
-            curp:             data.curp || '',
-            rfc:              data.rfc || '',
-            especialidad:     data.especialidad || '',
-            carrera:          data.carrera || '',
-            direccion:        data.direccion || '',
-            codigo_classroom: data.codigo_classroom || ''
-          });
-        }
+        const nombreUsuario = this.usuario?.nombre || '';
+        this.form.patchValue({
+          nombre: data.nombre || nombreUsuario,
+          apellido: data.apellido || '',
+          telefono: data.telefono || '',
+          curp: data.curp || '',
+          rfc: data.rfc || '',
+          especialdiad: data.especialidad || '',
+          carrerra: data.carrera || '',
+          direccion: data.direccion || '',
+          codigo_classroom: data.codigo_classroom || ''
+        });
         this.isLoading = false;
       },
-      error: () => { this.sweetAlert.error('Error', 'No se pudo cargar el perfil'); this.isLoading = false; }
-    });
+      error: ()=>{
+        this.form.patchValue({nombre: this.usuario?.nombre || ''});
+        this.sweetAlert.error('Error', 'No se pudo cargar el perfil');
+        this.isLoading = false;
+      }
+    })
   }
 
   guardar(): void {
