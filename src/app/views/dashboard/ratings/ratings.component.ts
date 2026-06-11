@@ -14,6 +14,8 @@ import { Grupo } from '../../../core/models/group.model';
 import { Alumno } from '../../../core/models/student.model';
 import { ConfiguracionEvaluacion } from '../../../core/models/evaluation.model';
 import { Usuario } from '../../../core/models/user.model';
+import * as XLSX from 'xlsx';
+import fil from '@angular/common/locales/fil';
 
 @Component({
   selector: 'app-ratings',
@@ -54,20 +56,20 @@ export class RatingsComponent implements OnInit {
     private sweetAlert: SweetAlertService
   ) {
     this.usuario = this.authService.getUsuario();
-  }
+  };
 
   ngOnInit(): void {
     this.cargarDatos();
-  }
+  };
 
-  // ── Getters ────────────────────────────────────────────────────
+  // Getters
   get esAdmin(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'admin';
-  }
+  };
 
   get esPorPuntos(): boolean {
     return this.configEvaluacion?.tipo_evaluacion === 'puntos';
-  }
+  };
 
   get gruposFiltrados(): Grupo[] {
     if (this.esAdmin) return this.grupos;
@@ -75,7 +77,7 @@ export class RatingsComponent implements OnInit {
       .filter(gm => gm.maestro_id === this.usuario?.id)
       .map(gm => gm.grupo_id);
     return this.grupos.filter(g => gruposConMaterias.includes(g.id));
-  }
+  };
 
   get materiasFiltradas(): GrupoMateria[] {
     if (!this.grupoSeleccionado) return [];
@@ -86,43 +88,44 @@ export class RatingsComponent implements OnInit {
       return materias.filter(gm => gm.maestro_id === this.usuario?.id);
     }
     return materias;
-  }
+  };
 
   get alumnosFiltrados(): Alumno[] {
     return this.alumnos;
-  }
+  };
 
   get configEvaluacion(): ConfiguracionEvaluacion | null {
     if (!this.grupoSeleccionado) return null;
     return this.evaluaciones.find(e => e.grupo_id === Number(this.grupoSeleccionado)) || null;
-  }
+  };
 
   get periodos(): number[] {
     if (!this.configEvaluacion) return [1];
     return Array.from({ length: this.configEvaluacion.num_periodos }, (_, i) => i + 1);
-  }
+  };
 
   get nombrePeriodo(): string {
     return this.configEvaluacion?.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial';
-  }
+  };
 
   get calificacionesPeriodo(): Calificacion[] {
     return this.calificaciones.filter(c => c.periodo === this.periodoSeleccionado);
-  }
+  };
+
   get alumnosPaginados(): Alumno[] {
     const inicio = (this.paginaActual - 1) * this.elementosPorPagina;
     const fin = inicio + this.elementosPorPagina;
 
     return this.alumnosFiltrados.slice(inicio, fin);
-  }
+  };
+
   get totalPaginas(): number {
     return Math.ceil(
       this.alumnosFiltrados.length / this.elementosPorPagina
     );
-  }
+  };
 
-
-  // ── Cargar ─────────────────────────────────────────────────────
+  // Cargar datos
   cargarDatos(): void {
     this.groupsService.obtenerGrupos().subscribe({
       next: (data) => this.grupos = data
@@ -133,38 +136,38 @@ export class RatingsComponent implements OnInit {
     this.evaluationsService.obtenerEvaluaciones().subscribe({
       next: (data) => this.evaluaciones = data
     });
-  }
+  };
 
-  // ── Helpers ────────────────────────────────────────────────────
+  // Helpers
   getNombreCompletoGrupo(grupo: Grupo): string {
     return `${grupo.nivel_educativo || ''} ${grupo.nivel_academico || ''} ${grupo.nombre}`.trim();
-  }
+  };
 
   // Convierte calificación 0-100 a puntos obtenidos
   onCalificacionChange(cal: Calificacion): void {
     if (!this.esPorPuntos || cal.calificacion === null) return;
     const valorTarea = Number(cal.valor_tarea) || 0;
     cal.puntos_obtenidos = Math.round((cal.calificacion / 100) * valorTarea * 100) / 100;
-  }
+  };
 
   getTotalPuntos(): number {
     return this.calificacionesPeriodo
       .reduce((sum, c) => sum + (Number(c.puntos_obtenidos) || 0), 0);
-  }
+  };
 
   getMaxPuntosPeriodo(): number {
     return this.calificacionesPeriodo
       .reduce((sum, c) => sum + (Number(c.valor_tarea) || 0), 0);
-  }
+  };
 
   // Calificación final del periodo (0-10)
   getCalificacionFinal(): number {
     const max = this.getMaxPuntosPeriodo();
     if (max === 0) return 0;
     return Math.round((this.getTotalPuntos() / max) * 10 * 10) / 10;
-  }
+  };
 
-  // ── Cambios ────────────────────────────────────────────────────
+  // Cambios materia
   onGrupoChange(): void {
     this.grupoMateriaSeleccionado = null;
     this.alumnoSeleccionado = null;
@@ -181,7 +184,7 @@ export class RatingsComponent implements OnInit {
         error: () => this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos')
       });
     }
-  }
+  };
 
   onMateriaChange(id: number): void {
     this.grupoMateriaSeleccionado = this.materiasFiltradas.find(gm => gm.id === Number(id)) || null;
@@ -189,18 +192,18 @@ export class RatingsComponent implements OnInit {
     this.calificaciones = [];
     this.periodoSeleccionado = 1;
     this.mostrarBoleta = false;
-  }
+  };
 
   seleccionarAlumno(alumno: Alumno): void {
     this.alumnoSeleccionado = alumno;
     this.mostrarBoleta = false;
     this.boleta = null;
     this.cargarCalificaciones();
-  }
+  };
 
   seleccionarPeriodo(p: number): void {
     this.periodoSeleccionado = p;
-  }
+  };
 
   // ── Cargar calificaciones ──────────────────────────────────────
   cargarCalificaciones(): void {
@@ -214,7 +217,7 @@ export class RatingsComponent implements OnInit {
       next: (data) => { this.calificaciones = data; this.isLoading = false; },
       error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las calificaciones'); this.isLoading = false; }
     });
-  }
+  };
 
   // ── Guardar calificación ───────────────────────────────────────
   guardarCalificacion(cal: Calificacion): void {
@@ -235,7 +238,7 @@ export class RatingsComponent implements OnInit {
       },
       error: () => this.sweetAlert.error('Error', 'No se pudo guardar')
     });
-  }
+  };
 
   // Guarda todas las calificaciones del periodo de una vez
   /*async guardarTodo(): Promise<void> {
@@ -291,12 +294,12 @@ export class RatingsComponent implements OnInit {
       next: (data) => { this.boleta = data; this.isLoadingBoleta = false; },
       error: () => { this.sweetAlert.error('Error', 'No se pudo generar la boleta'); this.isLoadingBoleta = false; }
     });
-  }
+  };
 
   cerrarBoleta(): void {
     this.mostrarBoleta = false;
     this.boleta = null;
-  }
+  };
 
   imprimirBoleta(): void {
     const contenido = document.getElementById('boleta')?.innerHTML;
@@ -333,7 +336,7 @@ export class RatingsComponent implements OnInit {
     `);
 
     ventana.document.close();
-  }
+  };
 
   // Calificación final calculada para la boleta
   calcularCalificacionFinal(item: any): number {
@@ -356,32 +359,125 @@ export class RatingsComponent implements OnInit {
 
     // Redondeo al entero más cercano para la calificación final
     return Math.round(redondeado);
-  }
+  };
 
   getBadgeCalificacion(cal: number, minimo: number): string {
     return cal >= minimo ? 'bg-success' : 'bg-danger';
-  }
+  };
 
   // Agrupa calificaciones de boleta por materia
   get materiasUnicas(): string[] {
     if (!this.boleta) return [];
     return [...new Set(this.boleta.calificaciones.map(c => c.materia_nombre))];
-  }
+  };
 
   getCalificacionesPorMateria(materia: string): any[] {
     if (!this.boleta) return [];
     return this.boleta.calificaciones.filter(c => c.materia_nombre === materia);
-  }
+  };
 
   paginaAnterior(): void {
     if (this.paginaActual > 1) {
       this.paginaActual--;
     }
-  }
+  };
 
   paginaSiguiente(): void {
     if (this.paginaActual < this.totalPaginas) {
       this.paginaActual++;
     }
-  }
+  };
+
+
+  exportarCalificaciones(): void{
+    if (!this.grupoMateriaSeleccionado || !this.configEvaluacion) return;
+    const alumnos = this.alumnosFiltrados;
+    const periodos = Array.from(
+      {length: this.configEvaluacion.num_periodos}, (_, i)=> i+1
+    );
+    const tipoPeriodo = this.configEvaluacion.tipo_periodo === 'trimestre' ? 'Trim': 'Parcial';
+    const esPuntos = this.esPorPuntos;
+    this.sweetAlert.loading('Generando Excel...', 'Cargando calificaciones');
+
+    // cargar calificaciones de todos los alumnos en paralelo
+    const peticiones = alumnos.map(alumno =>
+      new Promise<{alumno: Alumno; calificaciones: Calificacion[]}>((resolve) =>{
+        this.ratingsService.obtenerCalificacionesPorAlumno(
+          alumno.id,
+          this.grupoMateriaSeleccionado!.id
+        ).subscribe({
+          next: (cals) => resolve({alumno, calificaciones:cals}),
+          error: ()=> resolve({alumno, calificaciones: []})
+        });
+      })
+    );
+    Promise.all(peticiones).then(resultados=>{
+    this.sweetAlert.closeLoading();
+
+    // Construir cabeceras
+    const cabeceras = ['Nombre'];
+    periodos.forEach(p=> cabeceras.push(`${tipoPeriodo} ${p}`));
+
+    // Construir filas
+    const filas = resultados.map(({alumno, calificaciones})=>{
+      const fila: any = {
+        'Nombre': alumno.nombre,
+      };
+      let sumaFinal = 0;
+      let periodoConDatos = 0;
+
+      periodos.forEach(p => {
+        const calsPeriodo = calificaciones.filter(c => c.periodo === p);
+        let calFinal : number;
+
+        if (esPuntos){
+          const totalObtenidos = calsPeriodo.reduce(
+            (sum, c) => sum + (Number(c.puntos_obtenidos) || 0), 0
+          );
+         const totalPosible = calsPeriodo.reduce(
+            (sum, c) => sum  + (Number(c.valor_tarea) || 0), 0
+         );
+         calFinal = totalPosible > 0 ? Math.round((totalObtenidos/totalPosible) * 10 * 10) / 10 : 0;
+        }else{
+          const califs = calsPeriodo.filter(c => c.calificacion !== null).map(c=>  Number(c.calificacion));
+          calFinal = califs.length > 0 ? Math.round((califs.reduce((a,b)=> a + b, 0) / califs.length) * 10) / 10 : 0;
+        }
+
+        // Aplicar regla del min aprobatorio
+        const minimo = this.configEvaluacion?.num_periodos?? 6;
+        const calAplicada = calFinal > 0 && calFinal < 6 ? 5 : Math.round(calFinal);
+       fila[`${tipoPeriodo} ${p}`] = calAplicada;
+
+       if (calFinal > 0){
+        sumaFinal += calAplicada;
+        periodoConDatos++;
+       }
+      });
+
+      const promedioFinal = periodoConDatos > 0 ? Math.round(sumaFinal / periodos.length) : 0;
+      fila['Promedio Final'] = promedioFinal;
+      return fila
+    });
+
+    // Nombre del grupo y materia para el archivo
+    const grupo = this.grupos.find(g => g.id === this.grupoSeleccionado);
+    const nombreGrupo = grupo ? `${grupo.nivel_educativo || ''} ${grupo.nombre}`.trim() : 'Grupo';
+    const nombreMateria = this.grupoMateriaSeleccionado!.materia_nombre || 'Materia';
+
+    // Crear el archivo de excel
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(filas, {header: cabeceras});
+
+    // Ancho de las columnas
+    ws['!cols'] = [
+      {wch : 35}, // Nombre
+      ...periodos.map(()=>({wch : 12})),
+      {wch : 15} // Promedio
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, nombreMateria.substring(0, 31));
+    XLSX.writeFile(wb, `Calificaciones_${nombreGrupo}_${nombreMateria}.xlsx`.replace(/\s+/g, '_').replace(/[^\w_.-]/g, ''));
+    this.sweetAlert.toast('Excel generado correctamente', 'success')
+    });
+  };
 }

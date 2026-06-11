@@ -38,10 +38,10 @@
 
         @if (configEvaluacion) {
           <div class="col-12 col-md-4 d-flex align-items-end gap-2 flex-wrap">
-            <span class="badge bg-dark">{{ configEvaluacion.tipo_evaluacion }}</span>
-            <span class="badge bg-secondary">
-              {{ configEvaluacion.num_periodos }} {{ configEvaluacion.tipo_periodo }}s
-            </span>
+            @if (grupoMateriaSeleccionado && alumnosFiltrados.length > 0) {
+              <button class="btn btn-sm btn-outline-succes ms-auto" (click)="exportarCalificaciones()"><i class="bi bi-file-earmark-excel me-1"></i>
+                Exportar Calificaciones</button>
+            }
           </div>
         }
       </div>
