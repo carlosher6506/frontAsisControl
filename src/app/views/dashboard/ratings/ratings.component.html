@@ -68,7 +68,7 @@
               </div>
             } @else {
               <div class="list-group list-group-flush">
-                @for (alumno of alumnosFiltrados; track alumno.id) {
+                @for (alumno of alumnosPaginados; track alumno.id) {
                   <button
                     class="list-group-item list-group-item-action border-0 px-3 py-2"
                     [class.active]="alumnoSeleccionado?.id === alumno.id"
@@ -93,6 +93,31 @@
               </div>
             }
           </div>
+
+          <!-- PAGINACIÓN AGREGADA -->
+          @if (alumnosFiltrados.length > elementosPorPagina) {
+            <div class="card-footer bg-white border-0 py-3">
+              <div class="d-flex justify-content-between align-items-center px-3">
+                <small class="text-muted">
+                  {{ (paginaActual-1)*elementosPorPagina + 1 }} -
+                  {{ paginaActual * elementosPorPagina > alumnosFiltrados.length ? alumnosFiltrados.length : paginaActual * elementosPorPagina }}
+                  de {{ alumnosFiltrados.length }}
+                </small>
+
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="paginaActual === 1">
+                    <button class="page-link" (click)="paginaAnterior()" [disabled]="paginaActual === 1">←</button>
+                  </li>
+                  <li class="page-item disabled">
+                    <span class="page-link">{{ paginaActual }} / {{ totalPaginas }}</span>
+                  </li>
+                  <li class="page-item" [class.disabled]="paginaActual === totalPaginas">
+                    <button class="page-link" (click)="paginaSiguiente()" [disabled]="paginaActual === totalPaginas">→</button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          }
         </div>
       </div>
 
@@ -321,7 +346,7 @@
                   </table>
                 </div>
 
-                <!-- Resumen y guardar todo -->
+                <!-- Resumen (sin botón Guardar todo) -->
                 <div class="d-flex align-items-center justify-content-between">
                   @if (esPorPuntos) {
                     <div class="alert alert-dark mb-0 py-2 px-3 small">
@@ -331,10 +356,6 @@
                   } @else {
                     <div></div>
                   }
-                  <button class="btn btn-dark btn-sm" (click)="guardarTodo()" [disabled]="isSaving">
-                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                    <i class="bi bi-save me-1"></i>Guardar todo
-                  </button>
                 </div>
 
               }

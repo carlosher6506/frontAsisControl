@@ -36,6 +36,8 @@ export class RatingsComponent implements OnInit {
   isSaving = false;
   isLoadingBoleta = false;
   mostrarBoleta = false;
+  paginaActual = 1;
+  elementosPorPagina = 6;
 
   grupoSeleccionado: number | null = null;
   grupoMateriaSeleccionado: GrupoMateria | null = null;
@@ -107,6 +109,18 @@ export class RatingsComponent implements OnInit {
   get calificacionesPeriodo(): Calificacion[] {
     return this.calificaciones.filter(c => c.periodo === this.periodoSeleccionado);
   }
+  get alumnosPaginados(): Alumno[] {
+    const inicio = (this.paginaActual - 1) * this.elementosPorPagina;
+    const fin = inicio + this.elementosPorPagina;
+
+    return this.alumnosFiltrados.slice(inicio, fin);
+  }
+  get totalPaginas(): number {
+    return Math.ceil(
+      this.alumnosFiltrados.length / this.elementosPorPagina
+    );
+  }
+
 
   // ── Cargar ─────────────────────────────────────────────────────
   cargarDatos(): void {
@@ -158,7 +172,8 @@ export class RatingsComponent implements OnInit {
     this.periodoSeleccionado = 1;
     this.mostrarBoleta = false;
     this.boleta = null;
-    this.alumnos = []; // limpiar lista anterior
+    this.alumnos = [];
+    this.paginaActual = 1;
 
     if (this.grupoSeleccionado) {
       this.studentsService.obtenerAlumnosPorGrupo(Number(this.grupoSeleccionado)).subscribe({
@@ -223,7 +238,7 @@ export class RatingsComponent implements OnInit {
   }
 
   // Guarda todas las calificaciones del periodo de una vez
-  async guardarTodo(): Promise<void> {
+  /*async guardarTodo(): Promise<void> {
     if (!this.alumnoSeleccionado) return;
 
     const result = await this.sweetAlert.confirm(
@@ -264,7 +279,7 @@ export class RatingsComponent implements OnInit {
 
     // Solo recarga las calificaciones del alumno actual, no todo
     this.cargarCalificaciones();
-  }
+  }*/
 
   // ── Boleta ─────────────────────────────────────────────────────
   verBoleta(): void {
@@ -356,5 +371,17 @@ export class RatingsComponent implements OnInit {
   getCalificacionesPorMateria(materia: string): any[] {
     if (!this.boleta) return [];
     return this.boleta.calificaciones.filter(c => c.materia_nombre === materia);
+  }
+
+  paginaAnterior(): void {
+    if (this.paginaActual > 1) {
+      this.paginaActual--;
+    }
+  }
+
+  paginaSiguiente(): void {
+    if (this.paginaActual < this.totalPaginas) {
+      this.paginaActual++;
+    }
   }
 }
