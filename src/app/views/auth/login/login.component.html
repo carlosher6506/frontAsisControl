@@ -1,388 +1,235 @@
 <div class="login-wrapper min-vh-100 d-flex align-items-center justify-content-center px-3">
-
   <!-- VIDEO -->
   <video class="video-bg" autoplay muted loop playsinline>
     <source src="/images/bg-login.mp4" type="video/mp4" />
   </video>
-
   <div class="video-overlay"></div>
-
   <!-- CARD -->
   <div class="card shadow-lg border-0 w-100 login-card">
-
     <!-- HEADER -->
     <div class="card-header text-white text-center border-0 py-4 login-header">
-
-      <img
-        src="/images/icon_2.png"
-        alt="Logo"
-        class="login-logo mb-3"
-      />
-
+      <img src="/images/icon_2.png" alt="Logo" class="login-logo mb-3"/>
     </div>
-
     <!-- SWITCH TABS -->
     <div class="px-4 pt-4">
-
       <div class="switch-tabs">
-
-        <div
-          class="switch-indicator"
-          [class.right]="tabActivo === 'registro'">
-        </div>
-
-        <button
-          type="button"
-          class="switch-btn"
-          [class.active]="tabActivo === 'login'"
-          (click)="cambiarTab('login')">
-
-          Iniciar sesión
-
-        </button>
-
-        <button
-          type="button"
-          class="switch-btn"
-          [class.active]="tabActivo === 'registro'"
-          (click)="cambiarTab('registro')">
-
-          Crear cuenta
-
-        </button>
-
+        <div class="switch-indicator" [class.right]="tabActivo === 'registro'"></div>
+        <button type="button" class="switch-btn" [class.active]="tabActivo === 'login'" (click)="cambiarTab('login')"> Iniciar sesión </button>
+        <button type="button" class="switch-btn" [class.active]="tabActivo === 'registro'" (click)="cambiarTab('registro')"> Crear cuenta </button>
       </div>
-
     </div>
-
     <!-- BODY -->
-    <div
-      class="card-body p-4 p-md-5 animate-form">
-
-      <!-- ================================================= -->
+    <div class="card-body p-4 p-md-5 animate-form">
       <!-- LOGIN -->
-      <!-- ================================================= -->
-
       @if (tabActivo === 'login') {
-
-        <form
-          [formGroup]="loginForm"
-          (ngSubmit)="onSubmit()"
-          novalidate>
-
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
           <!-- EMAIL -->
-
           <div class="mb-3">
-
-            <label class="form-label fw-semibold text-secondary small">
-              Correo electrónico
-            </label>
-
-            <input
-              type="email"
-              class="form-control bg-light"
-              [class.is-invalid]="email.invalid && email.touched"
-              formControlName="email"
-              placeholder="ejemplo@escuela.com"
-            />
-
+            <label class="form-label fw-semibold text-secondary small"> Correo electrónico </label>
+            <input type="email" class="form-control bg-light" [class.is-invalid]="email.invalid && email.touched" formControlName="email"/>
             <div class="invalid-feedback">
-
               @if (email.errors?.['required']) {
                 El correo es requerido
               }
-
               @if (email.errors?.['email']) {
                 Ingresa un correo válido
               }
-
             </div>
-
           </div>
-
           <!-- PASSWORD -->
-
           <div class="mb-2">
-
-            <label class="form-label fw-semibold text-secondary small">
-              Contraseña
-            </label>
-
+            <label class="form-label fw-semibold text-secondary small"> Contraseña </label>
             <div class="input-group">
-
               <input
                 [type]="showPassword ? 'text' : 'password'"
                 class="form-control bg-light border-end-0"
                 [class.is-invalid]="password.invalid && password.touched"
                 formControlName="password"
-                placeholder="••••••••"
               />
-
               <button
                 type="button"
                 class="btn btn-light border border-start-0"
                 (click)="togglePassword()">
-
                 <i
                   class="bi"
                   [class.bi-eye]="!showPassword"
                   [class.bi-eye-slash]="showPassword">
                 </i>
-
               </button>
-
             </div>
-
           </div>
 
           <!-- OLVIDE PASSWORD -->
-
           <div class="text-end mb-4">
-
             <button
               type="button"
               class="btn btn-link btn-sm text-muted p-0 text-decoration-none"
               (click)="cambiarTab('recuperar')">
-
               ¿Olvidaste tu contraseña?
-
             </button>
-
           </div>
 
           <!-- BOTON LOGIN -->
-
           <button
             type="submit"
             class="btn btn-dark w-100 py-2 fw-bold"
             [disabled]="isLoading">
-
             @if (isLoading) {
-
               <span class="spinner-border spinner-border-sm me-2"></span>
               Iniciando...
-
             } @else {
-
               <i class="bi bi-box-arrow-in-right me-2"></i>
               Iniciar sesión
-
             }
-
           </button>
-
         </form>
-
+        @if (emailNoVerificado) {
+          <div class="alert alert-warning mt-3 d-flex align-items-start gap-2">
+            <i class="bi bi-envelope-exclamation-fill flex-shrink-0 mt-1"></i>
+            <div class="small">
+              <p class="fw-semibold mb-1">Correo no verificado</p>
+              <p class="mb-2">Debes verificar tu correo antes de iniciar sesión.</p>
+              <button class="btn btn-sm btn-warning fw-semibold"
+                [disabled]="enviandoVerificacion"
+                (click)="reenviarVerificacionLogin()">
+                @if (enviandoVerificacion) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Reenviar correo de verificación
+              </button>
+            </div>
+          </div>
+        }
       }
 
-      <!-- ================================================= -->
       <!-- REGISTRO -->
-      <!-- ================================================= -->
-
       @if (tabActivo === 'registro') {
-
         <form
           [formGroup]="registroForm"
           (ngSubmit)="onRegistro()"
           novalidate>
 
           <!-- NOMBRE -->
-
           <div class="mb-3">
-
             <label class="form-label fw-semibold text-secondary small">
               Nombre completo
             </label>
-
             <input
               type="text"
               class="form-control bg-light"
               formControlName="nombre"
-              placeholder="Juan Pérez"
             />
-
           </div>
 
           <!-- EMAIL -->
-
           <div class="mb-3">
-
             <label class="form-label fw-semibold text-secondary small">
               Correo electrónico
             </label>
-
             <input
               type="email"
               class="form-control bg-light"
               formControlName="email"
-              placeholder="ejemplo@escuela.com"
             />
-
           </div>
 
           <!-- PASSWORD -->
-
           <div class="mb-3">
-
             <label class="form-label fw-semibold text-secondary small">
               Contraseña
             </label>
-
             <div class="input-group">
-
               <input
                 [type]="showPasswordRegistro ? 'text' : 'password'"
                 class="form-control bg-light border-end-0"
                 formControlName="password"
-                placeholder="Mínimo 6 caracteres"
               />
-
               <button
                 type="button"
                 class="btn btn-light border border-start-0"
                 (click)="togglePasswordRegistro()">
-
                 <i
                   class="bi"
                   [class.bi-eye]="!showPasswordRegistro"
                   [class.bi-eye-slash]="showPasswordRegistro">
                 </i>
-
               </button>
-
             </div>
-
           </div>
 
           <!-- CONFIRMAR PASSWORD -->
-
           <div class="mb-4">
-
             <label class="form-label fw-semibold text-secondary small">
               Confirmar contraseña
             </label>
-
             <input
               type="password"
               class="form-control bg-light"
               formControlName="confirmarPassword"
-              placeholder="Repite tu contraseña"
             />
-
             <div
               class="text-danger small mt-1"
               *ngIf="
                 registroForm.get('confirmarPassword')?.touched &&
                 registroForm.value.password !== registroForm.value.confirmarPassword
               ">
-
               Las contraseñas no coinciden
-
             </div>
-
           </div>
 
           <!-- BOTON REGISTRO -->
-
           <button
             type="submit"
             class="btn btn-dark w-100 py-2 fw-bold"
             [disabled]="isLoadingRegistro">
-
             @if (isLoadingRegistro) {
-
               <span class="spinner-border spinner-border-sm me-2"></span>
               Creando cuenta...
-
             } @else {
-
               <i class="bi bi-person-plus me-2"></i>
               Crear cuenta
-
             }
-
           </button>
-
         </form>
-
       }
 
-      <!-- ================================================= -->
       <!-- RECUPERAR -->
-      <!-- ================================================= -->
-
       @if (tabActivo === 'recuperar') {
-
         <div class="text-center mb-4">
+          <div class="recover-icon mb-3"><i class="bi bi-shield-lock"></i></div>
+          <h4 class="fw-bold"> Recuperar contraseña </h4>
 
-          <div class="recover-icon mb-3">
+          <form [formGroup]="resetForm" (ngSubmit)="onSolicitarReset()" novalidate>
+            <div class="mb-4">
+              <label class="form-label fw-semibold small">Correo electrónico</label>
+              <input type="email" class="form-control bg-light"
+                [class.is-invalid]="resetForm.get('email')!.invalid && resetForm.get('email')!.touched"
+                formControlName="email"/>
+              <div class="invalid-feedback">Ingresa un correo válido</div>
+            </div>
 
-            <i class="bi bi-shield-lock"></i>
+            <button type="submit" class="btn btn-dark w-100 py-2 fw-bold mb-3"
+              [disabled]="solicitandoReset">
+              @if (solicitandoReset) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+              }
+              Enviar enlace de recuperación
+            </button>
 
-          </div>
-
-          <h4 class="fw-bold">
-            Recuperar contraseña
-          </h4>
-
-          <p class="text-muted small">
-
-            Ingresa tu correo electrónico y te enviaremos
-            instrucciones para recuperar tu cuenta.
-
-          </p>
-
+            <div class="text-center">
+              <button type="button" class="btn btn-link btn-sm text-muted p-0"
+                (click)="cambiarTab('login')">
+                <i class="bi bi-arrow-left me-1"></i> Volver al inicio de sesión
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form [formGroup]="recuperarForm">
-
-          <div class="mb-4">
-
-            <label class="form-label fw-semibold text-secondary small">
-              Correo electrónico
-            </label>
-
-            <input
-              type="email"
-              class="form-control bg-light"
-              formControlName="email"
-              placeholder="ejemplo@escuela.com"
-            />
-
-          </div>
-
-          <button
-            type="button"
-            class="btn btn-dark w-100 py-2 fw-bold">
-
-            <i class="bi bi-envelope me-2"></i>
-            Enviar instrucciones
-
-          </button>
-
-        </form>
-
-        <button
-          class="btn btn-link w-100 mt-3 text-decoration-none"
-          (click)="cambiarTab('login')">
-
-          ← Volver al inicio de sesión
-
-        </button>
-
       }
-
-    </div>
 
     <!-- FOOTER -->
-
     <div
       class="card-footer text-center text-muted small py-3 bg-light border-0">
-
-      © 2026 Gohe-Dev - Todos los derechos reservados
-
+      © 2026 Gohe-Dev
     </div>
-
   </div>
-
 </div>

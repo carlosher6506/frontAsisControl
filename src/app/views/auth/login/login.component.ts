@@ -10,6 +10,7 @@ import { RegisterService } from '../../../core/services/register.service';
 
 type Tab = 'login' | 'registro' | 'calificaciones' | 'recuperar';
 
+
 @Component({
   selector: 'app-login',
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
@@ -31,7 +32,14 @@ export class LoginComponent implements OnInit {
   showPassword = false;
   showPasswordRegistro = false;
 
+  emailNoVerificado = false;
+  emailParaReenvio = '';
+  enviandoVerificacion = false;
+  solicitandoReset = false;
+
   resultadoCalificacion: any = null;
+
+  resetForm!: FormGroup;
 
   constructor(
     private fb: FormBuilder,
@@ -41,6 +49,10 @@ export class LoginComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute
   ) {
+    this.resetForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]]
+    });
+
     if (this.authService.isAuthenticated()) {
       this.router.navigate(['/dashboard']);
     }
@@ -63,7 +75,8 @@ export class LoginComponent implements OnInit {
 
     this.recuperarForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
-    })
+    });
+
   }
 
   ngOnInit(): void {
@@ -74,16 +87,26 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  get email()    { return this.loginForm.get('email')!; }
-  get password() { return this.loginForm.get('password')!; }
+  get email()    {
+    return this.loginForm.get('email')!;
+  }
+
+  get password() {
+    return this.loginForm.get('password')!;
+  }
 
   cambiarTab(tab: Tab): void {
     this.tabActivo = tab;
     this.resultadoCalificacion = null;
   }
 
-  togglePassword(): void { this.showPassword = !this.showPassword; }
-  togglePasswordRegistro(): void { this.showPasswordRegistro = !this.showPasswordRegistro; }
+  togglePassword(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  togglePasswordRegistro(): void {
+    this.showPasswordRegistro = !this.showPasswordRegistro;
+  }
 
   onSubmit(): void {
     if (this.loginForm.invalid) {
@@ -91,19 +114,63 @@ export class LoginComponent implements OnInit {
       return;
     }
     this.isLoading = true;
+    this.emailNoVerificado = false;
     this.sweetAlert.loading('Iniciando sesión...', 'Verificando credenciales');
 
-    const credentials: LoginRequest = this.loginForm.value;
-    this.authService.login(credentials).subscribe({
+    this.authService.login(this.loginForm.value).subscribe({
       next: (response) => {
         this.sweetAlert.closeLoading();
         this.sweetAlert.toast(`¡Bienvenido, ${response.usuario.nombre}!`, 'success');
         this.router.navigate(['/dashboard']);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.isLoading = false;
         this.sweetAlert.closeLoading();
-        this.sweetAlert.error('Error al iniciar sesión', err.error?.message || 'Correo o contraseña incorrectos');
+        if (err.error?.code === 'EMAIL_NOT_VERIFIED') {
+          this.emailNoVerificado = true;
+          this.emailParaReenvio = this.loginForm.value.email;
+        } else {
+          this.sweetAlert.error('Error', err.error?.message || 'Correo o contraseña incorrectos');
+        }
+      }
+    });
+  }
+
+  onSolicitarReset(): void {
+    if (this.resetForm.invalid) {
+      this.resetForm.markAllAsTouched();
+      return;
+    }
+    this.solicitandoReset = true;
+
+    this.authService.solicitarReset(this.resetForm.value.email).subscribe({
+      next: () => {
+        this.solicitandoReset = false;
+        this.sweetAlert.success(
+          'Correo enviado',
+          'Si el correo existe, recibirás un enlace para restablecer tu contraseña.'
+        );
+        this.resetForm.reset();
+        this.tabActivo = 'login';
+      },
+      error: (err: any) => {
+        this.solicitandoReset = false;
+        this.sweetAlert.error('Error', err.error?.message || 'No se pudo procesar la solicitud');
+      }
+    });
+  }
+
+  reenviarVerificacionLogin(): void {
+    this.enviandoVerificacion = true;
+    this.authService.reenviarVerificacion(this.emailParaReenvio).subscribe({
+      next: () => {
+        this.enviandoVerificacion = false;
+        this.sweetAlert.success('Correo enviado', 'Revisa tu bandeja de entrada.');
+        this.emailNoVerificado = false;
+      },
+      error: (err: any) => {
+        this.enviandoVerificacion = false;
+        this.sweetAlert.error('Error', err.error?.message || 'No se pudo reenviar');
       }
     });
   }

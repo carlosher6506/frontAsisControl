@@ -43,4 +43,20 @@ export class AuthService {
     const usuario = localStorage.getItem('usuario');
     return usuario ? JSON.parse(usuario) : null;
   }
+
+  solicitarReset(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/solicitar-reset`, { email });
+  }
+
+  resetPassword(token: string, password: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/reset-password`, { token, password });
+  }
+
+  verificarEmail(token: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/auth/verificar/${token}`);
+  }
+
+  reenviarVerificacion(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/reenviar-verificacion`, { email });
+  }
 }
