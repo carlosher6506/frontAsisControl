@@ -1,18 +1,17 @@
 export interface Alumno {
   id: number;
-  grupo_id: number;
   nombre: string;
   matricula: string;
-  grupo_nombre?: string;
-  nivel_academico?: string;
-  nivel_educativo?: string;
-  ciclo_escolar?: string;
+  nivel_educativo: string;
+  nivel_academico: string;
+  grupo_id: number;
+  grupo_nombre: string;
+  ciclo_escolar: string;
 }
 
 export interface CrearAlumno {
-  grupo_id: number;
   nombre: string;
-  matricula: string;
+  grupo_id: number;
 }
 
 export interface ActualizarAlumno {

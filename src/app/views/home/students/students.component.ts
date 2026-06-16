@@ -12,6 +12,11 @@ import { NivelEducativo } from '../../../core/models/education-level.model';
 import { NivelAcademico } from '../../../core/models/academic-level.model';
 import * as XLSX from 'xlsx';
 
+interface NivelConAlumnos {
+  nombre: string;
+  alumnos: Alumno[];
+}
+
 @Component({
   selector: 'app-students',
   standalone: true,
@@ -28,8 +33,6 @@ export class StudentsComponent implements OnInit {
 
   nivelEducativoSeleccionado: number | null = null;
   nivelAcademicoSeleccionado: number | null = null;
-
-  // Grupos seleccionados en edición (múltiple)
   gruposSeleccionados: number[] = [];
 
   isLoading = true;
@@ -38,7 +41,14 @@ export class StudentsComponent implements OnInit {
   alumnoSeleccionado: Alumno | null = null;
   textoBusqueda = '';
 
-  alumnosExcel: { nombre: string; matricula: string; grupo: string }[] = [];
+  // Tabs
+  tabActivo = 'todos';
+
+  // Paginación: mapa { nombreNivel -> paginaActual }
+  readonly pageSize = 15;
+  private paginasPorNivel: Map<string, number> = new Map();
+
+  alumnosExcel: { nombre: string; nivel_educativo: string; grado: string; grupo: string }[] = [];
   importando = false;
 
   form: FormGroup;
@@ -52,9 +62,8 @@ export class StudentsComponent implements OnInit {
     private fb: FormBuilder
   ) {
     this.form = this.fb.group({
-      nombre:    ['', [Validators.required, Validators.minLength(3)]],
-      matricula: ['', Validators.required],
-      grupo_id:  ['', Validators.required]
+      nombre:   ['', [Validators.required, Validators.minLength(3)]],
+      grupo_id: ['', Validators.required]
     });
   }
 
@@ -62,9 +71,14 @@ export class StudentsComponent implements OnInit {
     this.cargarDatos();
   }
 
-  get nombre()    { return this.form.get('nombre')!; }
-  get matricula() { return this.form.get('matricula')!; }
-  get grupo_id()  { return this.form.get('grupo_id')!; }
+  // ─── Form getters ───────────────────────────────────────
+  get nombre()   { return this.form.get('nombre')!; }
+  get grupo_id() { return this.form.get('grupo_id')!; }
+
+  // ─── Búsqueda ────────────────────────────────────────────
+  onBusqueda(): void {
+    this.paginasPorNivel.clear();
+  }
 
   get alumnosFiltrados(): Alumno[] {
     if (!this.textoBusqueda.trim()) return this.alumnos;
@@ -75,6 +89,61 @@ export class StudentsComponent implements OnInit {
     );
   }
 
+  // ─── Tablas por nivel educativo ──────────────────────────
+  get nivelesConAlumnos(): NivelConAlumnos[] {
+    const mapa = new Map<string, Alumno[]>();
+    for (const alumno of this.alumnosFiltrados) {
+      const nivel = alumno.nivel_educativo || 'Sin nivel';
+      if (!mapa.has(nivel)) mapa.set(nivel, []);
+      mapa.get(nivel)!.push(alumno);
+    }
+    return Array.from(mapa.entries()).map(([nombre, alumnos]) => ({ nombre, alumnos }));
+  }
+
+  get totalAlumnosFiltrados(): number {
+    return this.alumnosFiltrados.length;
+  }
+
+  // ─── Paginación ──────────────────────────────────────────
+  getPaginaActiva(nivel: NivelConAlumnos): number {
+    return this.paginasPorNivel.get(nivel.nombre) ?? 1;
+  }
+
+  getTotalPaginas(nivel: NivelConAlumnos): number {
+    return Math.ceil(nivel.alumnos.length / this.pageSize);
+  }
+
+  getPaginas(nivel: NivelConAlumnos): number[] {
+    const total = this.getTotalPaginas(nivel);
+    const actual = this.getPaginaActiva(nivel);
+    const paginas: number[] = [];
+    const rango = 2;
+    for (let i = Math.max(1, actual - rango); i <= Math.min(total, actual + rango); i++) {
+      paginas.push(i);
+    }
+    return paginas;
+  }
+
+  getPaginaActual(nivel: NivelConAlumnos): Alumno[] {
+    const pagina = this.getPaginaActiva(nivel);
+    const inicio = (pagina - 1) * this.pageSize;
+    return nivel.alumnos.slice(inicio, inicio + this.pageSize);
+  }
+
+  getPaginaInfo(nivel: NivelConAlumnos): string {
+    const pagina = this.getPaginaActiva(nivel);
+    const inicio = (pagina - 1) * this.pageSize + 1;
+    const fin = Math.min(pagina * this.pageSize, nivel.alumnos.length);
+    return `Mostrando ${inicio}–${fin} de ${nivel.alumnos.length}`;
+  }
+
+  cambiarPagina(nivel: NivelConAlumnos, pagina: number): void {
+    const total = this.getTotalPaginas(nivel);
+    if (pagina < 1 || pagina > total) return;
+    this.paginasPorNivel.set(nivel.nombre, pagina);
+  }
+
+  // ─── Selects dependientes ────────────────────────────────
   get nivelesAcademicosFiltrados(): NivelAcademico[] {
     if (!this.nivelEducativoSeleccionado) return [];
     return this.nivelesAcademicos.filter(
@@ -89,17 +158,6 @@ export class StudentsComponent implements OnInit {
     );
   }
 
-  cargarDatos(): void {
-    this.isLoading = true;
-    this.studentsService.obtenerAlumnos().subscribe({
-      next: (data) => { this.alumnos = data; this.isLoading = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos'); this.isLoading = false; }
-    });
-    this.groupsService.obtenerGrupos().subscribe({ next: (data) => this.grupos = data });
-    this.educationLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesEducativos = data });
-    this.academicLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesAcademicos = data });
-  }
-
   onNivelEducativoChange(): void {
     this.nivelAcademicoSeleccionado = null;
     this.form.get('grupo_id')!.setValue('');
@@ -111,20 +169,28 @@ export class StudentsComponent implements OnInit {
     this.gruposSeleccionados = [];
   }
 
-  // Toggle selección de grupo en modo edición
   toggleGrupo(grupoId: number): void {
     const idx = this.gruposSeleccionados.indexOf(grupoId);
-    if (idx === -1) {
-      this.gruposSeleccionados.push(grupoId);
-    } else {
-      this.gruposSeleccionados.splice(idx, 1);
-    }
+    idx === -1 ? this.gruposSeleccionados.push(grupoId) : this.gruposSeleccionados.splice(idx, 1);
   }
 
   isGrupoSeleccionado(grupoId: number): boolean {
     return this.gruposSeleccionados.includes(grupoId);
   }
 
+  // ─── Carga de datos ──────────────────────────────────────
+  cargarDatos(): void {
+    this.isLoading = true;
+    this.studentsService.obtenerAlumnos().subscribe({
+      next: (data) => { this.alumnos = data; this.isLoading = false; },
+      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos'); this.isLoading = false; }
+    });
+    this.groupsService.obtenerGrupos().subscribe({ next: (data) => this.grupos = data });
+    this.educationLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesEducativos = data });
+    this.academicLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesAcademicos = data });
+  }
+
+  // ─── Modal crear ─────────────────────────────────────────
   abrirModalCrear(): void {
     this.modoEdicion = false;
     this.alumnoSeleccionado = null;
@@ -132,30 +198,21 @@ export class StudentsComponent implements OnInit {
     this.nivelAcademicoSeleccionado = null;
     this.gruposSeleccionados = [];
     this.form.reset();
-    // Restaurar validadores para creación
-    this.form.get('matricula')!.setValidators(Validators.required);
     this.form.get('grupo_id')!.setValidators(Validators.required);
-    this.form.get('matricula')!.updateValueAndValidity();
     this.form.get('grupo_id')!.updateValueAndValidity();
   }
 
+  // ─── Modal editar ─────────────────────────────────────────
   abrirModalEditar(alumno: Alumno): void {
     this.modoEdicion = true;
     this.alumnoSeleccionado = alumno;
     this.gruposSeleccionados = [];
 
-    // Quitar validadores que no aplican en edición
-    this.form.get('matricula')!.clearValidators();
     this.form.get('grupo_id')!.clearValidators();
-    this.form.get('matricula')!.updateValueAndValidity();
     this.form.get('grupo_id')!.updateValueAndValidity();
 
-    this.form.patchValue({
-      nombre:    alumno.nombre,
-      matricula: alumno.matricula
-    });
+    this.form.patchValue({ nombre: alumno.nombre });
 
-    // Precargar nivel educativo/académico del alumno para mostrar grupos disponibles
     if (alumno.grupo_id) {
       const grupo = this.grupos.find(g => g.id === alumno.grupo_id);
       if (grupo) {
@@ -167,23 +224,15 @@ export class StudentsComponent implements OnInit {
       }
     }
 
-    // Cargar grupos actuales del alumno
     this.studentsService.obtenerGruposDeAlumno(alumno.id).subscribe({
-      next: (grupos) => {
-        this.gruposSeleccionados = grupos.map((g: any) => g.id);
-      },
-      error: () => {
-        // Si falla, al menos marcar el grupo principal
-        if (alumno.grupo_id) this.gruposSeleccionados = [alumno.grupo_id];
-      }
+      next: (grupos) => { this.gruposSeleccionados = grupos.map((g: any) => g.id); },
+      error: () => { if (alumno.grupo_id) this.gruposSeleccionados = [alumno.grupo_id]; }
     });
   }
 
+  // ─── Guardar ─────────────────────────────────────────────
   guardar(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.isSubmitting = true;
 
     if (this.modoEdicion && this.alumnoSeleccionado) {
@@ -192,44 +241,29 @@ export class StudentsComponent implements OnInit {
         this.isSubmitting = false;
         return;
       }
-
       const data = {
         nombre:    this.form.value.nombre,
-        matricula: this.form.value.matricula || this.alumnoSeleccionado.matricula,
         grupo_id:  this.gruposSeleccionados[0],
         grupo_ids: this.gruposSeleccionados
       };
-
       this.studentsService.actualizarAlumno(this.alumnoSeleccionado.id, data).subscribe({
-        next: () => {
-          this.sweetAlert.toast('Alumno actualizado', 'success');
-          this.cerrarModal();
-          this.cargarDatos();
-          this.isSubmitting = false;
-        },
-        error: (err) => {
-          this.sweetAlert.error('Error', err?.error?.message || 'No se pudo actualizar');
-          this.isSubmitting = false;
-        }
+        next: () => { this.sweetAlert.toast('Alumno actualizado', 'success'); this.cerrarModal(); this.cargarDatos(); this.isSubmitting = false; },
+        error: (err) => { this.sweetAlert.error('Error', err?.error?.message || 'No se pudo actualizar'); this.isSubmitting = false; }
       });
     } else {
+      // Crear: sin matrícula, el backend la genera
       const data: CrearAlumno = {
-        nombre:    this.form.value.nombre,
-        matricula: this.form.value.matricula,
-        grupo_id:  Number(this.form.value.grupo_id)
+        nombre:   this.form.value.nombre,
+        grupo_id: Number(this.form.value.grupo_id)
       };
       this.studentsService.crearAlumno(data).subscribe({
-        next: () => {
-          this.sweetAlert.toast('Alumno creado', 'success');
-          this.cerrarModal();
-          this.cargarDatos();
-          this.isSubmitting = false;
-        },
+        next: () => { this.sweetAlert.toast('Alumno creado', 'success'); this.cerrarModal(); this.cargarDatos(); this.isSubmitting = false; },
         error: () => { this.sweetAlert.error('Error', 'No se pudo crear el alumno'); this.isSubmitting = false; }
       });
     }
   }
 
+  // ─── Eliminar ─────────────────────────────────────────────
   async eliminar(alumno: Alumno): Promise<void> {
     const result = await this.sweetAlert.confirmDelete(`¿Eliminar a ${alumno.nombre}?`);
     if (result.isConfirmed) {
@@ -240,6 +274,7 @@ export class StudentsComponent implements OnInit {
     }
   }
 
+  // ─── Excel ───────────────────────────────────────────────
   onArchivoExcel(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -250,29 +285,48 @@ export class StudentsComponent implements OnInit {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(sheet);
       this.alumnosExcel = rows.map(r => ({
-        nombre:    r['nombre']    || r['Nombre']    || '',
-        matricula: r['matricula'] || r['Matricula'] || '',
-        grupo:     r['grupo']     || r['Grupo']     || ''
-      })).filter(r => r.nombre);
+        nombre:          r['nombre']          || r['Nombre']          || '',
+        nivel_educativo: r['nivel_educativo'] || r['Nivel Educativo'] || r['nivel educativo'] || '',
+        grado:           r['grado']           || r['Grado']           || '',
+        grupo:           r['grupo']           || r['Grupo']           || ''
+      })).filter(r => r.nombre && r.nivel_educativo && r.grado && r.grupo);
     };
     reader.readAsArrayBuffer(input.files[0]);
   }
 
   async importarExcel(): Promise<void> {
     if (!this.alumnosExcel.length) return;
-    const result = await this.sweetAlert.confirm(`¿Importar ${this.alumnosExcel.length} alumnos?`, '');
+    const result = await this.sweetAlert.confirm(`¿Importar ${this.alumnosExcel.length} alumnos?`, 'El sistema generará una matrícula única para cada uno');
     if (!result.isConfirmed) return;
 
     this.importando = true;
-    this.sweetAlert.loading('Importando...', 'Creando alumnos');
+    this.sweetAlert.loading('Importando...', 'Creando alumnos y generando matrículas');
     let exitosos = 0, fallidos = 0;
 
     for (const alumno of this.alumnosExcel) {
-      const grupo = this.grupos.find(g => g.nombre.toLowerCase() === alumno.grupo.toLowerCase());
+      // 1. Nivel educativo
+      const nivel = this.nivelesEducativos.find(
+        ne => ne.nombre.toLowerCase() === alumno.nivel_educativo.toLowerCase()
+      );
+      if (!nivel) { fallidos++; continue; }
+
+      // 2. Nivel académico (grado) dentro de ese nivel educativo
+      const nivelAcad = this.nivelesAcademicos.find(
+        na => na.nivel_educativo_id === nivel.id &&
+              na.nombre.toLowerCase() === alumno.grado.toLowerCase()
+      );
+      if (!nivelAcad) { fallidos++; continue; }
+
+      // 3. Grupo dentro de ese nivel académico
+      const grupo = this.grupos.find(
+        g => g.nivel_academico_id === nivelAcad.id &&
+             g.nombre.toLowerCase() === alumno.grupo.toLowerCase()
+      );
       if (!grupo) { fallidos++; continue; }
+
       try {
         await new Promise<void>((resolve, reject) => {
-          this.studentsService.crearAlumno({ nombre: alumno.nombre, matricula: alumno.matricula, grupo_id: grupo.id })
+          this.studentsService.crearAlumno({ nombre: alumno.nombre, grupo_id: grupo.id })
             .subscribe({ next: () => resolve(), error: () => reject() });
         });
         exitosos++;
@@ -282,10 +336,11 @@ export class StudentsComponent implements OnInit {
     this.sweetAlert.closeLoading();
     this.importando = false;
     this.alumnosExcel = [];
+
     if (fallidos === 0) {
-      this.sweetAlert.success('¡Importación exitosa!', `${exitosos} alumnos creados`);
+      this.sweetAlert.success('¡Importación exitosa!', `${exitosos} alumnos creados con matrícula automática`);
     } else {
-      this.sweetAlert.warning('Importación parcial', `${exitosos} creados, ${fallidos} fallaron`);
+      this.sweetAlert.warning('Importación parcial', `${exitosos} creados, ${fallidos} fallaron (nivel no encontrado o sin grupos)`);
     }
     this.cargarDatos();
     this.cerrarModalExcel();
@@ -294,15 +349,17 @@ export class StudentsComponent implements OnInit {
   descargarPlantilla(): void {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
-      ['nombre', 'matricula', 'grupo'],
-      ['Juan Pérez', '2024001', 'A'],
-      ['María García', '2024002', 'B'],
+      ['nombre', 'nivel_educativo', 'grado', 'grupo'],
+      ['Juan Pérez García',      'Primaria',      '1°',  'A'],
+      ['María García López',     'Secundaria',    '2°',  'B'],
+      ['Carlos Ruiz Martínez',   'Preparatoria',  '3°', 'A'],
     ]);
-    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
     XLSX.writeFile(wb, 'plantilla_alumnos.xlsx');
   }
 
+  // ─── Cerrar modales ──────────────────────────────────────
   cerrarModal(): void {
     this.form.reset();
     this.modoEdicion = false;

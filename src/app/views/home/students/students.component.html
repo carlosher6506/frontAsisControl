@@ -4,7 +4,6 @@
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
       <h4 class="fw-bold mb-1">Estudiantes</h4>
-      <p class="text-muted small mb-0">Gestión de alumnos del sistema</p>
     </div>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-dark"
@@ -20,126 +19,232 @@
   </div>
 
   <!-- Buscador -->
-  <div class="mb-3">
+  <div class="mb-4">
     <div class="input-group" style="max-width:340px;">
-      <span class="input-group-text bg-white border-end-0">
-        <i class="bi bi-search text-muted"></i>
+      <span class="input-group-text bg-primary opacity-50 border-end-0">
+        <i class="bi bi-search text-black"></i>
       </span>
       <input type="text" class="form-control border-start-0"
         placeholder="Buscar por nombre o matrícula..."
-        [(ngModel)]="textoBusqueda" />
+        [(ngModel)]="textoBusqueda"
+        (ngModelChange)="onBusqueda()" />
     </div>
   </div>
 
-  <!-- Tabla -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
+  @if (isLoading) {
+    <div class="d-flex justify-content-center py-5">
+      <div class="spinner-border text-dark"></div>
+    </div>
+  } @else if (nivelesConAlumnos.length === 0) {
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-person-x fs-1 d-block mb-2"></i>
+      <p class="mb-0">
+        {{ textoBusqueda ? 'No se encontraron resultados' : 'No hay alumnos registrados' }}
+      </p>
+    </div>
+  } @else {
 
-      @if (isLoading) {
-        <div class="d-flex justify-content-center py-5">
-          <div class="spinner-border text-dark"></div>
-        </div>
-      } @else if (alumnosFiltrados.length === 0) {
-        <div class="text-center py-5 text-muted">
-          <i class="bi bi-person-x fs-1 d-block mb-2"></i>
-          <p class="mb-0">
-            {{ textoBusqueda ? 'No se encontraron resultados' : 'No hay alumnos registrados' }}
-          </p>
-        </div>
-      } @else {
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-              <tr>
-                <th class="ps-4">#</th>
-                <th>Nombre</th>
-                <th>Matrícula</th>
-                <th>Nivel educativo</th>
-                <th>Grado/Semestre</th>
-                <th>Grupo</th>
-                <th>Ciclo escolar</th>
-                <th class="text-end pe-4">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (alumno of alumnosFiltrados; track alumno.id) {
-                <tr>
-                  <td class="ps-4 text-muted small">{{ alumno.id }}</td>
-                  <td class="fw-semibold">{{ alumno.nombre }}</td>
-                  <td>
-                    <span class="badge bg-secondary">{{ alumno.matricula }}</span>
-                  </td>
-                  <td class="small">{{ alumno.nivel_educativo }}</td>
-                  <td class="small">{{ alumno.nivel_academico }}</td>
-                  <td>
-                    <span class="badge bg-dark">{{ alumno.grupo_nombre }}</span>
-                  </td>
-                  <td class="small text-muted">{{ alumno.ciclo_escolar }}</td>
-                  <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-dark me-2"
-                      data-bs-toggle="modal" data-bs-target="#modalAlumno"
-                      (click)="abrirModalEditar(alumno)">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger"
-                      (click)="eliminar(alumno)">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
+    <!-- Tabs por nivel educativo -->
+    <ul class="nav nav-tabs mb-0 border-bottom-0" style="gap:2px;">
+      <li class="nav-item">
+        <button class="nav-link fw-semibold small"
+          [class.active]="tabActivo === 'todos'"
+          (click)="tabActivo = 'todos'">
+          Todos
+        </button>
+      </li>
+      @for (nivel of nivelesConAlumnos; track nivel.nombre) {
+        <li class="nav-item">
+          <button class="nav-link fw-semibold small"
+            [class.active]="tabActivo === nivel.nombre"
+            (click)="tabActivo = nivel.nombre">
+            {{ nivel.nombre }}
+            <span class="badge ms-1"
+              [class.bg-dark]="tabActivo===nivel.nombre"
+              [class.bg-secondary]="tabActivo!==nivel.nombre">
+              {{ nivel.alumnos.length }}
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+
+    <!-- Tablas por nivel -->
+    @for (nivel of nivelesConAlumnos; track nivel.nombre) {
+      @if (tabActivo === 'todos' || tabActivo === nivel.nombre) {
+        <div class="card border-0 shadow-sm mb-4"
+          [class.border-top-0]="tabActivo === nivel.nombre"
+          [style.border-top-left-radius]="tabActivo === nivel.nombre ? '0' : ''">
+
+          @if (tabActivo === 'todos') {
+            <div class="card-header bg-white border-bottom d-flex align-items-center gap-2 py-3 px-4">
+              <i class="bi bi-mortarboard-fill text-dark"></i>
+              <span class="fw-bold">{{ nivel.nombre }}</span>
+            </div>
+          }
+
+          <div class="card-body p-0">
+            @if (nivel.alumnos.length === 0) {
+              <div class="text-center py-4 text-muted small">
+                No hay alumnos en este nivel
+              </div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-dark">
+                    <tr>
+                      <th class="ps-4">Nombre</th>
+                      <th>Matrícula</th>
+                      <th>Grado/Semestre</th>
+                      <th>Grupo</th>
+                      <th>Ciclo escolar</th>
+                      <th class="text-end pe-4" style="width:110px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (alumno of getPaginaActual(nivel); track alumno.id) {
+                      <tr>
+                        <td class="ps-4 fw-semibold">{{ alumno.nombre }}</td>
+                        <td class="text-muted small font-monospace">{{ alumno.matricula }}</td>
+                        <td class="small">{{ alumno.nivel_academico }}</td>
+                        <td>
+                          <span class="badge bg-dark">{{ alumno.grupo_nombre }}</span>
+                        </td>
+                        <td class="small text-muted">{{ alumno.ciclo_escolar }}</td>
+                        <td class="text-end pe-4">
+                          <div class="d-flex justify-content-end gap-1">
+                            <button
+                              class="btn btn-sm btn-icon-action"
+                              title="Editar"
+                              data-bs-toggle="modal" data-bs-target="#modalAlumno"
+                              (click)="abrirModalEditar(alumno)">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button
+                              class="btn btn-sm btn-icon-danger"
+                              title="Eliminar"
+                              (click)="eliminar(alumno)">
+                              <i class="bi bi-trash3"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Paginación por nivel -->
+              @if (nivel.alumnos.length > pageSize) {
+                <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+                  <span class="text-muted small">
+                    {{ getPaginaInfo(nivel) }}
+                  </span>
+                  <nav>
+                    <ul class="pagination pagination-sm mb-0 gap-1">
+                      <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === 1">
+                        <button class="page-link border-0 rounded"
+                          (click)="cambiarPagina(nivel, getPaginaActiva(nivel) - 1)">
+                          <i class="bi bi-chevron-left"></i>
+                        </button>
+                      </li>
+                      @for (p of getPaginas(nivel); track p) {
+                        <li class="page-item" [class.active]="getPaginaActiva(nivel) === p">
+                          <button class="page-link border-0 rounded"
+                            (click)="cambiarPagina(nivel, p)">{{ p }}</button>
+                        </li>
+                      }
+                      <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === getTotalPaginas(nivel)">
+                        <button class="page-link border-0 rounded"
+                          (click)="cambiarPagina(nivel, getPaginaActiva(nivel) + 1)">
+                          <i class="bi bi-chevron-right"></i>
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
               }
-            </tbody>
-          </table>
+
+            }
+          </div>
         </div>
       }
+    }
+  }
 
-    </div>
-  </div>
 </div>
 
 <!-- ══════════ MODAL ALUMNO ══════════ -->
 <div class="modal fade" id="modalAlumno" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content border-0 shadow-lg">
 
-      <div class="modal-header bg-dark text-white border-0">
-        <h5 class="modal-title fw-bold">
-          <i class="bi bi-person me-2"></i>
-          {{ modoEdicion ? 'Editar alumno' : 'Nuevo alumno' }}
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      <div class="modal-header border-0 px-4 pt-4 pb-0">
+        <div class="d-flex align-items-center gap-3">
+          <div class="modal-icon-badge">
+            <i class="bi bi-person-badge"></i>
+          </div>
+          <div>
+            <h6 class="modal-title fw-bold mb-0">
+              {{ modoEdicion ? 'Editar alumno' : 'Nuevo alumno' }}
+            </h6>
+            <p class="text-muted mb-0" style="font-size:12px;">
+              {{ modoEdicion ? 'Modifica los datos del alumno' : 'Ingresa los datos del nuevo alumno' }}
+            </p>
+          </div>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-body p-4">
+      <div class="modal-body px-4 pt-3 pb-4">
         <form [formGroup]="form" novalidate>
 
           <!-- Nombre -->
           <div class="mb-3">
-            <label class="form-label fw-semibold small">Nombre completo</label>
-            <input type="text" class="form-control"
+            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Nombre completo</label>
+            <input type="text" class="form-control form-control"
               [class.is-invalid]="nombre.invalid && nombre.touched"
-              formControlName="nombre" placeholder="Ej: Juan Pérez" />
+              formControlName="nombre"
+              placeholder="Ej: Juan Pérez García" />
             <div class="invalid-feedback">
               @if (nombre.errors?.['required']) { El nombre es requerido }
               @if (nombre.errors?.['minlength']) { Mínimo 3 caracteres }
             </div>
           </div>
 
-          <!-- Matrícula (siempre visible) -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold small">Matrícula</label>
-            <input type="text" class="form-control"
-              [class.is-invalid]="matricula.invalid && matricula.touched"
-              formControlName="matricula" placeholder="Ej: 2024001" />
-            @if (!modoEdicion) {
-              <div class="invalid-feedback">La matrícula es requerida</div>
-            }
-          </div>
+          <!-- Matrícula: solo lectura al editar, generada auto al crear -->
+          @if (modoEdicion) {
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Matrícula</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">
+                  <i class="bi bi-hash text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0 bg-light text-muted"
+                  [value]="alumnoSeleccionado?.matricula"
+                  readonly />
+              </div>
+              <div class="form-text">La matrícula no puede modificarse</div>
+            </div>
+          } @else {
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Matrícula</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0">
+                  <i class="bi bi-magic text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0 bg-light text-muted"
+                  value="Se generará automáticamente"
+                  readonly />
+              </div>
+              <div class="form-text">El sistema asignará un número único al guardar</div>
+            </div>
+          }
 
-          <!-- Nivel Educativo (siempre visible) -->
+          <!-- Nivel Educativo -->
           <div class="mb-3">
-            <label class="form-label fw-semibold small">Nivel educativo</label>
-            <select class="form-select"
+            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Nivel educativo</label>
+            <select class="form-select form-select"
               [(ngModel)]="nivelEducativoSeleccionado"
               [ngModelOptions]="{standalone: true}"
               (change)="onNivelEducativoChange()">
@@ -153,8 +258,8 @@
           <!-- Grado / Semestre -->
           @if (nivelEducativoSeleccionado) {
             <div class="mb-3">
-              <label class="form-label fw-semibold small">Grado / Semestre</label>
-              <select class="form-select"
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Grado / Semestre</label>
+              <select class="form-select form-select"
                 [(ngModel)]="nivelAcademicoSeleccionado"
                 [ngModelOptions]="{standalone: true}"
                 (change)="onNivelAcademicoChange()">
@@ -166,21 +271,15 @@
             </div>
           }
 
-          <!-- Grupos disponibles -->
+          <!-- Grupos -->
           @if (nivelAcademicoSeleccionado) {
-            <div class="mb-3">
-              <label class="form-label fw-semibold small">
-                @if (modoEdicion) {
-                  Grupos asignados
-                  <span class="text-muted fw-normal">(selecciona uno o más)</span>
-                } @else {
-                  Grupo
-                }
+            <div class="mb-1">
+              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">
+                {{ modoEdicion ? 'Grupos asignados' : 'Grupo' }}
               </label>
 
               @if (!modoEdicion) {
-                <!-- Crear: select simple -->
-                <select class="form-select"
+                <select class="form-select form-select"
                   [class.is-invalid]="grupo_id.invalid && grupo_id.touched"
                   formControlName="grupo_id">
                   <option value="" disabled>Selecciona el grupo</option>
@@ -188,21 +287,19 @@
                     <option disabled>No hay grupos para este grado</option>
                   }
                   @for (g of gruposFiltrados; track g.id) {
-                    <option [value]="g.id">{{ g.nombre }}</option>
+                    <option [value]="g.id">Grupo {{ g.nombre }}</option>
                   }
                 </select>
                 <div class="invalid-feedback">El grupo es requerido</div>
               } @else {
-                <!-- Editar: checkboxes para múltiples grupos -->
                 @if (gruposFiltrados.length === 0) {
                   <p class="text-muted small">No hay grupos disponibles para este nivel</p>
                 } @else {
-                  <div class="d-flex flex-wrap gap-2">
+                  <div class="d-flex flex-wrap gap-2 mt-1">
                     @for (g of gruposFiltrados; track g.id) {
                       <button type="button"
-                        class="btn btn-sm"
-                        [class.btn-dark]="isGrupoSeleccionado(g.id)"
-                        [class.btn-outline-dark]="!isGrupoSeleccionado(g.id)"
+                        class="btn btn-sm grupo-toggle"
+                        [class.selected]="isGrupoSeleccionado(g.id)"
                         (click)="toggleGrupo(g.id)">
                         <i class="bi me-1"
                           [class.bi-check-circle-fill]="isGrupoSeleccionado(g.id)"
@@ -213,10 +310,10 @@
                     }
                   </div>
                   @if (gruposSeleccionados.length === 0) {
-                    <div class="text-danger small mt-1">Selecciona al menos un grupo</div>
+                    <div class="text-danger small mt-2">Selecciona al menos un grupo</div>
                   } @else {
-                    <div class="text-muted small mt-1">
-                      {{ gruposSeleccionados.length }} grupo(s) seleccionado(s)
+                    <div class="text-muted small mt-2">
+                      <i class="bi bi-check2 me-1"></i>{{ gruposSeleccionados.length }} grupo(s) seleccionado(s)
                     </div>
                   }
                 }
@@ -227,16 +324,16 @@
         </form>
       </div>
 
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+        <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button type="button" class="btn btn-dark"
+        <button type="button" class="btn btn-dark flex-fill"
           [disabled]="isSubmitting" (click)="guardar()">
           @if (isSubmitting) {
             <span class="spinner-border spinner-border-sm me-2"></span>
           }
-          {{ modoEdicion ? 'Actualizar' : 'Crear alumno' }}
+          {{ modoEdicion ? 'Guardar cambios' : 'Crear alumno' }}
         </button>
       </div>
 
@@ -247,59 +344,116 @@
 <!-- ══════════ MODAL EXCEL ══════════ -->
 <div class="modal fade" id="modalExcel" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow">
+    <div class="modal-content border-0 shadow-lg">
 
-      <div class="modal-header bg-dark text-white border-0">
-        <h5 class="modal-title fw-bold">
-          <i class="bi bi-file-earmark-excel me-2"></i>Importar desde Excel
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      <div class="modal-header border-0 px-4 pt-4 pb-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="excel-icon-badge">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+          </div>
+          <div>
+            <h6 class="modal-title fw-bold mb-0">Importar desde Excel</h6>
+            <p class="text-muted mb-0" style="font-size:12px;">Las matrículas se generan automáticamente</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-body p-4">
+      <div class="modal-body px-4 pb-4">
 
-        <!-- Instrucciones -->
-        <div class="alert alert-dark d-flex gap-3 align-items-start">
-          <i class="bi bi-info-circle fs-5 flex-shrink-0"></i>
-          <div class="small">
-            <p class="fw-semibold mb-1">El archivo Excel debe tener estas columnas:</p>
-            <p class="mb-0">
-              <span class="badge bg-secondary me-1">nombre</span>
-              <span class="badge bg-secondary me-1">matricula</span>
-              <span class="badge bg-secondary">grupo</span>
-              — El grupo debe coincidir exactamente con el nombre (A, B, C...)
-            </p>
+        <!-- Pasos -->
+        <div class="import-steps d-flex gap-3 mb-4">
+          <div class="import-step" [class.active]="alumnosExcel.length === 0">
+            <div class="step-number">1</div>
+            <div class="step-label">Descarga la plantilla</div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="import-step" [class.active]="alumnosExcel.length === 0">
+            <div class="step-number">2</div>
+            <div class="step-label">Llénala y súbela</div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="import-step" [class.active]="alumnosExcel.length > 0">
+            <div class="step-number">3</div>
+            <div class="step-label">Confirma e importa</div>
           </div>
         </div>
 
-        <!-- Input archivo -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold small">Selecciona el archivo</label>
-          <input type="file" class="form-control" accept=".xlsx,.xls"
-            (change)="onArchivoExcel($event)" />
+        <!-- Info columnas -->
+        <div class="columns-info mb-4">
+          <p class="small fw-semibold mb-2 text-muted text-uppercase" style="letter-spacing:.05em;">Columnas requeridas</p>
+          <div class="d-flex gap-2 flex-wrap">
+            <div class="col-badge">
+              <i class="bi bi-person me-1"></i>nombre
+            </div>
+            <div class="col-badge">
+              <i class="bi bi-mortarboard me-1"></i>nivel_educativo
+            </div>
+            <div class="col-badge">
+              <i class="bi bi-layers me-1"></i>grado
+            </div>
+            <div class="col-badge">
+              <i class="bi bi-people me-1"></i>grupo
+            </div>
+            <div class="col-badge col-badge-auto">
+              <i class="bi bi-magic me-1"></i>matricula - auto
+            </div>
+          </div>
+          <p class="small text-muted mt-2 mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Los valores deben coincidir exactamente con los nombres registrados en el sistema
+          </p>
         </div>
 
-        <!-- Preview -->
-        @if (alumnosExcel.length > 0) {
-          <div>
-            <p class="fw-semibold small mb-2">
-              Vista previa — {{ alumnosExcel.length }} alumnos encontrados:
-            </p>
-            <div class="table-responsive" style="max-height:250px; overflow-y:auto;">
-              <table class="table table-sm table-bordered align-middle mb-0">
-                <thead class="table-dark">
+        <!-- Zona de carga -->
+        @if (alumnosExcel.length === 0) {
+          <div class="upload-zone" (click)="fileInput.click()">
+            <i class="bi bi-cloud-upload fs-2 text-muted mb-2 d-block"></i>
+            <p class="fw-semibold mb-1">Arrastra tu archivo aquí</p>
+            <p class="text-muted small mb-3">o haz clic para seleccionar</p>
+            <span class="badge bg-light text-dark border">.xlsx &nbsp;·&nbsp; .xls</span>
+            <input #fileInput type="file" class="d-none" accept=".xlsx,.xls"
+              (change)="onArchivoExcel($event)" />
+          </div>
+        } @else {
+          <!-- Preview -->
+          <div class="preview-container">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div>
+                <span class="fw-semibold">Vista previa</span>
+                <span class="badge bg-dark ms-2">{{ alumnosExcel.length }} alumnos</span>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" (click)="alumnosExcel = []">
+                <i class="bi bi-x-lg me-1"></i>Limpiar
+              </button>
+            </div>
+            <div class="table-responsive preview-table">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
                   <tr>
                     <th>Nombre</th>
-                    <th>Matrícula</th>
+                    <th>Nivel educativo</th>
+                    <th>Grado</th>
                     <th>Grupo</th>
+                    <th class="text-muted">Matrícula</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (a of alumnosExcel; track a.matricula) {
+                  @for (a of alumnosExcel.slice(0,5); track a.nombre) {
                     <tr>
-                      <td>{{ a.nombre }}</td>
-                      <td>{{ a.matricula }}</td>
-                      <td>{{ a.grupo }}</td>
+                      <td class="fw-semibold small">{{ a.nombre }}</td>
+                      <td class="small">{{ a.nivel_educativo }}</td>
+                      <td class="small">{{ a.grado }}</td>
+                      <td class="small">{{ a.grupo }}</td>
+                      <td class="small text-muted fst-italic">Se generará</td>
+                    </tr>
+                  }
+                  @if (alumnosExcel.length > 5) {
+                    <tr>
+                      <td colspan="5" class="text-center text-muted small py-2">
+                        <i class="bi bi-three-dots me-1"></i>
+                        y {{ alumnosExcel.length - 5 }} alumno(s) más
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -310,10 +464,10 @@
 
       </div>
 
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-sm btn-outline-dark"
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+        <button type="button" class="btn btn-outline-dark btn-sm"
           (click)="descargarPlantilla()">
-          <i class="bi bi-download me-1"></i>Descargar plantilla
+          <i class="bi bi-download me-1"></i>Plantilla
         </button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
           Cancelar
