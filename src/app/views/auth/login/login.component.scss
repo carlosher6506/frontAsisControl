@@ -138,3 +138,22 @@
   }
 
 }
+
+.btn-google {
+  background: #fff;
+  border: 1.5px solid #dadce0;
+  color: #3c4043;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: #f8f9fa;
+    border-color: #bbb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}

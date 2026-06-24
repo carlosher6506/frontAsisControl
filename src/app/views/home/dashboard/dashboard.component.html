@@ -1,16 +1,14 @@
 <div class="dashboard-wrapper" [class.sidebar-collapsed]="!sidebarOpen">
 
-  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <!-- SIDEBAR -->
   <aside class="sidebar d-flex flex-column">
-
     <!-- Logo -->
     <div class="d-flex align-items-center gap-2 px-3 py-3">
       <img src="/images/Logo_5.png" alt="Logo" class="sidebar-logo" />
       @if (sidebarOpen) {
-        <span class="brand-name fw-bold text-white">AsistControl</span>
+        <span class="brand-name fw-bold text-white">AsisControl</span>
       }
     </div>
-
     <hr class="border-secondary mx-3 my-0" />
 
     <!-- Menú -->
@@ -21,8 +19,7 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
           class="nav-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none"
-          [title]="!sidebarOpen ? item.label : ''"
-        >
+          [title]="!sidebarOpen ? item.label : ''">
           <i class="bi bi-{{ item.icon }} nav-icon"></i>
           @if (sidebarOpen) {
             <span class="nav-label">{{ item.label }}</span>
@@ -30,12 +27,10 @@
         </a>
       }
     </nav>
-
     <hr class="border-secondary mx-3 my-0" />
-
   </aside>
 
-  <!-- ═══════════════ CONTENIDO ═══════════════ -->
+  <!-- CONTENIDO -->
   <div class="main-content d-flex flex-column">
 
     <!-- NAVBAR -->
@@ -48,7 +43,6 @@
 
       <!-- Derecha -->
       <div class="d-flex align-items-center gap-3">
-
         <div class="text-end d-none d-md-block">
           <p class="mb-0 fw-semibold small text-dark">{{ usuario?.nombre }}</p>
           <p class="mb-0 small text-info">{{ usuario?.rol }}</p>
@@ -60,8 +54,7 @@
             class="user-avatar-nav border-0 d-flex align-items-center justify-content-center"
             type="button"
             data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
+            aria-expanded="false">
             {{ usuario?.nombre?.charAt(0)?.toUpperCase() }}
           </button>
 
@@ -79,7 +72,6 @@
             </li>
           </ul>
         </div>
-
       </div>
     </nav>
 
@@ -87,6 +79,5 @@
     <main class="page-content flex-grow-1 p-4">
       <router-outlet />
     </main>
-
   </div>
 </div>

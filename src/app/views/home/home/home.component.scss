@@ -39,3 +39,61 @@ $accent: #e8560a;
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+
+//cards
+.avatar-usuario {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 50%;
+}
+
+.icono-dashboard {
+  width: 48px;
+  height: 48px;
+  font-size: 1.3rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+  background: #212529;
+  color: white;
+}
+
+
+.barra-actividad {
+  height: 5px;
+  border-radius: 4px;
+  background: var(--bs-secondary-bg);
+  overflow: hidden;
+}
+
+.barra-actividad-fill {
+  height: 100%;
+  transition: width .5s ease;
+}
+
+
+.barra-actividad {
+  height: 5px;
+  background: var(--bs-secondary-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barra-actividad-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.porcentaje-actividad {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+  min-width: 28px;
+  text-align: right;
+}

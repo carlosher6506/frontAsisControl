@@ -10,6 +10,8 @@ import { RegisterService } from '../../../core/services/register.service';
 
 type Tab = 'login' | 'registro' | 'calificaciones' | 'recuperar';
 
+declare const google: any;
+
 
 @Component({
   selector: 'app-login',
@@ -40,6 +42,9 @@ export class LoginComponent implements OnInit {
   resultadoCalificacion: any = null;
 
   resetForm!: FormGroup;
+
+  googleClientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
+  isLoadingGoogle = false;
 
   constructor(
     private fb: FormBuilder,
@@ -82,9 +87,21 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
       if (params['expired']) {
-        this.sweetAlert.warning('Sesión expirada', 'Tu sesión ha expirado. Inicia sesión nuevamente.');
+        this.sweetAlert.warning(
+          'Sesión expirada',
+          'Tu sesión ha expirado. Inicia sesión nuevamente.'
+        );
       }
     });
+
+    if (typeof google !== 'undefined') {
+      google.accounts.id.initialize({
+        client_id: this.googleClientId,
+        callback: (response: any) => this.handleGoogleResponse(response),
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+    }
   }
 
   get email()    {
@@ -212,6 +229,36 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.sweetAlert.error('No encontrado', err.error?.message || 'Matrícula no encontrada');
         this.isLoadingCalificacion = false;
+      }
+    });
+  }
+
+  // Nuevos métodos
+  loginConGoogle(): void {
+    const clientId = this.googleClientId;
+    const redirectUri = encodeURIComponent('http://localhost:4200/auth/callback');
+    const scope = encodeURIComponent('openid email profile');
+
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+
+    window.location.href = url;
+  }
+
+  handleGoogleResponse(response: any): void {
+    this.isLoadingGoogle = true;
+    this.sweetAlert.loading('Iniciando sesión...', 'Verificando con Google');
+
+    this.authService.loginConGoogle(response.credential).subscribe({
+      next: (res) => {
+        this.isLoadingGoogle = false;
+        this.sweetAlert.closeLoading();
+        this.sweetAlert.toast(`¡Bienvenido, ${res.usuario.nombre}!`, 'success');
+        this.router.navigate(['/dashboard']);
+      },
+      error: (err) => {
+        this.isLoadingGoogle = false;
+        this.sweetAlert.closeLoading();
+        this.sweetAlert.error('Error', err.error?.message || 'No se pudo autenticar con Google');
       }
     });
   }

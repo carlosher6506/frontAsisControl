@@ -59,4 +59,28 @@ export class AuthService {
   reenviarVerificacion(email: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/reenviar-verificacion`, { email });
   }
+
+  loginConGoogle(idToken: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${this.apiUrl}/auth/google`, { id_token: idToken })
+      .pipe(
+        tap(response => {
+          localStorage.setItem('token', response.token);
+          localStorage.setItem('usuario', JSON.stringify(response.usuario));
+          localStorage.setItem('login_time', Date.now().toString());
+        })
+      );
+  }
+
+  loginConGoogleCode(code: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${this.apiUrl}/auth/google-callback`, { code })
+      .pipe(
+        tap(response => {
+          localStorage.setItem('token', response.token);
+          localStorage.setItem('usuario', JSON.stringify(response.usuario));
+          localStorage.setItem('login_time', Date.now().toString());
+        })
+      );
+  }
 }

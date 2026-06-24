@@ -3,7 +3,7 @@
   <!-- Saludo -->
   <div class="mb-4">
     <h4 class="fw-bold mb-1">{{ getSaludo() }}, {{ usuario?.nombre }}</h4>
-    <p class="text-muted small mb-0">Bienvenido al panel de control de AsistControl</p>
+    <p class="text-muted small mb-0">Bienvenido al panel de control de AsisControl</p>
   </div>
 
   <!-- Stats -->
@@ -27,7 +27,7 @@
       }
     </div>
   } @else {
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 justify-content-center">
 
       <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm h-100">
@@ -97,12 +97,12 @@
   }
 
   <!-- Módulos -->
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white border-0 pt-3 pb-0">
       <h6 class="fw-bold mb-0">Acceso rápido</h6>
     </div>
     <div class="card-body">
-      <div class="row g-3">
+      <div class="row g-3 justify-content-center">
         @for (mod of modulosFiltrados; track mod.label) {
           <div class="col-6 col-md-3 col-lg-2">
             <a
@@ -112,7 +112,7 @@
                      justify-content-center"
               style="border-radius:12px; transition: all 0.2s ease;"
             >
-              <i class="bi bi-{{ mod.icon }} fs-2 mb-2" style="color:#e8560a;"></i>
+              <i class="bi bi-{{ mod.icon }} fs-2 mb-2" style="color:#008dceb9;"></i>
               <p class="fw-semibold small mb-1 text-dark">{{ mod.label }}</p>
               <p class="text-muted mb-0" style="font-size:0.75rem;">{{ mod.desc }}</p>
             </a>
@@ -122,4 +122,173 @@
     </div>
   </div>
 
-</div>
+  <!-- Analíticas — solo admin -->
+  @if (esAdmin) {
+
+  <div class="d-flex align-items-center gap-2 mb-3 mt-1">
+    <i class="bi bi-bar-chart-line-fill" style="color:#008dceb9; font-size:1.1rem;"></i>
+    <h6 class="fw-bold mb-0">Analíticas de uso</h6>
+  </div>
+
+  <!-- Tarjetas resumen -->
+  @if (resumenActividad) {
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <p class="text-muted mb-1" style="font-size:12px;">Total usuarios</p>
+            <h4 class="fw-bold mb-0">{{ usuariosActividad.length }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 h-100" style="background:#EAF3DE;">
+          <div class="card-body">
+            <p class="mb-1" style="font-size:12px; color:#3B6D11;">Activos</p>
+            <h4 class="fw-bold mb-0" style="color:#27500A;">{{ resumenActividad.activos }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 h-100" style="background:#FAEEDA;">
+          <div class="card-body">
+            <p class="mb-1" style="font-size:12px; color:#854F0B;">Poco activos</p>
+            <h4 class="fw-bold mb-0" style="color:#633806;">{{ resumenActividad.pocoActivos }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card border-0 h-100" style="background:#FCEBEB;">
+          <div class="card-body">
+            <p class="mb-1" style="font-size:12px; color:#A32D2D;">Inactivos / nunca</p>
+            <h4 class="fw-bold mb-0" style="color:#791F1F;">{{ resumenActividad.inactivos + resumenActividad.nunca }}</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Gráfica línea + dona -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+          <div>
+            <p class="fw-semibold mb-0 small">Actividad semanal</p>
+            <p class="text-muted mb-0" style="font-size:0.72rem;">Logins por día (últimos 7 días)</p>
+          </div>
+          <i class="bi bi-graph-up text-muted"></i>
+        </div>
+        <div class="card-body" style="height:200px;">
+          <canvas #chartActividad></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+          <div>
+            <p class="fw-semibold mb-0 small">Estado de cuentas</p>
+            <p class="text-muted mb-0" style="font-size:0.72rem;">Distribución de actividad</p>
+          </div>
+          <i class="bi bi-pie-chart text-muted"></i>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center gap-3" style="height:50px;">
+          @if (resumenActividad) {
+            <div class="d-flex flex-column gap-2" style="font-size:12px;">
+              <span class="d-flex align-items-center gap-2" style="color:var(--bs-secondary-color);">
+                <span style="width:10px;height:10px;border-radius:2px;background:#639922;flex-shrink:0;"></span>Activos — {{ resumenActividad.activos }}
+              </span>
+              <span class="d-flex align-items-center gap-2" style="color:var(--bs-secondary-color);">
+                <span style="width:10px;height:10px;border-radius:2px;background:#EF9F27;flex-shrink:0;"></span>Poco activos — {{ resumenActividad.pocoActivos }}
+              </span>
+              <span class="d-flex align-items-center gap-2" style="color:var(--bs-secondary-color);">
+                <span style="width:10px;height:10px;border-radius:2px;background:#E24B4A;flex-shrink:0;"></span>Inactivos — {{ resumenActividad.inactivos }}
+              </span>
+              <span class="d-flex align-items-center gap-2" style="color:var(--bs-secondary-color);">
+                <span style="width:10px;height:10px;border-radius:2px;background:#B4B2A9;flex-shrink:0;"></span>Nunca — {{ resumenActividad.nunca }}
+              </span>
+            </div>
+          }
+          <div style="height:180px; width:180px;">
+            <canvas #chartModulos></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfica barras por usuario -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+      <div>
+        <p class="fw-semibold mb-0 small">Logins totales por usuario</p>
+        <p class="text-muted mb-0" style="font-size:0.72rem;">Desde el registro de cuenta</p>
+      </div>
+      <i class="bi bi-bar-chart text-muted"></i>
+    </div>
+    <div class="card-body" style="height:220px;">
+      <canvas #chartBarras></canvas>
+    </div>
+  </div>
+
+  <!-- Cards de usuarios -->
+  <p class="fw-semibold small mb-2">Detalle por usuario</p>
+
+  @if (cargandoAdmin) {
+    <div class="text-center py-4 text-muted small">
+      <div class="spinner-border spinner-border-sm me-2"></div>Cargando usuarios...
+    </div>
+  } @else {
+    <div class="row g-3 mb-4">
+      @for (u of usuariosActividad; track u.id) {
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                  style="width:38px;height:38px;font-size:13px;font-weight:500; ">
+                  {{ getIniciales(u.nombre) }}
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                  <p class="fw-semibold mb-0 text-truncate" style="font-size:13px;">{{ u.nombre }}</p>
+                </div>
+                <span class="badge rounded-pill"
+                  style="font-size:11px;">
+                  {{ getEtiqueta(u.estado) }}
+                </span>
+              </div>
+
+              <div class="d-flex flex-column gap-1 mb-3" style="font-size:11px; color:var(--bs-secondary-color);">
+                <span><i class="bi bi-calendar3 me-1"></i>Registro: {{ u.creadoEn | date:'dd/MM/yyyy' }}</span>
+                <span><i class="bi bi-clock me-1"></i>
+                  {{ u.ultimoLogin ? 'Hace ' + u.diasInactivo + ' días' : 'Nunca ha ingresado' }}
+                </span>
+                <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ u.totalLogins }} logins totales</span>
+              </div>
+
+              <!-- Barra de actividad -->
+              <div class="d-flex align-items-center gap-2">
+
+              <div class="barra-actividad flex-grow-1">
+                <div
+                  class="barra-actividad-fill"
+                  [style.width.%]="getBarraActividad(u.totalLogins)"
+                  [style.background]="getColorBarra(u.estado)">
+                </div>
+              </div>
+
+              <span class="porcentaje-actividad">
+                {{ getBarraActividad(u.totalLogins) }}%
+              </span>
+
+            </div>
+
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+}

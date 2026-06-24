@@ -4,7 +4,6 @@ import { forkJoin, map, Observable, catchError, of } from 'rxjs';
 import { DashboardStats } from '../models/dashboard.model';
 import { ENV_ASIS } from '../../config/environment';
 
-
 @Injectable({
   providedIn: 'root'
 })
@@ -33,4 +32,20 @@ export class DashboardService {
       })
     );
   }
+
+  getUsuariosActividad(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/admin/usuarios-actividad`, {
+    });
+  }
+
+  getActividadSemanal(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/admin/actividad-semanal`, {
+    });
+  }
+
+  eliminarUsuario(id: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/users/${id}`, {
+    });
+  }
+
 }

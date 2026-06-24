@@ -3,6 +3,7 @@ import { LoginComponent } from './views/auth/login/login.component';
 import { authGuard } from './views/guards/auth.guard';
 import { noAuthGuard } from './views/guards/no-auth.guard';
 import { StudentGradesComponent } from './views/auth/student-grades/student-grades.component';
+import { AuthCallbackComponent } from './views/auth/auth-callback/auth-callback.component';
 
 export const routes: Routes = [
   {
@@ -15,6 +16,7 @@ export const routes: Routes = [
     component: LoginComponent,
     canActivate: [noAuthGuard]
   },
+  { path: 'auth/callback', component: AuthCallbackComponent },
   {
     path: 'student-grades',
     component: StudentGradesComponent
