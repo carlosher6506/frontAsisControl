@@ -4,14 +4,13 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { LoginRequest } from '../../../core/models/auth.model';
 import { ActivatedRoute } from '@angular/router'
 import { RegisterService } from '../../../core/services/register.service';
+import { ID_CLIENT } from '../../../config/environment'
 
 type Tab = 'login' | 'registro' | 'calificaciones' | 'recuperar';
 
 declare const google: any;
-
 
 @Component({
   selector: 'app-login',
@@ -43,7 +42,7 @@ export class LoginComponent implements OnInit {
 
   resetForm!: FormGroup;
 
-  googleClientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
+  googleClientId = ID_CLIENT;
   isLoadingGoogle = false;
 
   constructor(
@@ -233,10 +232,12 @@ export class LoginComponent implements OnInit {
     });
   }
 
+  // https://front-asis-control-3k4t.vercel.app
   // Nuevos métodos
   loginConGoogle(): void {
     const clientId = this.googleClientId;
-    const redirectUri = encodeURIComponent('http://localhost:4200/auth/callback');
+    //const clientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
+    const redirectUri = encodeURIComponent('https://front-asis-control-3k4t.vercel.app/auth/callback');
     const scope = encodeURIComponent('openid email profile');
 
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
