@@ -235,8 +235,8 @@ export class LoginComponent implements OnInit {
   // https://front-asis-control-3k4t.vercel.app
   // Nuevos métodos
   loginConGoogle(): void {
-    const clientId = this.googleClientId;
-    //const clientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
+    //const clientId = this.googleClientId;
+    const clientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
     const redirectUri = encodeURIComponent('https://front-asis-control-3k4t.vercel.app/auth/callback');
     const scope = encodeURIComponent('openid email profile');
 
