@@ -14,7 +14,7 @@
 }
 
 .search-box {
-  width: min(100%, 320px);
+  width: min(100%, 300px);
 }
 
 .search-icon,
@@ -27,14 +27,14 @@
 }
 
 .search-icon { left: .85rem; }
-.filter-icon { left: .8rem; }
+.filter-icon { left: .4rem; }
 
 .search-input,
 .role-filter .form-select {
-  min-height: 40px;
+  min-height: 30px;
   border: 1px solid #dee2e6;
   border-radius: .7rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
 
   &:focus {
     border-color: #212529;
@@ -42,8 +42,8 @@
   }
 }
 
-.search-input { padding-left: 2.35rem; }
-.role-filter .form-select { min-width: 175px; padding-left: 2.2rem; }
+.search-input { padding-left: 2.5rem; }
+.role-filter .form-select { min-width: 5px; padding-left: 1.4rem; }
 
 .btn-clear-filters {
   border: 0;
@@ -134,29 +134,99 @@
   &:hover { background: #dc3545; border-color: #dc3545; color: #fff; }
 }
 
-.pagination-bar {
-  align-items: center;
-  background: #f8f9fa;
-  border-top: 1px solid #edf0f2;
+/* ================= PAGINACIÓN ================= */
+
+.pagination {
   display: flex;
-  flex-wrap: wrap;
-  gap: .75rem;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.pagination .page-item {
+  list-style: none;
+}
+
+.pagination .page-link {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: none !important;
+  background: transparent !important;
+  color: #212529;
+
+  font-size: .9rem;
+  font-weight: 500;
+
+  border-radius: 10px;
+
+  box-shadow: none !important;
+  transition: .2s;
+}
+
+/* Hover */
+
+.pagination .page-link:hover {
+  background: #f2f2f2 !important;
+  color: #212529;
+}
+
+/* Página activa */
+
+.pagination .page-item.active .page-link {
+  background: #212529 !important;
+  color: #fff !important;
+}
+
+/* Flechas */
+
+.pagination .page-item:first-child .page-link,
+.pagination .page-item:last-child .page-link {
+  background: #f3f4f6 !important;
+  color: #6b7280;
+}
+
+/* Hover flechas */
+
+.pagination .page-item:first-child .page-link:hover,
+.pagination .page-item:last-child .page-link:hover {
+  background: #e9ecef !important;
+}
+
+/* Flechas deshabilitadas */
+
+.pagination .page-item.disabled .page-link {
+  background: #f3f4f6 !important;
+  color: #c5c5c5 !important;
+  pointer-events: none;
+}
+
+/* Elimina el borde azul al hacer click */
+
+.pagination .page-link:focus {
+  box-shadow: none !important;
+}
+
+/* Elimina el borde de Bootstrap */
+
+.pagination .page-link:focus-visible {
+  outline: none;
+}
+.pagination-bar {
+  display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: .8rem 1rem;
 }
 
-.pagination-summary {
-  color: #6c757d;
-  font-size: .8rem;
-}
-
-.pagination {
-  --bs-pagination-color: #212529;
-  --bs-pagination-hover-color: #212529;
-  --bs-pagination-hover-bg: #e9ecef;
-  --bs-pagination-focus-box-shadow: 0 0 0 .2rem rgba(33, 37, 41, .12);
-  --bs-pagination-active-bg: #212529;
-  --bs-pagination-active-border-color: #212529;
+.pagination-bar nav {
+  margin-left: auto;
 }
 
 @media (max-width: 576px) {

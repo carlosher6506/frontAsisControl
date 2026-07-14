@@ -61,7 +61,7 @@
             <!-- Grado -->
             <div class="filtro-panel-item">
               <label class="filtro-label">
-                <i class="bi bi-mortarboard me-2"></i>Grado / Semestre
+                <i class="bi me-2"></i>Grado / Semestre
               </label>
               <div class="filtro-opciones">
                 <button class="filtro-opcion"
@@ -82,7 +82,7 @@
             <!-- Grupo -->
             <div class="filtro-panel-item">
               <label class="filtro-label">
-                <i class="bi bi-people me-2"></i>Grupo
+                <i class="bi me-2"></i>Grupo
               </label>
               <div class="filtro-opciones">
                 <button class="filtro-opcion"
@@ -111,14 +111,6 @@
   }
 
   <!-- Contador -->
-  @for (nivel of nivelesConAlumnos; track nivel.nombre) {
-    @if (tabActivo === nivel.nombre) {
-      <span class="alumnos-count ms-auto">
-        <i class="bi bi-person-fill me-1"></i>
-        {{ getAlumnosFiltradosPorNivel(nivel).length }} alumnos
-      </span>
-    }
-  }
 </div>
 
   @if (isLoading) {

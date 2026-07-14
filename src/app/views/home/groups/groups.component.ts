@@ -42,7 +42,6 @@ export class GroupsComponent implements OnInit {
   grupoSeleccionado: Grupo | null = null;
   textoBusqueda = '';
 
-  // Selects encadenados
   nivelEducativoSeleccionado: number | null = null;
   nivelAcademicoSeleccionado: number | null = null;
 
@@ -78,7 +77,6 @@ export class GroupsComponent implements OnInit {
     });
   }
 
-  // En el constructor, ajusta el validador dinámicamente
   ngOnInit(): void {
     if (!this.esAdmin) {
       this.form.get('maestro_id')!.clearValidators();
@@ -118,13 +116,13 @@ export class GroupsComponent implements OnInit {
     const maestro = this.maestros.find(m => m.id === maestro_id);
     if (maestro) return maestro.nombre;
 
-    // Si es maestro y el grupo le pertenece, usa su propio nombre
     if (!this.esAdmin && this.usuario?.id === maestro_id) {
       return this.usuario.nombre;
     }
 
     return `Maestro ${maestro_id}`;
   }
+
   // ------ Cargar datos ------
   cargarDatos(): void {
     this.isLoading = true;
@@ -142,13 +140,11 @@ export class GroupsComponent implements OnInit {
       next: (data) => this.nivelesAcademicos = data
     });
 
-    // Solo admin necesita la lista completa de maestros
     if (this.esAdmin) {
       this.usersService.obtenerUsuarios().subscribe({
         next: (data) => this.maestros = data.filter(u => u.rol === 'maestro')
       });
     } else {
-      // Maestro se agrega a sí mismo en la lista
       if (this.usuario) {
         this.maestros = [this.usuario];
       }
