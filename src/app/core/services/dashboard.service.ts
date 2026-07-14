@@ -13,23 +13,27 @@ export class DashboardService {
 
   constructor(private http: HttpClient) {}
 
-  getStats(): Observable<DashboardStats> {
-    return forkJoin({
+  getStats(esAdmin: boolean = false): Observable<DashboardStats> {
+    const peticiones: any = {
       estudiantes:  this.http.get<any>(`${this.apiUrl}/students`).pipe(catchError(() => of([]))),
       grupos:       this.http.get<any>(`${this.apiUrl}/groups`).pipe(catchError(() => of([]))),
       evaluaciones: this.http.get<any>(`${this.apiUrl}/evaluations`).pipe(catchError(() => of([]))),
       tareas:       this.http.get<any>(`${this.apiUrl}/tasks`).pipe(catchError(() => of([]))),
-      usuarios:     this.http.get<any>(`${this.apiUrl}/users`).pipe(catchError(() => of([]))),
-    }).pipe(
-      map(data => {
-        return {
-          totalEstudiantes:  Array.isArray(data.estudiantes)  ? data.estudiantes.length  : 0,
-          totalGrupos:       Array.isArray(data.grupos)       ? data.grupos.length       : 0,
-          totalEvaluaciones: Array.isArray(data.evaluaciones) ? data.evaluaciones.length : 0,
-          totalTareas:       Array.isArray(data.tareas)       ? data.tareas.length       : 0,
-          totalUsuarios:     Array.isArray(data.usuarios)     ? data.usuarios.length     : 0,
-        };
-      })
+    };
+
+    // Solo admin puede ver usuarios
+    if (esAdmin) {
+      peticiones.usuarios = this.http.get<any>(`${this.apiUrl}/users`).pipe(catchError(() => of([])));
+    }
+
+    return forkJoin(peticiones).pipe(
+      map((data: any) => ({
+        totalEstudiantes:  Array.isArray(data.estudiantes)  ? data.estudiantes.length  : 0,
+        totalGrupos:       Array.isArray(data.grupos)       ? data.grupos.length       : 0,
+        totalEvaluaciones: Array.isArray(data.evaluaciones) ? data.evaluaciones.length : 0,
+        totalTareas:       Array.isArray(data.tareas)       ? data.tareas.length       : 0,
+        totalUsuarios:     esAdmin && Array.isArray(data.usuarios) ? data.usuarios.length : 0,
+      }))
     );
   }
 
@@ -40,11 +44,6 @@ export class DashboardService {
 
   getActividadSemanal(): Observable<any> {
     return this.http.get(`${this.apiUrl}/admin/actividad-semanal`, {
-    });
-  }
-
-  eliminarUsuario(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/users/${id}`, {
     });
   }
 

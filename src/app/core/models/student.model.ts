@@ -6,6 +6,7 @@ export interface Alumno {
   nivel_academico: string;
   grupo_id: number;
   grupo_nombre: string;
+  grupos_nombres: string[];
   ciclo_escolar: string;
 }
 

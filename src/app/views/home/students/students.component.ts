@@ -7,7 +7,7 @@ import { Alumno, CrearAlumno } from '../../../core/models/student.model';
 import { GroupsService } from '../../../core/services/groups.service';
 import { EducationLevelsService } from '../../../core/services/education-levels.service';
 import { AcademicLevelsService } from '../../../core/services/academic-levels.service';
-import { Grupo } from '../../../core/models/group.model';
+import { Grupo, } from '../../../core/models/group.model';
 import { NivelEducativo } from '../../../core/models/education-level.model';
 import { NivelAcademico } from '../../../core/models/academic-level.model';
 import * as XLSX from 'xlsx';
@@ -35,6 +35,10 @@ export class StudentsComponent implements OnInit {
   nivelAcademicoSeleccionado: number | null = null;
   gruposSeleccionados: number[] = [];
 
+  filtroGrado: { [nivel: string]: string } = {};
+  filtroGrupo: { [nivel: string]: string } = {};
+  filtroCiclo: { [nivel: string]: string } = {};
+
   isLoading = true;
   isSubmitting = false;
   modoEdicion = false;
@@ -43,6 +47,7 @@ export class StudentsComponent implements OnInit {
 
   // Tabs
   tabActivo = 'todos';
+  mostrarFiltros = false;
 
   // Paginación: mapa { nombreNivel -> paginaActual }
   readonly pageSize = 15;
@@ -182,13 +187,24 @@ export class StudentsComponent implements OnInit {
   cargarDatos(): void {
     this.isLoading = true;
     this.studentsService.obtenerAlumnos().subscribe({
-      next: (data) => { this.alumnos = data; this.isLoading = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos'); this.isLoading = false; }
+      next: (data) => { this.alumnos = data; this.isLoading = false;
+        if (this.nivelesConAlumnos.length > 0) {
+          this.tabActivo = this.nivelesConAlumnos[0].nombre;
+        }
+      },
+      error: () => {
+        this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos');
+        this.isLoading = false;
+      }
     });
     this.groupsService.obtenerGrupos().subscribe({ next: (data) => this.grupos = data });
     this.educationLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesEducativos = data });
     this.academicLevelsService.obtenerNiveles().subscribe({ next: (data) => this.nivelesAcademicos = data });
   }
+
+getGradosDeNivel(nivel: NivelConAlumnos): string[] {
+  return [...new Set(nivel.alumnos.map(a => a.nivel_academico).filter(Boolean))];
+}
 
   // ─── Modal crear ─────────────────────────────────────────
   abrirModalCrear(): void {
@@ -200,6 +216,101 @@ export class StudentsComponent implements OnInit {
     this.form.reset();
     this.form.get('grupo_id')!.setValidators(Validators.required);
     this.form.get('grupo_id')!.updateValueAndValidity();
+  }
+
+  getGruposDeNivel(nivel: NivelConAlumnos): string[] {
+    let alumnos = nivel.alumnos;
+    const grado = this.filtroGrado[nivel.nombre];
+    if (grado) alumnos = alumnos.filter(a => a.nivel_academico === grado);
+
+    // Recoger todos los grupos de todos los alumnos
+    const grupos = new Set<string>();
+    alumnos.forEach(a => {
+      if (a.grupos_nombres?.length) {
+        a.grupos_nombres.forEach(g => grupos.add(g));
+      } else if (a.grupo_nombre) {
+        grupos.add(a.grupo_nombre);
+      }
+    });
+    return [...grupos].sort();
+  }
+
+  getAlumnosFiltradosPorNivel(nivel: NivelConAlumnos): Alumno[] {
+    let alumnos = nivel.alumnos;
+    const grado = this.filtroGrado[nivel.nombre];
+    const grupo = this.filtroGrupo[nivel.nombre];
+    const ciclo = this.filtroCiclo[nivel.nombre];
+
+    if (grado) alumnos = alumnos.filter(a => a.nivel_academico === grado);
+    if (ciclo) alumnos = alumnos.filter(a => a.ciclo_escolar === ciclo);
+    if (grupo) alumnos = alumnos.filter(a =>
+      a.grupos_nombres?.includes(grupo) || a.grupo_nombre === grupo
+    );
+
+    // Sin duplicados
+    const vistos = new Set<number>();
+    return alumnos.filter(a => {
+      if (vistos.has(a.id)) return false;
+      vistos.add(a.id);
+      return true;
+    });
+  }
+
+  onFiltroGradoChange(nivel: NivelConAlumnos): void {
+    this.filtroGrupo[nivel.nombre] = '';
+    this.paginasPorNivel.clear();
+  }
+
+  onFiltroGrupoChange(): void {
+    this.paginasPorNivel.clear();
+  }
+
+  limpiarFiltros(nivel: NivelConAlumnos): void {
+    this.filtroGrado[nivel.nombre]  = '';
+    this.filtroGrupo[nivel.nombre]  = '';
+    this.filtroCiclo[nivel.nombre]  = '';
+    this.paginasPorNivel.clear();
+  }
+
+  getPaginaActualFiltrada(nivel: NivelConAlumnos): Alumno[] {
+    const alumnos = this.getAlumnosFiltradosPorNivel(nivel);
+    const pagina = this.getPaginaActiva(nivel);
+    const inicio = (pagina - 1) * this.pageSize;
+    return alumnos.slice(inicio, inicio + this.pageSize);
+  }
+
+  getTotalPaginasFiltradas(nivel: NivelConAlumnos): number {
+    return Math.ceil(this.getAlumnosFiltradosPorNivel(nivel).length / this.pageSize);
+  }
+
+  getPaginasFiltradas(nivel: NivelConAlumnos): number[] {
+    const total = this.getTotalPaginasFiltradas(nivel);
+    const actual = this.getPaginaActiva(nivel);
+    const paginas: number[] = [];
+    for (let i = Math.max(1, actual - 2); i <= Math.min(total, actual + 2); i++) {
+      paginas.push(i);
+    }
+    return paginas;
+  }
+
+  toggleFiltros(): void {
+    this.mostrarFiltros = !this.mostrarFiltros;
+  }
+
+  tieneFiltrosActivos(nivel: NivelConAlumnos): boolean {
+    return !!(this.filtroGrado[nivel.nombre] || this.filtroGrupo[nivel.nombre] || this.filtroCiclo[nivel.nombre]);
+  }
+
+  getPaginaInfoFiltrada(nivel: NivelConAlumnos): string {
+    const alumnos = this.getAlumnosFiltradosPorNivel(nivel);
+    const pagina = this.getPaginaActiva(nivel);
+    const inicio = (pagina - 1) * this.pageSize + 1;
+    const fin = Math.min(pagina * this.pageSize, alumnos.length);
+    return `Mostrando ${inicio}-${fin}`;
+  }
+
+  getCiclosDeNivel(nivel: NivelConAlumnos): string[] {
+    return [...new Set(nivel.alumnos.map(a => a.ciclo_escolar).filter(Boolean))];
   }
 
   // ─── Modal editar ─────────────────────────────────────────

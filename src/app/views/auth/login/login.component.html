@@ -36,12 +36,23 @@
       <!-- ====================== LOGIN ====================== -->
       @if (tabActivo === 'login') {
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+          @if (loginBloqueado) {
+            <div class="alert alert-warning small d-flex gap-2 align-items-start" role="alert">
+              <i class="bi bi-shield-lock-fill mt-1"></i>
+              <span>
+                Por seguridad, el acceso está temporalmente limitado. Intenta de nuevo en
+                {{ segundosBloqueo }} segundos.
+              </span>
+            </div>
+          }
+
           <!-- EMAIL -->
           <div class="mb-3">
-            <label class="form-label fw-semibold text-secondary small">Correo electrónico</label>
-            <input type="email" class="form-control bg-light"
+            <label for="login-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
+            <input id="login-email" type="email" class="form-control bg-light"
                    [class.is-invalid]="email.invalid && email.touched"
-                   formControlName="email"/>
+                   formControlName="email" autocomplete="username"
+                   autocapitalize="none" spellcheck="false" maxlength="254"/>
             <div class="invalid-feedback">
               @if (email.errors?.['required']) { El correo es requerido }
               @if (email.errors?.['email']) { Ingresa un correo válido }
@@ -50,17 +61,21 @@
 
           <!-- PASSWORD -->
           <div class="mb-3">
-            <label class="form-label fw-semibold text-secondary small">Contraseña</label>
+            <label for="login-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
             <div class="input-group">
-              <input [type]="showPassword ? 'text' : 'password'"
+              <input id="login-password" [type]="showPassword ? 'text' : 'password'"
                      class="form-control bg-light border-end-0"
                      [class.is-invalid]="password.invalid && password.touched"
-                     formControlName="password"/>
+                     formControlName="password" autocomplete="current-password" maxlength="256"/>
               <button type="button" class="btn btn-light border border-start-0"
-                      (click)="togglePassword()">
+                      (click)="showPassword = !showPassword"
+                      [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
                 <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
               </button>
             </div>
+            @if (password.invalid && password.touched) {
+              <div class="text-danger small mt-1">La contraseña es requerida.</div>
+            }
           </div>
 
           <!-- FORGOT PASSWORD -->
@@ -72,7 +87,7 @@
           </div>
 
           <!-- BOTÓN INICIAR SESIÓN -->
-          <button type="submit" class="btn btn-dark w-100 py-2 fw-bold" [disabled]="isLoading">
+          <button type="submit" class="btn btn-dark w-100 py-2 fw-bold" [disabled]="isLoading || loginBloqueado">
             @if (isLoading) {
               <span class="spinner-border spinner-border-sm me-2"></span>
               Iniciando...
@@ -133,25 +148,29 @@
         <form [formGroup]="registroForm" (ngSubmit)="onRegistro()" novalidate>
           <!-- NOMBRE -->
           <div class="mb-3">
-            <label class="form-label fw-semibold text-secondary small">Nombre completo</label>
-            <input type="text" class="form-control bg-light" formControlName="nombre"/>
+            <label for="registro-nombre" class="form-label fw-semibold text-secondary small">Nombre completo</label>
+            <input id="registro-nombre" type="text" class="form-control bg-light"
+                   formControlName="nombre" autocomplete="name" maxlength="120"/>
           </div>
 
           <!-- EMAIL -->
           <div class="mb-3">
-            <label class="form-label fw-semibold text-secondary small">Correo electrónico</label>
-            <input type="email" class="form-control bg-light" formControlName="email"/>
+            <label for="registro-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
+            <input id="registro-email" type="email" class="form-control bg-light"
+                   formControlName="email" autocomplete="email" autocapitalize="none"
+                   spellcheck="false" maxlength="254"/>
           </div>
 
           <!-- PASSWORD -->
           <div class="mb-3">
-            <label class="form-label fw-semibold text-secondary small">Contraseña</label>
+            <label for="registro-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
             <div class="input-group">
-              <input [type]="showPasswordRegistro ? 'text' : 'password'"
+              <input id="registro-password" [type]="showPasswordRegistro ? 'text' : 'password'"
                      class="form-control bg-light border-end-0"
-                     formControlName="password"/>
+                     formControlName="password" autocomplete="new-password" maxlength="256"/>
               <button type="button" class="btn btn-light border border-start-0"
-                      (click)="togglePasswordRegistro()">
+                      (click)="showPasswordRegistro = !showPasswordRegistro"
+                      [attr.aria-label]="showPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'">
                 <i class="bi" [class.bi-eye]="!showPasswordRegistro"
                    [class.bi-eye-slash]="showPasswordRegistro"></i>
               </button>
@@ -160,10 +179,11 @@
 
           <!-- CONFIRMAR PASSWORD -->
           <div class="mb-4">
-            <label class="form-label fw-semibold text-secondary small">Confirmar contraseña</label>
-            <input type="password" class="form-control bg-light" formControlName="confirmarPassword"/>
+            <label for="confirmar-password" class="form-label fw-semibold text-secondary small">Confirmar contraseña</label>
+            <input id="confirmar-password" type="password" class="form-control bg-light"
+                   formControlName="confirmarPassword" autocomplete="new-password" maxlength="256"/>
             <div class="text-danger small mt-1"
-                 *ngIf="registroForm.get('confirmarPassword')?.touched && registroForm.value.password !== registroForm.value.confirmarPassword">
+                 *ngIf="registroForm.get('confirmarPassword')?.touched && registroForm.errors?.['passwordMismatch']">
               Las contraseñas no coinciden
             </div>
           </div>
@@ -215,10 +235,11 @@
 
           <form [formGroup]="resetForm" (ngSubmit)="onSolicitarReset()" novalidate>
             <div class="mb-4">
-              <label class="form-label fw-semibold small">Correo electrónico</label>
-              <input type="email" class="form-control bg-light"
+              <label for="reset-email" class="form-label fw-semibold small">Correo electrónico</label>
+              <input id="reset-email" type="email" class="form-control bg-light"
                      [class.is-invalid]="resetForm.get('email')!.invalid && resetForm.get('email')!.touched"
-                     formControlName="email"/>
+                     formControlName="email" autocomplete="email" autocapitalize="none"
+                     spellcheck="false" maxlength="254"/>
               <div class="invalid-feedback">Ingresa un correo válido</div>
             </div>
 

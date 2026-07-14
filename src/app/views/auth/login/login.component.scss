@@ -115,6 +115,11 @@
   font-weight: 600;
   transition: .3s;
   color: #64748b;
+
+  &:focus-visible {
+    outline: 3px solid rgba(0, 141, 206, .45);
+    outline-offset: 2px;
+  }
 }
 
 .switch-btn.active {
@@ -156,4 +161,13 @@
   &:active:not(:disabled) {
     transform: translateY(0);
   }
+}
+
+.form-control:focus,
+.btn:focus-visible {
+  box-shadow: 0 0 0 .2rem rgba(0, 141, 206, .2);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
 }

@@ -1,109 +1,102 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { finalize, take } from 'rxjs';
+
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { ActivatedRoute } from '@angular/router'
 import { RegisterService } from '../../../core/services/register.service';
-import { ID_CLIENT } from '../../../config/environment'
+import { LoginRequest, RegistroRequest } from '../../../core/models/auth.model';
+import { GOOGLE_REDIRECT_URI, ID_CLIENT } from '../../../config/environment';
 
-type Tab = 'login' | 'registro' | 'calificaciones' | 'recuperar';
+type Tab = 'login' | 'registro' | 'recuperar';
 
-declare const google: any;
+interface AuthErrorResponse {
+  code?: 'AUTH_LOCKED' | 'EMAIL_NOT_VERIFIED';
+  retryAfterSeconds?: number;
+}
+
+const MAX_FAILED_ATTEMPTS = 6;
+const DEFAULT_LOCK_SECONDS = 15 * 60;
+const GOOGLE_STATE_KEY = 'oauth.google.state';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss'
+  styleUrl: './login.component.scss',
 })
-export class LoginComponent implements OnInit {
-
+export class LoginComponent implements OnInit, OnDestroy {
   tabActivo: Tab = 'login';
 
   loginForm: FormGroup;
   registroForm: FormGroup;
-  calificacionForm: FormGroup;
-  recuperarForm: FormGroup;
+  resetForm: FormGroup;
 
   isLoading = false;
   isLoadingRegistro = false;
-  isLoadingCalificacion = false;
+  isLoadingGoogle = false;
+  solicitandoReset = false;
+  enviandoVerificacion = false;
+
   showPassword = false;
   showPasswordRegistro = false;
-
   emailNoVerificado = false;
   emailParaReenvio = '';
-  enviandoVerificacion = false;
-  solicitandoReset = false;
+  segundosBloqueo = 0;
 
-  resultadoCalificacion: any = null;
+  readonly maxFailedAttempts = MAX_FAILED_ATTEMPTS;
+  readonly googleClientId = ID_CLIENT;
 
-  resetForm!: FormGroup;
-
-  googleClientId = ID_CLIENT;
-  isLoadingGoogle = false;
+  private bloqueoTimer?: ReturnType<typeof setInterval>;
 
   constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private registerService: RegisterService,
-    private sweetAlert: SweetAlertService,
-    private router: Router,
-    private route: ActivatedRoute
+    private readonly fb: FormBuilder,
+    private readonly authService: AuthService,
+    private readonly registerService: RegisterService,
+    private readonly sweetAlert: SweetAlertService,
+    private readonly router: Router,
+    private readonly route: ActivatedRoute,
   ) {
-    this.resetForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]]
-    });
-
-    if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
-    }
-
     this.loginForm = this.fb.group({
-      email:    ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+      password: ['', [Validators.required, Validators.maxLength(256)]],
     });
 
     this.registroForm = this.fb.group({
-      nombre:   ['', [Validators.required, Validators.minLength(3)]],
-      email:    ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmarPassword: ['', Validators.required]
-    });
+      nombre: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+      password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(256)]],
+      confirmarPassword: ['', Validators.required],
+    }, { validators: (control) => this.validarCoincidenciaPassword(control) });
 
-    this.calificacionForm = this.fb.group({
-      matricula: ['', Validators.required]
+    this.resetForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
     });
-
-    this.recuperarForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]]
-    });
-
   }
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
-      if (params['expired']) {
-        this.sweetAlert.warning(
-          'Sesión expirada',
-          'Tu sesión ha expirado. Inicia sesión nuevamente.'
-        );
+    if (this.authService.isAuthenticated()) {
+      void this.router.navigate(['/dashboard']);
+      return;
+    }
+
+    this.route.queryParamMap.pipe(take(1)).subscribe((params) => {
+      if (params.get('expired') === 'true') {
+        this.sweetAlert.warning('Sesión expirada', 'Inicia sesión nuevamente.');
+        void this.router.navigate([], { queryParams: {}, replaceUrl: true });
       }
     });
-
-    if (typeof google !== 'undefined') {
-      google.accounts.id.initialize({
-        client_id: this.googleClientId,
-        callback: (response: any) => this.handleGoogleResponse(response),
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-    }
   }
 
-  get email()    {
+  ngOnDestroy(): void {
+    this.detenerBloqueo();
+  }
+
+  get email() {
     return this.loginForm.get('email')!;
   }
 
@@ -111,156 +104,203 @@ export class LoginComponent implements OnInit {
     return this.loginForm.get('password')!;
   }
 
+  get loginBloqueado(): boolean {
+    return this.segundosBloqueo > 0;
+  }
+
   cambiarTab(tab: Tab): void {
     this.tabActivo = tab;
-    this.resultadoCalificacion = null;
-  }
-
-  togglePassword(): void {
-    this.showPassword = !this.showPassword;
-  }
-
-  togglePasswordRegistro(): void {
-    this.showPasswordRegistro = !this.showPasswordRegistro;
+    this.emailNoVerificado = false;
   }
 
   onSubmit(): void {
+    if (this.isLoading || this.loginBloqueado) return;
+
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
     }
+
+    const values = this.loginForm.getRawValue();
+    const credentials: LoginRequest = {
+      email: values.email.trim().toLowerCase(),
+      password: values.password,
+    };
+
     this.isLoading = true;
     this.emailNoVerificado = false;
     this.sweetAlert.loading('Iniciando sesión...', 'Verificando credenciales');
 
-    this.authService.login(this.loginForm.value).subscribe({
-      next: (response) => {
+    this.authService.login(credentials).subscribe({
+      next: async (response) => {
         this.sweetAlert.closeLoading();
-        this.sweetAlert.toast(`¡Bienvenido, ${response.usuario.nombre}!`, 'success');
-        this.router.navigate(['/dashboard']);
-      },
-      error: (err: any) => {
         this.isLoading = false;
+        this.loginForm.controls['password'].reset();
+        this.sweetAlert.toast(`¡Bienvenido, ${response.usuario.nombre}!`, 'success');
+        await this.router.navigate(['/dashboard']);
+      },
+      error: (error: HttpErrorResponse) => {
         this.sweetAlert.closeLoading();
-        if (err.error?.code === 'EMAIL_NOT_VERIFIED') {
-          this.emailNoVerificado = true;
-          this.emailParaReenvio = this.loginForm.value.email;
-        } else {
-          this.sweetAlert.error('Error', err.error?.message || 'Correo o contraseña incorrectos');
-        }
-      }
+        this.isLoading = false;
+        this.manejarErrorLogin(error);
+      },
     });
   }
 
   onSolicitarReset(): void {
+    if (this.solicitandoReset) return;
+
     if (this.resetForm.invalid) {
       this.resetForm.markAllAsTouched();
       return;
     }
-    this.solicitandoReset = true;
 
-    this.authService.solicitarReset(this.resetForm.value.email).subscribe({
+    const email = this.resetForm.getRawValue().email.trim().toLowerCase();
+    this.solicitandoReset = true;
+    this.sweetAlert.loading('Enviando...', 'Procesando tu solicitud');
+
+    this.authService.solicitarReset(email).subscribe({
       next: () => {
         this.solicitandoReset = false;
+        this.sweetAlert.closeLoading();
         this.sweetAlert.success(
-          'Correo enviado',
-          'Si el correo existe, recibirás un enlace para restablecer tu contraseña.'
+          'Solicitud recibida',
+          'Si el correo existe, recibirás un enlace para restablecer tu contraseña.',
         );
         this.resetForm.reset();
-        this.tabActivo = 'login';
+        this.cambiarTab('login');
       },
-      error: (err: any) => {
+      error: () => {
         this.solicitandoReset = false;
-        this.sweetAlert.error('Error', err.error?.message || 'No se pudo procesar la solicitud');
-      }
+        this.sweetAlert.closeLoading();
+        this.sweetAlert.error('Error', 'No fue posible procesar la solicitud. Intenta nuevamente más tarde.');
+      },
     });
   }
 
   reenviarVerificacionLogin(): void {
+    if (this.enviandoVerificacion || !this.emailParaReenvio) return;
+
     this.enviandoVerificacion = true;
-    this.authService.reenviarVerificacion(this.emailParaReenvio).subscribe({
-      next: () => {
-        this.enviandoVerificacion = false;
-        this.sweetAlert.success('Correo enviado', 'Revisa tu bandeja de entrada.');
-        this.emailNoVerificado = false;
-      },
-      error: (err: any) => {
-        this.enviandoVerificacion = false;
-        this.sweetAlert.error('Error', err.error?.message || 'No se pudo reenviar');
-      }
-    });
+    this.authService.reenviarVerificacion(this.emailParaReenvio)
+      .pipe(finalize(() => this.enviandoVerificacion = false))
+      .subscribe({
+        next: () => {
+          this.sweetAlert.success('Correo enviado', 'Revisa tu bandeja de entrada.');
+          this.emailNoVerificado = false;
+        },
+        error: () => {
+          this.sweetAlert.error('No fue posible reenviar el correo', 'Intenta nuevamente más tarde.');
+        },
+      });
   }
 
   onRegistro(): void {
+    if (this.isLoadingRegistro) return;
+
     if (this.registroForm.invalid) {
       this.registroForm.markAllAsTouched();
       return;
     }
+
+    const values = this.registroForm.getRawValue();
+    const data: RegistroRequest = {
+      nombre: values.nombre.trim(),
+      email: values.email.trim().toLowerCase(),
+      password: values.password,
+    };
+
     this.isLoadingRegistro = true;
-    this.registerService.registro(this.registroForm.value).subscribe({
+    this.sweetAlert.loading('Creando cuenta...', 'Un momento por favor');
+
+    this.registerService.registro(data).subscribe({
       next: () => {
-        this.sweetAlert.success('¡Cuenta creada!', 'Ya puedes iniciar sesión con tus credenciales');
+        this.isLoadingRegistro = false;
+        this.sweetAlert.closeLoading();
+        this.sweetAlert.success('¡Cuenta creada!', 'Revisa tu correo para verificar la cuenta.');
         this.registroForm.reset();
-        this.tabActivo = 'login';
-        this.isLoadingRegistro = false;
+        this.cambiarTab('login');
       },
-      error: (err) => {
-        this.sweetAlert.error('Error', err.error?.message || 'No se pudo crear la cuenta');
+      error: () => {
         this.isLoadingRegistro = false;
-      }
+        this.sweetAlert.closeLoading();
+        this.sweetAlert.error('Error', 'No fue posible crear la cuenta. Verifica la información e inténtalo más tarde.');
+      },
     });
   }
 
-  onConsultarCalificacion(): void {
-    if (this.calificacionForm.invalid) {
-      this.calificacionForm.markAllAsTouched();
+  async loginConGoogle(): Promise<void> {
+    if (this.isLoadingGoogle) return;
+
+    try {
+      this.isLoadingGoogle = true;
+      const state = this.generarTokenAleatorio();
+      sessionStorage.setItem(GOOGLE_STATE_KEY, state);
+
+      const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      url.searchParams.set('client_id', this.googleClientId);
+      url.searchParams.set('redirect_uri', GOOGLE_REDIRECT_URI);
+      url.searchParams.set('response_type', 'code');
+      url.searchParams.set('scope', 'openid email profile');
+      url.searchParams.set('state', state);
+      url.searchParams.set('prompt', 'select_account');
+
+      window.location.assign(url.toString());
+    } catch {
+      this.isLoadingGoogle = false;
+      this.sweetAlert.error('No se pudo iniciar Google', 'Intenta nuevamente más tarde.');
+    }
+  }
+
+  private manejarErrorLogin(error: HttpErrorResponse): void {
+    const payload = error.error as AuthErrorResponse | null;
+
+    if (error.status === 429 || payload?.code === 'AUTH_LOCKED') {
+      this.iniciarBloqueo(payload?.retryAfterSeconds ?? DEFAULT_LOCK_SECONDS);
+      this.sweetAlert.warning(
+        'Acceso temporalmente limitado',
+        `Alcanzaste el máximo de ${MAX_FAILED_ATTEMPTS} intentos. Intenta más tarde.`,
+      );
       return;
     }
-    this.isLoadingCalificacion = true;
-    this.resultadoCalificacion = null;
 
-    const matricula = this.calificacionForm.value.matricula;
-    this.registerService.consultarCalificaciones(matricula).subscribe({
-      next: (data) => {
-        this.resultadoCalificacion = data;
-        this.isLoadingCalificacion = false;
-      },
-      error: (err) => {
-        this.sweetAlert.error('No encontrado', err.error?.message || 'Matrícula no encontrada');
-        this.isLoadingCalificacion = false;
-      }
-    });
+    if (payload?.code === 'EMAIL_NOT_VERIFIED') {
+      this.emailNoVerificado = true;
+      this.emailParaReenvio = this.loginForm.getRawValue().email.trim().toLowerCase();
+      return;
+    }
+
+    this.sweetAlert.error('No se pudo iniciar sesión', 'Verifica tus credenciales e inténtalo nuevamente.');
   }
 
-  // https://front-asis-control-3k4t.vercel.app
-  // Nuevos métodos
-  loginConGoogle(): void {
-    //const clientId = this.googleClientId;
-    const clientId = '218667265692-vuiapu3a4mlq69sublje0psss4kh4eq3.apps.googleusercontent.com';
-    const redirectUri = encodeURIComponent('https://front-asis-control-3k4t.vercel.app/auth/callback');
-    const scope = encodeURIComponent('openid email profile');
+  private iniciarBloqueo(segundos: number): void {
+    const duracion = Math.min(Math.max(Math.ceil(segundos), 1), 60 * 60);
+    this.detenerBloqueo();
+    this.segundosBloqueo = duracion;
 
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
-
-    window.location.href = url;
+    this.bloqueoTimer = setInterval(() => {
+      this.segundosBloqueo--;
+      if (this.segundosBloqueo <= 0) this.detenerBloqueo();
+    }, 1000);
   }
 
-  handleGoogleResponse(response: any): void {
-    this.isLoadingGoogle = true;
-    this.sweetAlert.loading('Iniciando sesión...', 'Verificando con Google');
+  private detenerBloqueo(): void {
+    if (this.bloqueoTimer) {
+      clearInterval(this.bloqueoTimer);
+      this.bloqueoTimer = undefined;
+    }
+    this.segundosBloqueo = 0;
+  }
 
-    this.authService.loginConGoogle(response.credential).subscribe({
-      next: (res) => {
-        this.isLoadingGoogle = false;
-        this.sweetAlert.closeLoading();
-        this.sweetAlert.toast(`¡Bienvenido, ${res.usuario.nombre}!`, 'success');
-        this.router.navigate(['/dashboard']);
-      },
-      error: (err) => {
-        this.isLoadingGoogle = false;
-        this.sweetAlert.closeLoading();
-        this.sweetAlert.error('Error', err.error?.message || 'No se pudo autenticar con Google');
-      }
-    });
+  private validarCoincidenciaPassword(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('password')?.value;
+    const confirmacion = control.get('confirmarPassword')?.value;
+    return password && confirmacion && password !== confirmacion ? { passwordMismatch: true } : null;
+  }
+
+  private generarTokenAleatorio(): string {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   }
 }

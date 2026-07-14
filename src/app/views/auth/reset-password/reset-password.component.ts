@@ -1,16 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-reset-password',
+  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './reset-password.component.html',
   styleUrl: './reset-password.component.scss',
 })
-
 export class ResetPasswordComponent implements OnInit {
 
   form: FormGroup;
@@ -26,9 +26,13 @@ export class ResetPasswordComponent implements OnInit {
     private authService: AuthService
   ) {
     this.form = this.fb.group({
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
       confirmar: ['', Validators.required]
-    }, { validators: this.passwordsCoinciden });
+    }, { validators: (c: AbstractControl): ValidationErrors | null => {
+      const pass = c.get('password')?.value;
+      const confirmar = c.get('confirmar')?.value;
+      return pass === confirmar ? null : { noCoinciden: true };
+    }});
   }
 
   ngOnInit(): void {
@@ -41,21 +45,18 @@ export class ResetPasswordComponent implements OnInit {
     this.token = token;
   }
 
-  passwordsCoinciden(group: FormGroup) {
-    const pass = group.get('password')?.value;
-    const confirmar = group.get('confirmar')?.value;
-    return pass === confirmar ? null : { noCoinciden: true };
-  }
-
   onSubmit(): void {
-    if (this.form.invalid) {
+    if (this.form.invalid || this.isLoading) {
       this.form.markAllAsTouched();
       return;
     }
     this.isLoading = true;
 
     this.authService.resetPassword(this.token, this.form.value.password).subscribe({
-      next: () => { this.estado = 'exitoso'; },
+      next: () => {
+        this.isLoading = false; // ← faltaba
+        this.estado = 'exitoso';
+      },
       error: (err: any) => {
         this.isLoading = false;
         this.estado = 'error';

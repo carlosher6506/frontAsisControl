@@ -2,15 +2,13 @@
 
   <!-- Encabezado -->
   <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h4 class="fw-bold mb-1">Estudiantes</h4>
-    </div>
+    <h4 class="fw-bold mb-0">Estudiantes</h4>
     <div class="d-flex gap-2">
-      <button class="btn btn-outline-dark"
+      <button class="btn btn-outline-dark btn-sm"
         data-bs-toggle="modal" data-bs-target="#modalExcel">
         <i class="bi bi-file-earmark-excel me-2"></i>Importar Excel
       </button>
-      <button class="btn btn-dark"
+      <button class="btn btn-dark btn-sm"
         data-bs-toggle="modal" data-bs-target="#modalAlumno"
         (click)="abrirModalCrear()">
         <i class="bi bi-plus-lg me-2"></i>Nuevo alumno
@@ -18,18 +16,110 @@
     </div>
   </div>
 
+  <!-- Toolbar -->
+<div class="toolbar mb-3">
   <!-- Buscador -->
-  <div class="mb-4">
-    <div class="input-group" style="max-width:340px;">
-      <span class="input-group-text bg-primary opacity-50 border-end-0">
-        <i class="bi bi-search text-black"></i>
-      </span>
-      <input type="text" class="form-control border-start-0"
-        placeholder="Buscar por nombre o matrícula..."
-        [(ngModel)]="textoBusqueda"
-        (ngModelChange)="onBusqueda()" />
-    </div>
+  <div class="search-box">
+    <i class="bi bi-search search-icon"></i>
+    <input type="text" class="form-control search-input"
+      placeholder="Buscar por nombre o matrícula..."
+      [(ngModel)]="textoBusqueda"
+      (ngModelChange)="onBusqueda()" />
   </div>
+
+  <!-- Botón filtros -->
+  @for (nivel of nivelesConAlumnos; track nivel.nombre) {
+    @if (tabActivo === nivel.nombre) {
+      <div class="filtro-dropdown-wrapper">
+        <button class="btn-filtro"
+          [class.activo]="tieneFiltrosActivos(nivel)"
+          (click)="mostrarFiltros = !mostrarFiltros">
+          <i class="bi bi-funnel-fill me-2"></i>
+          Filtros
+          @if (tieneFiltrosActivos(nivel)) {
+            <span class="filtro-badge">
+              {{ (filtroGrado[nivel.nombre] ? 1 : 0) + (filtroGrupo[nivel.nombre] ? 1 : 0) }}
+            </span>
+          }
+          <i class="bi ms-2"
+            [class.bi-chevron-down]="!mostrarFiltros"
+            [class.bi-chevron-up]="mostrarFiltros">
+          </i>
+        </button>
+
+        @if (mostrarFiltros) {
+          <div class="filtro-panel">
+            <div class="filtro-panel-header">
+              <span class="fw-bold small">Filtrar por</span>
+              @if (tieneFiltrosActivos(nivel)) {
+                <button class="btn-limpiar-panel" (click)="limpiarFiltros(nivel)">
+                  <i class="bi bi-x-circle me-1"></i>Limpiar todo
+                </button>
+              }
+            </div>
+
+            <!-- Grado -->
+            <div class="filtro-panel-item">
+              <label class="filtro-label">
+                <i class="bi bi-mortarboard me-2"></i>Grado / Semestre
+              </label>
+              <div class="filtro-opciones">
+                <button class="filtro-opcion"
+                  [class.selected]="!filtroGrado[nivel.nombre]"
+                  (click)="filtroGrado[nivel.nombre] = ''; onFiltroGradoChange(nivel)">
+                  Todos
+                </button>
+                @for (grado of getGradosDeNivel(nivel); track grado) {
+                  <button class="filtro-opcion"
+                    [class.selected]="filtroGrado[nivel.nombre] === grado"
+                    (click)="filtroGrado[nivel.nombre] = grado; onFiltroGradoChange(nivel)">
+                    {{ grado }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Grupo -->
+            <div class="filtro-panel-item">
+              <label class="filtro-label">
+                <i class="bi bi-people me-2"></i>Grupo
+              </label>
+              <div class="filtro-opciones">
+                <button class="filtro-opcion"
+                  [class.selected]="!filtroGrupo[nivel.nombre]"
+                  (click)="filtroGrupo[nivel.nombre] = ''; onFiltroGrupoChange()">
+                  Todos
+                </button>
+                @for (grupo of getGruposDeNivel(nivel); track grupo) {
+                  <button class="filtro-opcion"
+                    [class.selected]="filtroGrupo[nivel.nombre] === grupo"
+                    (click)="filtroGrupo[nivel.nombre] = grupo; onFiltroGrupoChange()">
+                    Grupo {{ grupo }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="filtro-panel-footer">
+              <button class="btn btn-dark btn-sm w-100" (click)="mostrarFiltros = false">
+                <i class="bi bi-check2 me-1"></i>Aplicar
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- Contador -->
+  @for (nivel of nivelesConAlumnos; track nivel.nombre) {
+    @if (tabActivo === nivel.nombre) {
+      <span class="alumnos-count ms-auto">
+        <i class="bi bi-person-fill me-1"></i>
+        {{ getAlumnosFiltradosPorNivel(nivel).length }} alumnos
+      </span>
+    }
+  }
+</div>
 
   @if (isLoading) {
     <div class="d-flex justify-content-center py-5">
@@ -38,91 +128,58 @@
   } @else if (nivelesConAlumnos.length === 0) {
     <div class="text-center py-5 text-muted">
       <i class="bi bi-person-x fs-1 d-block mb-2"></i>
-      <p class="mb-0">
-        {{ textoBusqueda ? 'No se encontraron resultados' : 'No hay alumnos registrados' }}
-      </p>
+      <p class="mb-0">{{ textoBusqueda ? 'No se encontraron resultados' : 'No hay alumnos registrados' }}</p>
     </div>
   } @else {
 
-    <!-- Tabs por nivel educativo -->
-    <ul class="nav nav-tabs mb-0 border-bottom-0" style="gap:2px;">
-      <li class="nav-item">
-        <button class="nav-link fw-semibold small"
-          [class.active]="tabActivo === 'todos'"
-          (click)="tabActivo = 'todos'">
-          Todos
-        </button>
-      </li>
+    <!-- Tabs -->
+    <div class="tabs-wrapper mb-4">
       @for (nivel of nivelesConAlumnos; track nivel.nombre) {
-        <li class="nav-item">
-          <button class="nav-link fw-semibold small"
-            [class.active]="tabActivo === nivel.nombre"
-            (click)="tabActivo = nivel.nombre">
-            {{ nivel.nombre }}
-            <span class="badge ms-1"
-              [class.bg-dark]="tabActivo===nivel.nombre"
-              [class.bg-secondary]="tabActivo!==nivel.nombre">
-              {{ nivel.alumnos.length }}
-            </span>
-          </button>
-        </li>
+        <button class="tab-btn"
+          [class.active]="tabActivo === nivel.nombre"
+          (click)="tabActivo = nivel.nombre">
+          {{ nivel.nombre }}
+        </button>
       }
-    </ul>
+    </div>
 
-    <!-- Tablas por nivel -->
+    <!-- Contenido por tab -->
     @for (nivel of nivelesConAlumnos; track nivel.nombre) {
-      @if (tabActivo === 'todos' || tabActivo === nivel.nombre) {
-        <div class="card border-0 shadow-sm mb-4"
-          [class.border-top-0]="tabActivo === nivel.nombre"
-          [style.border-top-left-radius]="tabActivo === nivel.nombre ? '0' : ''">
-
-          @if (tabActivo === 'todos') {
-            <div class="card-header bg-white border-bottom d-flex align-items-center gap-2 py-3 px-4">
-              <i class="bi bi-mortarboard-fill text-dark"></i>
-              <span class="fw-bold">{{ nivel.nombre }}</span>
-            </div>
-          }
-
+      @if (tabActivo === nivel.nombre) {
+        <div class="card border-0 shadow-sm">
           <div class="card-body p-0">
-            @if (nivel.alumnos.length === 0) {
-              <div class="text-center py-4 text-muted small">
-                No hay alumnos en este nivel
+            @if (getAlumnosFiltradosPorNivel(nivel).length === 0) {
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-funnel fs-2 d-block mb-2"></i>
+                <p class="mb-0 small">No hay alumnos con estos filtros</p>
               </div>
             } @else {
               <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                  <thead class="table-dark">
+                  <thead class="thead-dark">
                     <tr>
                       <th class="ps-4">Nombre</th>
                       <th>Matrícula</th>
                       <th>Grado/Semestre</th>
                       <th>Grupo</th>
-                      <th>Ciclo escolar</th>
-                      <th class="text-end pe-4" style="width:110px;">Acciones</th>
+                      <th class="text-end pe-4" style="width:90px;">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    @for (alumno of getPaginaActual(nivel); track alumno.id) {
+                    @for (alumno of getPaginaActualFiltrada(nivel); track alumno.id) {
                       <tr>
                         <td class="ps-4 fw-semibold">{{ alumno.nombre }}</td>
                         <td class="text-muted small font-monospace">{{ alumno.matricula }}</td>
                         <td class="small">{{ alumno.nivel_academico }}</td>
-                        <td>
-                          <span class="badge bg-dark">{{ alumno.grupo_nombre }}</span>
-                        </td>
-                        <td class="small text-muted">{{ alumno.ciclo_escolar }}</td>
+                        <td><span class="badge bg-dark">{{ alumno.grupos_nombres }}</span></td>
                         <td class="text-end pe-4">
                           <div class="d-flex justify-content-end gap-1">
-                            <button
-                              class="btn btn-sm btn-icon-action"
-                              title="Editar"
+                            <button class="btn-accion btn-accion-edit" title="Editar"
                               data-bs-toggle="modal" data-bs-target="#modalAlumno"
                               (click)="abrirModalEditar(alumno)">
                               <i class="bi bi-pencil"></i>
                             </button>
-                            <button
-                              class="btn btn-sm btn-icon-danger"
-                              title="Eliminar"
+                            <button class="btn-accion btn-accion-delete" title="Eliminar"
                               (click)="eliminar(alumno)">
                               <i class="bi bi-trash3"></i>
                             </button>
@@ -134,12 +191,10 @@
                 </table>
               </div>
 
-              <!-- Paginación por nivel -->
-              @if (nivel.alumnos.length > pageSize) {
+              <!-- Paginación -->
+              @if (getAlumnosFiltradosPorNivel(nivel).length > pageSize) {
                 <div class="d-flex align-items-center justify-content-between px-4 py-3 border-top">
-                  <span class="text-muted small">
-                    {{ getPaginaInfo(nivel) }}
-                  </span>
+                  <span class="text-muted small">{{ getPaginaInfoFiltrada(nivel) }}</span>
                   <nav>
                     <ul class="pagination pagination-sm mb-0 gap-1">
                       <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === 1">
@@ -148,13 +203,13 @@
                           <i class="bi bi-chevron-left"></i>
                         </button>
                       </li>
-                      @for (p of getPaginas(nivel); track p) {
+                      @for (p of getPaginasFiltradas(nivel); track p) {
                         <li class="page-item" [class.active]="getPaginaActiva(nivel) === p">
                           <button class="page-link border-0 rounded"
                             (click)="cambiarPagina(nivel, p)">{{ p }}</button>
                         </li>
                       }
-                      <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === getTotalPaginas(nivel)">
+                      <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === getTotalPaginasFiltradas(nivel)">
                         <button class="page-link border-0 rounded"
                           (click)="cambiarPagina(nivel, getPaginaActiva(nivel) + 1)">
                           <i class="bi bi-chevron-right"></i>
@@ -164,14 +219,12 @@
                   </nav>
                 </div>
               }
-
             }
           </div>
         </div>
       }
     }
   }
-
 </div>
 
 <!-- ══════════ MODAL ALUMNO ══════════ -->

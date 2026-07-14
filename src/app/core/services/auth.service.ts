@@ -73,8 +73,10 @@ export class AuthService {
   }
 
   loginConGoogleCode(code: string): Observable<LoginResponse> {
+    const redirectUri = `${window.location.origin}/auth/callback`;
     return this.http
-      .post<LoginResponse>(`${this.apiUrl}/auth/google-callback`, { code })
+      .post<LoginResponse>(`${this.apiUrl}/auth/google-callback`, { code, redirect_uri: redirectUri})
+
       .pipe(
         tap(response => {
           localStorage.setItem('token', response.token);

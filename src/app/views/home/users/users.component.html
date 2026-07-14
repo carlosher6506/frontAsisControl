@@ -16,8 +16,47 @@
     </button>
   </div>
 
+  <div class="users-toolbar mb-3">
+    <div class="search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input
+        type="search"
+        class="form-control search-input"
+        [(ngModel)]="textoBusqueda"
+        (ngModelChange)="onFiltrosChange()"
+        placeholder="Buscar por nombre o rol"
+        aria-label="Buscar usuario por nombre o rol"
+      />
+    </div>
+
+    <div class="role-filter">
+      <i class="bi bi-funnel filter-icon"></i>
+      <select
+        class="form-select"
+        [(ngModel)]="rolFiltro"
+        (ngModelChange)="onFiltrosChange()"
+        aria-label="Filtrar por rol"
+      >
+        <option value="">Todos los roles</option>
+        @for (r of roles; track r) {
+          <option [value]="r">{{ r | uppercase }}</option>
+        }
+      </select>
+    </div>
+
+    @if (textoBusqueda || rolFiltro) {
+      <button type="button" class="btn-clear-filters" (click)="limpiarFiltros()">
+        <i class="bi bi-x-lg"></i> Limpiar filtros
+      </button>
+    }
+
+    <span class="users-count ms-md-auto">
+      {{ usuariosFiltrados.length }} {{ usuariosFiltrados.length === 1 ? 'USUARIO' : 'USUARIOS' }}
+    </span>
+  </div>
+
   <!-- Tabla -->
-  <div class="card border-0 shadow-sm">
+  <div class="card users-card border-0 shadow-sm">
     <div class="card-body p-0">
 
       @if (isLoading) {
@@ -29,49 +68,84 @@
           <i class="bi bi-people fs-1 d-block mb-2"></i>
           <p class="mb-0">No hay usuarios registrados</p>
         </div>
+      } @else if (usuariosFiltrados.length === 0) {
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-search fs-2 d-block mb-2"></i>
+          <p class="mb-2">No se encontraron usuarios con esos filtros</p>
+          <button type="button" class="btn btn-sm btn-outline-dark" (click)="limpiarFiltros()">
+            Limpiar filtros
+          </button>
+        </div>
       } @else {
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
+          <table class="table users-table table-hover align-middle mb-0">
+            <thead>
               <tr>
                 <th class="ps-4">#</th>
                 <th>Nombre</th>
                 <th>Email</th>
                 <th>Rol</th>
-                <th class="text-end pe-4">Acciones</th>
+                <th class="text-center pe-4 actions-column">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              @for (usuario of usuarios; track usuario.id) {
+              @for (usuario of usuariosPaginados; track usuario.id) {
                 <tr>
                   <td class="ps-4 text-muted small">{{ usuario.id }}</td>
                   <td class="fw-semibold">{{ usuario.nombre }}</td>
                   <td class="text-muted small">{{ usuario.email }}</td>
-                  <td>
-                    <span class="badge {{ getBadgeRol(usuario.rol) }}">
-                      {{ usuario.rol }}
-                    </span>
-                  </td>
-                  <td class="text-end pe-4">
-                    <button
-                      class="btn btn-sm btn-outline-dark me-2"
-                      data-bs-toggle="modal"
-                      data-bs-target="#modalUsuario"
-                      (click)="abrirModalEditar(usuario)"
-                    >
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button
-                      class="btn btn-sm btn-outline-danger"
-                      (click)="eliminar(usuario)"
-                    >
-                      <i class="bi bi-trash"></i>
-                    </button>
+                  <td><strong>{{ usuario.rol }}</strong></td>
+                  <td class="text-center pe-4">
+                    <div class="action-buttons">
+                      <button
+                        class="btn-action btn-action-edit"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalUsuario"
+                        (click)="abrirModalEditar(usuario)"
+                        title="Editar usuario"
+                        aria-label="Editar usuario"
+                      >
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button
+                        class="btn-action btn-action-delete"
+                        (click)="eliminar(usuario)"
+                        title="Eliminar usuario"
+                        aria-label="Eliminar usuario"
+                      >
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               }
             </tbody>
           </table>
+        </div>
+
+        <div class="pagination-bar">
+          <span class="pagination-summary">
+            Mostrando {{ primerRegistro }}–{{ ultimoRegistro }} de {{ usuariosFiltrados.length }}
+          </span>
+          <nav aria-label="Paginación de usuarios">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item" [class.disabled]="paginaActual === 1">
+                <button class="page-link" type="button" (click)="cambiarPagina(paginaActual - 1)" aria-label="Página anterior">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+              </li>
+              @for (pagina of paginas; track pagina) {
+                <li class="page-item" [class.active]="pagina === paginaActual">
+                  <button class="page-link" type="button" (click)="cambiarPagina(pagina)">{{ pagina }}</button>
+                </li>
+              }
+              <li class="page-item" [class.disabled]="paginaActual === totalPaginas">
+                <button class="page-link" type="button" (click)="cambiarPagina(paginaActual + 1)" aria-label="Página siguiente">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </li>
+            </ul>
+          </nav>
         </div>
       }
 
@@ -130,27 +204,24 @@
             </div>
           </div>
 
-          <!-- Password -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold small">
-              Contraseña
-              @if (modoEdicion) {
-                <span class="text-muted fw-normal">(dejar vacío para no cambiar)</span>
-              }
-            </label>
-            <input
-              type="password"
-              class="form-control"
-              [class.is-invalid]="password.invalid && password.touched"
-              [class.is-valid]="password.valid && password.touched"
-              formControlName="password"
-              placeholder="••••••••"
-            />
-            <div class="invalid-feedback">
-              @if (password.errors?.['required']) { La contraseña es requerida }
-              @if (password.errors?.['minlength']) { Mínimo 6 caracteres }
+          @if (!modoEdicion) {
+            <!-- Password: solo al crear usuarios -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Contraseña</label>
+              <input
+                type="password"
+                class="form-control"
+                [class.is-invalid]="password.invalid && password.touched"
+                [class.is-valid]="password.valid && password.touched"
+                formControlName="password"
+                placeholder="••••••••"
+              />
+              <div class="invalid-feedback">
+                @if (password.errors?.['required']) { La contraseña es requerida }
+                @if (password.errors?.['minlength']) { Mínimo 6 caracteres }
+              </div>
             </div>
-          </div>
+          }
 
           <!-- Rol -->
           <div class="mb-3">

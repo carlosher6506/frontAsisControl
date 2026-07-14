@@ -4,6 +4,8 @@ import { AuthService } from '../../../core/services/auth.service'
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
 import { CommonModule } from '@angular/common';
 
+const GOOGLE_STATE_KEY = 'oauth.google.state';
+
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
@@ -19,13 +21,19 @@ export class AuthCallbackComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const code = this.route.snapshot.queryParamMap.get('code');
+    const params = this.route.snapshot.queryParamMap;
+    const code = params.get('code');
+    const state = params.get('state');
+    const expectedState = sessionStorage.getItem(GOOGLE_STATE_KEY);
 
-    if (!code) {
-      this.sweetAlert.error('Error', 'No se recibió código de Google');
+    if (!code || !state || !expectedState || state !== expectedState) {
+      sessionStorage.removeItem(GOOGLE_STATE_KEY);
+      this.sweetAlert.error('Error', 'No se pudo validar la respuesta de Google');
       this.router.navigate(['/login']);
       return;
     }
+
+    sessionStorage.removeItem(GOOGLE_STATE_KEY);
 
     this.authService.loginConGoogleCode(code).subscribe({
       next: (res) => {

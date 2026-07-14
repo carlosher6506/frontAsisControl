@@ -1,13 +1,17 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { catchError, EMPTY, throwError } from 'rxjs';
 
 const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en ms
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
 
-  if (req.url.includes('/auth/login')) {
+  const rutasPublicas = ['/auth/login', '/auth/registro', '/auth/google', '/auth/google-callback'];
+  const esPublica = rutasPublicas.some(ruta => req.url.includes(ruta));
+
+  if (esPublica) {
     return next(req);
   }
 
@@ -22,7 +26,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       localStorage.removeItem('usuario');
       localStorage.removeItem('login_time');
       router.navigate(['/login'], { queryParams: { expired: true } });
-      return next(req);
+      return EMPTY;
     }
   }
 
@@ -30,7 +34,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const authReq = req.clone({
       headers: req.headers.set('Authorization', `Bearer ${token}`)
     });
-    return next(authReq);
+    return next(authReq).pipe(
+      catchError((error: HttpErrorResponse) => {
+        // Token inválido o expirado en el backend
+        if (error.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('usuario');
+          localStorage.removeItem('login_time');
+          router.navigate(['/login'], { queryParams: { expired: true } });
+          return EMPTY; // ← cancela, no muestra error
+        }
+        return throwError(()=>error);
+      })
+    );
   }
 
   return next(req);
