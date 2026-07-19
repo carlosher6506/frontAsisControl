@@ -37,7 +37,7 @@
   box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
 
   &:focus {
-    border-color: #212529;
+    border-color: #6c757d;
     box-shadow: 0 0 0 .2rem rgba(33, 37, 41, .1);
   }
 }
@@ -78,7 +78,7 @@
     background: #212529;
     border: 0;
     color: #fff;
-    font-size: .75rem;
+    font-size: .85rem;
     letter-spacing: .06em;
     padding-bottom: .9rem;
     padding-top: .9rem;
@@ -87,7 +87,8 @@
   tbody td {
     border-color: #edf0f2;
     padding-bottom: .85rem;
-    padding-top: .85rem;
+    padding-top: 1rem;
+    font-size: .92rem;
   }
 
   tbody tr:last-child td { border-bottom: 0; }

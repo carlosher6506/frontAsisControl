@@ -2,87 +2,139 @@
 
   <!-- Encabezado -->
   <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h4 class="fw-bold mb-1">Grupos</h4>
-    </div>
-    <button class="btn btn-dark"
-      data-bs-toggle="modal" data-bs-target="#modalGrupo"
-      (click)="abrirModalCrear()">
+    <h4 class="fw-bold mb-0">Grupos</h4>
+    <button class="btn btn-dark btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#modalGrupo"
+            (click)="abrirModalCrear()">
       <i class="bi bi-plus-lg me-2"></i>Nuevo grupo
     </button>
   </div>
 
-  <!-- Buscador -->
-  <div class="mb-3">
-    <div class="input-group" style="max-width:340px;">
-      <span class="input-group-text bg-white border-end-0">
-        <i class="bi bi-search text-muted"></i>
-      </span>
-      <input type="text" class="form-control border-start-0"
-        placeholder="Buscar grupo..."
-        [(ngModel)]="textoBusqueda" />
+  <!-- Toolbar -->
+  <div class="users-toolbar mb-4">
+    <div class="search-box">
+      <span class="search-icon"><i class="bi bi-search"></i></span>
+      <input type="text" class="form-control search-input"
+             placeholder="Buscar grupo..."
+             [(ngModel)]="textoBusqueda"
+             (ngModelChange)="onBusqueda()" />
     </div>
   </div>
 
-  <!-- Tabla -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
+  <!-- Tabs por nivel educativo -->
+  <div class="tabs-wrapper mb-4">
+    @for (nivel of nivelesDisponibles; track nivel) {
+      <button class="tab-btn"
+              [class.active]="tabActivo === nivel"
+              (click)="cambiarTab(nivel)">
+        {{ nivel === 'todos' ? 'Todos' : nivel }}
+      </button>
+    }
+  </div>
 
-      @if (isLoading) {
-        <div class="d-flex justify-content-center py-5">
-          <div class="spinner-border text-dark"></div>
-        </div>
-      } @else if (gruposFiltrados.length === 0) {
-        <div class="text-center py-5 text-muted">
-          <i class="bi bi-collection fs-1 d-block mb-2"></i>
-          <p class="mb-0">{{ textoBusqueda ? 'No se encontraron resultados' : 'No hay grupos registrados' }}</p>
-        </div>
-      } @else {
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-              <tr>
-                <th class="ps-4">#</th>
-                <th>Grupo</th>
-                <th>Nivel</th>
-                <th>Ciclo escolar</th>
-                <th>Maestro</th>
-                <th class="text-end pe-4">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (grupo of gruposFiltrados; track grupo.id) {
-                <tr>
-                  <td class="ps-4 text-muted small">{{ grupo.id }}</td>
-                  <td><span class="badge bg-dark fs-6">{{ grupo.nombre }}</span></td>
-                  <td class="small">{{ getNombreNivel(grupo.nivel_academico_id) }}</td>
-                  <td><span class="badge bg-secondary">{{ getNombreCiclo(grupo.ciclo_escolar_id) }}</span></td>
-                  <td class="small">{{ getNombreMaestro(grupo.maestro_id) }}</td>
-                  <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-secondary me-2"
-                      data-bs-toggle="modal" data-bs-target="#modalAlumnos"
+  <!-- Estado cargando -->
+  @if (isLoading) {
+    <div class="d-flex justify-content-center py-5">
+      <div class="spinner-border text-dark"></div>
+    </div>
+
+  <!-- Estado vacío -->
+  } @else if (gruposFiltradosPorTab.length === 0) {
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-collection fs-1 d-block mb-2"></i>
+      <p class="mb-0">{{ textoBusqueda ? 'No se encontraron resultados' : 'No hay grupos en este nivel' }}</p>
+    </div>
+
+  <!-- Cards -->
+  } @else {
+    <div class="row g-4">
+      @for (grupo of gruposPaginados; track grupo.id) {
+        <div class="col-12 col-md-6 col-xl-4">
+          <div class="group-card">
+
+            <!-- Header -->
+            <div class="group-header">
+              <p class="mb-1 opacity-75 small fw-semibold text-uppercase" style="letter-spacing:.05em;">
+                {{ grupo.nivel_educativo || 'Sin nivel' }}
+              </p>
+              <h2 class="mb-0 fw-bold fs-4">
+                {{ grupo.nivel_academico }} · Grupo {{ grupo.nombre }}
+              </h2>
+              <p class="mb-0 mt-1 opacity-75 small">
+                <i class="bi bi-person me-1"></i>{{ getNombreMaestro(grupo.maestro_id) }}
+              </p>
+              <i class="bi bi-mortarboard-fill group-icon"></i>
+            </div>
+
+            <!-- Body -->
+            <div class="card-body-custom">
+              <button class="btn-main"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalAlumnos"
                       (click)="verAlumnos(grupo)">
-                      <i class="bi bi-people"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-dark me-2"
-                      data-bs-toggle="modal" data-bs-target="#modalGrupo"
-                      (click)="abrirModalEditar(grupo)">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger"
-                      (click)="eliminar(grupo)">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+                <i class="bi bi-people-fill me-2"></i>Ver alumnos
+              </button>
+
+              <div class="d-flex gap-2">
+                <button class="btn-action-text btn-action-list-text flex-fill"
+                        (click)="pasarLista(grupo)">
+                  <i class="bi bi-check2-circle"></i>Pasar lista
+                </button>
+                <button class="btn-action-text btn-action-edit-text flex-fill"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalGrupo"
+                        (click)="abrirModalEditar(grupo)">
+                  <i class="bi bi-pencil"></i>Editar
+                </button>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="card-footer-custom d-flex justify-content-between align-items-center">
+              <span class="text-muted small">
+                <i class="bi bi-calendar3 me-1"></i>{{ getNombreCiclo(grupo.ciclo_escolar_id) }}
+              </span>
+              <button class="btn-action-delete" (click)="eliminar(grupo)">
+                <i class="bi bi-trash me-1"></i>Eliminar
+              </button>
+            </div>
+
+          </div>
         </div>
       }
-
     </div>
-  </div>
+
+    <!-- Paginación -->
+    @if (totalPaginas > 1) {
+      <div class="d-flex align-items-center justify-content-between mt-4 px-1">
+        <span class="text-muted small">{{ getPaginaInfo() }}</span>
+        <nav>
+          <ul class="pagination pagination-sm mb-0 gap-1">
+            <li class="page-item" [class.disabled]="paginaActual === 1">
+              <button class="page-link border-0 rounded"
+                      (click)="cambiarPagina(paginaActual - 1)">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+            </li>
+            @for (p of paginas; track p) {
+              <li class="page-item" [class.active]="paginaActual === p">
+                <button class="page-link border-0 rounded"
+                        (click)="cambiarPagina(p)">{{ p }}</button>
+              </li>
+            }
+            <li class="page-item" [class.disabled]="paginaActual === totalPaginas">
+              <button class="page-link border-0 rounded"
+                      (click)="cambiarPagina(paginaActual + 1)">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    }
+  }
+
 </div>
 
 <!-- ══════════ MODAL GRUPO ══════════ -->
@@ -102,13 +154,12 @@
         <form [formGroup]="form" novalidate>
 
           @if (!modoEdicion) {
-
             <!-- Ciclo escolar -->
             <div class="mb-3">
               <label class="form-label fw-semibold small">Ciclo escolar</label>
               <select class="form-select"
-                [class.is-invalid]="ciclo_escolar_id.invalid && ciclo_escolar_id.touched"
-                formControlName="ciclo_escolar_id">
+                      [class.is-invalid]="ciclo_escolar_id.invalid && ciclo_escolar_id.touched"
+                      formControlName="ciclo_escolar_id">
                 <option value="" disabled>Selecciona el ciclo</option>
                 @for (ciclo of ciclos; track ciclo.id) {
                   <option [value]="ciclo.id">{{ ciclo.nombre }}</option>
@@ -121,9 +172,9 @@
             <div class="mb-3">
               <label class="form-label fw-semibold small">Nivel educativo</label>
               <select class="form-select"
-                [(ngModel)]="nivelEducativoSeleccionado"
-                [ngModelOptions]="{standalone: true}"
-                (change)="onNivelEducativoChange()">
+                      [(ngModel)]="nivelEducativoSeleccionado"
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="onNivelEducativoChange()">
                 <option [value]="null" disabled>Selecciona el nivel</option>
                 @for (nivel of nivelesEducativos; track nivel.id) {
                   <option [value]="nivel.id">{{ nivel.nombre }}</option>
@@ -136,8 +187,8 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold small">Grado / Semestre</label>
                 <select class="form-select"
-                  [class.is-invalid]="nivel_academico_id.invalid && nivel_academico_id.touched"
-                  formControlName="nivel_academico_id">
+                        [class.is-invalid]="nivel_academico_id.invalid && nivel_academico_id.touched"
+                        formControlName="nivel_academico_id">
                   <option value="" disabled>Selecciona el grado</option>
                   @for (na of nivelesAcademicosFiltrados; track na.id) {
                     <option [value]="na.id">{{ na.nombre }}</option>
@@ -146,16 +197,15 @@
                 <div class="invalid-feedback">El grado es requerido</div>
               </div>
             }
-
           }
 
           <!-- Nombre del grupo -->
           <div class="mb-3">
             <label class="form-label fw-semibold small">Nombre del grupo</label>
             <input type="text" class="form-control"
-              [class.is-invalid]="nombre.invalid && nombre.touched"
-              [class.is-valid]="nombre.valid && nombre.touched"
-              formControlName="nombre" placeholder="Ej: A, B, C" />
+                   [class.is-invalid]="nombre.invalid && nombre.touched"
+                   [class.is-valid]="nombre.valid && nombre.touched"
+                   formControlName="nombre" placeholder="Ej: A, B, C" />
             <div class="invalid-feedback">El nombre es requerido</div>
           </div>
 
@@ -164,12 +214,9 @@
             <div class="mb-3">
               <label class="form-label fw-semibold small">Maestro asignado</label>
               <select class="form-select"
-                [class.is-invalid]="maestro_id.invalid && maestro_id.touched"
-                formControlName="maestro_id">
+                      [class.is-invalid]="maestro_id.invalid && maestro_id.touched"
+                      formControlName="maestro_id">
                 <option value="" disabled>Selecciona el maestro</option>
-                @if (maestros.length === 0) {
-                  <option disabled>No hay maestros registrados</option>
-                }
                 @for (m of maestros; track m.id) {
                   <option [value]="m.id">{{ m.nombre }}</option>
                 }
@@ -179,8 +226,7 @@
           } @else {
             <div class="mb-3">
               <label class="form-label fw-semibold small">Maestro asignado</label>
-              <input type="text" class="form-control bg-light"
-                [value]="usuario?.nombre" disabled />
+              <input type="text" class="form-control bg-light" [value]="usuario?.nombre" disabled />
               <small class="text-muted">Se asignará automáticamente tu cuenta</small>
             </div>
           }
@@ -193,7 +239,8 @@
           Cancelar
         </button>
         <button type="button" class="btn btn-dark"
-          [disabled]="isSubmitting" (click)="guardar()">
+                [disabled]="isSubmitting"
+                (click)="guardar()">
           @if (isSubmitting) {
             <span class="spinner-border spinner-border-sm me-2"></span>
           }
@@ -211,17 +258,84 @@
     <div class="modal-content border-0 shadow">
 
       <div class="modal-header bg-dark text-white border-0">
-        <h5 class="modal-title fw-bold">
-          <i class="bi bi-people me-2"></i>
-          Alumnos del grupo {{ grupoViendoAlumnos?.nombre }}
-          <span class="fw-normal opacity-75 small ms-2">
-            {{ grupoViendoAlumnos ? getNombreNivel(grupoViendoAlumnos.nivel_academico_id) : '' }}
-          </span>
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div>
+          <h5 class="modal-title fw-bold mb-0">
+            <i class="bi bi-people me-2"></i>
+            Grupo {{ grupoViendoAlumnos?.nombre }}
+          </h5>
+          <small class="opacity-75">
+            {{ grupoViendoAlumnos?.nivel_educativo }} ·
+            {{ grupoViendoAlumnos?.nivel_academico }}
+          </small>
+        </div>
+        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body p-0">
+        <div class="border-bottom p-3 bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">Agregar alumnos</div>
+              <div class="small text-muted">
+                Solo se muestran alumnos de {{ grupoViendoAlumnos?.nivel_educativo }} · {{ grupoViendoAlumnos?.nivel_academico }}.
+              </div>
+            </div>
+            <button type="button" class="btn btn-dark btn-sm"
+                    [disabled]="cargandoAlumnos || alumnosDisponibles.length === 0"
+                    (click)="mostrandoSelectorAlumnos = !mostrandoSelectorAlumnos">
+              <i class="bi me-1" [class.bi-person-plus]="!mostrandoSelectorAlumnos"
+                 [class.bi-chevron-up]="mostrandoSelectorAlumnos"></i>
+              {{ mostrandoSelectorAlumnos ? 'Ocultar lista' : 'Agregar alumnos' }}
+            </button>
+          </div>
+
+          @if (mostrandoSelectorAlumnos) {
+            <div class="mt-3">
+              <div class="input-group mb-2">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" [(ngModel)]="textoBusquedaAlumnos"
+                       [ngModelOptions]="{standalone: true}"
+                       placeholder="Buscar por nombre o matrícula" />
+              </div>
+
+              <div class="border rounded bg-white" style="max-height: 230px; overflow-y: auto;">
+                @if (alumnosDisponiblesFiltrados.length === 0) {
+                  <p class="text-muted small text-center py-3 mb-0">No hay alumnos para mostrar.</p>
+                } @else {
+                  <label class="d-flex align-items-center gap-2 px-3 py-2 border-bottom small fw-semibold">
+                    <input class="form-check-input m-0" type="checkbox"
+                           [checked]="todosLosAlumnosVisiblesSeleccionados"
+                           (change)="alternarTodosLosAlumnos()" />
+                    Seleccionar todos los visibles
+                  </label>
+                  @for (alumno of alumnosDisponiblesFiltrados; track alumno.id) {
+                    <label class="d-flex align-items-center gap-2 px-3 py-2 border-bottom cursor-pointer">
+                      <input class="form-check-input m-0" type="checkbox"
+                             [checked]="estaAlumnoSeleccionado(alumno.id)"
+                             (change)="alternarAlumno(alumno.id)" />
+                      <span class="flex-grow-1 small fw-semibold">{{ alumno.nombre }}</span>
+                      <span class="text-muted small font-monospace">{{ alumno.matricula }}</span>
+                    </label>
+                  }
+                }
+              </div>
+
+              <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+                <span class="small text-muted">{{ alumnosSeleccionadosIds.length }} seleccionado(s)</span>
+                <button type="button" class="btn btn-success btn-sm"
+                        [disabled]="alumnosSeleccionadosIds.length === 0 || asignandoAlumno"
+                        (click)="asignarAlumnosAlGrupo()">
+                  @if (asignandoAlumno) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  } @else {
+                    <i class="bi bi-person-plus-fill me-1"></i>
+                  }
+                  Agregar seleccionados
+                </button>
+              </div>
+            </div>
+          }
+        </div>
         @if (cargandoAlumnos) {
           <div class="d-flex justify-content-center py-5">
             <div class="spinner-border text-dark"></div>
@@ -232,32 +346,45 @@
             <p class="mb-0">No hay alumnos en este grupo</p>
           </div>
         } @else {
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th class="ps-4">#</th>
-                <th>Nombre</th>
-                <th>Matrícula</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (alumno of alumnosDelGrupo; track alumno.id) {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
                 <tr>
-                  <td class="ps-4 text-muted small">{{ alumno.id }}</td>
-                  <td class="fw-semibold">{{ alumno.nombre }}</td>
-                  <td><span class="badge bg-secondary">{{ alumno.matricula }}</span></td>
+                  <th class="ps-4">Nombre</th>
+                  <th>Matrícula</th>
+                  <th class="text-end pe-4" style="width:80px;">Quitar</th>
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @for (alumno of alumnosDelGrupo; track alumno.id) {
+                  <tr>
+                    <td class="ps-4 fw-semibold">{{ alumno.nombre }}</td>
+                    <td><span class="badge bg-dark font-monospace">{{ alumno.matricula }}</span></td>
+                    <td class="text-end pe-4">
+                      <button class="btn-accion-quitar"
+                              title="Quitar del grupo"
+                              (click)="eliminarAlumnoDelGrupo(alumno)">
+                        <i class="bi bi-person-dash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
       </div>
 
-      <div class="modal-footer border-0">
+      <div class="modal-footer border-0 d-flex align-items-center">
         <span class="text-muted small me-auto">
-          {{ alumnosDelGrupo.length }} alumno(s) en este grupo
+          <i class="bi bi-people me-1"></i>{{ alumnosDelGrupo.length }} alumno(s)
         </span>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+        <button type="button"
+                class="btn btn-sm btn-outline-primary me-2"
+                (click)="pasarLista(grupoViendoAlumnos!)">
+          <i class="bi bi-check2-circle me-1"></i>Pase de lista
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
           Cerrar
         </button>
       </div>

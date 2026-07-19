@@ -10,11 +10,14 @@ export interface Alumno {
   ciclo_escolar: string;
 }
 
-export interface CrearAlumno {
-  nombre: string;
-  grupo_id: number;
-}
-
 export interface ActualizarAlumno {
   nombre: string;
+  nivel_educativo_id?: number | null;
+  grupo_id?: number | null;
+  grupo_ids?: number[];
+}
+
+export interface CrearAlumno {
+  nombre: string;
+  nivel_educativo_id?: number;
 }

@@ -30,6 +30,14 @@ export class StudentsService {
     return this.http.put<Alumno>(`${this.apiUrl}/${id}`, data);
   }
 
+  asignarAGrupo(alumno: Alumno, grupoIds: number[]): Observable<Alumno> {
+    return this.actualizarAlumno(alumno.id, {
+      nombre: alumno.nombre,
+      grupo_id: grupoIds[0],
+      grupo_ids: grupoIds
+    });
+  }
+
   eliminarAlumno(id: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
   }
@@ -41,4 +49,9 @@ export class StudentsService {
   obtenerGruposDeAlumno(id: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/${id}/grupos`);
   }
+
+  desasignarDeGrupo(alumnoId: number, grupoId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${alumnoId}/grupos/${grupoId}`);
+  }
+
 }

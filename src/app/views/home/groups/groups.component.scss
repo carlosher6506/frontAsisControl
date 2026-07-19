@@ -1,1 +1,250 @@
-@import 'bootstrap-icons/font/bootstrap-icons.css'
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+
+.group-card {
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    height: 100%;
+    background: white;
+    border: 1px solid #dee2e6;
+}
+
+.group-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+}
+
+.group-header {
+    background: #212529;
+    color: white;
+    padding: 1.25rem 1.35rem;
+    position: relative;
+}
+
+.group-header h5 {
+    margin: 0;
+    font-size: 1.32rem;
+    font-weight: 700;
+}
+
+.group-icon {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.25rem;
+    font-size: 2rem;
+    opacity: 0.3;
+}
+
+/* Body */
+.card-body-custom {
+    padding: 1.25rem 1.35rem 0.75rem;
+}
+
+/* Footer */
+.card-footer-custom {
+    padding: 0.75rem 1.35rem 1.25rem;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Botones principales */
+.btn-main {
+    width: 100%;
+    background: #212529;
+    color: white;
+    border: none;
+    border-radius: .7rem;
+    padding: 0.65rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+}
+
+/* Botones de acción con texto */
+.btn-action-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.5rem 0.9rem;
+    border-radius: .6rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all .2s ease;
+}
+
+.btn-action-edit-text {
+    background: #f8f9fa;
+    color: #292921;
+    border: 1px solid #dee2e6;
+}
+
+.btn-action-edit-text:hover {
+    background: #212529;
+    color: white;
+    border-color: #212529;
+}
+
+.btn-action-list-text {
+    background: #e7f3ff;
+    color: #0d6efd;
+    border: 1px solid #b3d4ff;
+}
+
+.btn-action-list-text:hover {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.btn-action-delete {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: .6rem;
+    display: inline-flex;
+    font-size: 1.1rem;
+    height: 38px;
+    justify-content: center;
+    transition: all .15s ease;
+    width: 100px;
+    color: #dc3545;
+}
+
+.btn-action-delete:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.users-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.search-box,
+.role-filter {
+  position: relative;
+}
+
+.search-box {
+  width: min(100%, 300px);
+}
+
+.search-icon,
+.filter-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  z-index: 1;
+}
+
+.search-icon { left: .85rem; }
+.filter-icon { left: .4rem; }
+
+.search-input,
+.role-filter .form-select {
+  min-height: 30px;
+  border: 1px solid #dee2e6;
+  border-radius: .7rem;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
+
+  &:focus {
+    border-color: #212529;
+    box-shadow: 0 0 0 .2rem rgba(33, 37, 41, .1);
+  }
+}
+
+.search-input { padding-left: 2.5rem; }
+.role-filter .form-select { min-width: 5px; padding-left: 1.4rem; }
+
+.btn-clear-filters {
+  border: 0;
+  background: transparent;
+  color: #6c757d;
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .5rem;
+
+  &:hover { color: #212529; }
+}
+
+// === Tabs ===
+.tabs-wrapper {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: .5rem 1.1rem;
+  font-size: .85rem;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+
+  &:hover { color: #212529; }
+
+  &.active {
+    color: #212529;
+    font-weight: 700;
+    border-bottom-color: #212529;
+  }
+}
+
+// === Paginación ===
+.pagination .page-link {
+  color: #212529;
+  min-width: 30px;
+  text-align: center;
+  font-size: .82rem;
+  transition: background .15s;
+  &:hover { background: #e9ecef; }
+}
+
+.pagination .page-item.active .page-link {
+  background: #212529;
+  color: #fff;
+  border-color: #212529;
+}
+
+.pagination .page-item.disabled .page-link { color: #adb5bd; }
+
+// === Botón quitar alumno ===
+.btn-accion-quitar {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1.5px solid #f5c2c7;
+  background: transparent;
+  color: #dc3545;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all .15s;
+
+  &:hover {
+    background: #dc3545;
+    color: #fff;
+    border-color: #dc3545;
+  }
+}
+
+.btn{
+  height: 42px;
+    padding: 0.5rem 1rem;
+    font-size: .95rem;
+    font-weight: 600;
+    border-radius: 7px;
+}

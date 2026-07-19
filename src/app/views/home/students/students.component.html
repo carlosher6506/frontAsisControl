@@ -17,101 +17,98 @@
   </div>
 
   <!-- Toolbar -->
-<div class="toolbar mb-3">
-  <!-- Buscador -->
-  <div class="search-box">
-    <i class="bi bi-search search-icon"></i>
-    <input type="text" class="form-control search-input"
-      placeholder="Buscar por nombre o matrícula..."
-      [(ngModel)]="textoBusqueda"
-      (ngModelChange)="onBusqueda()" />
-  </div>
+  <div class="toolbar mb-3">
+    <div class="search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input type="text" class="form-control search-input"
+        placeholder="Buscar por nombre o matrícula..."
+        [(ngModel)]="textoBusqueda"
+        (ngModelChange)="onBusqueda()" />
+    </div>
 
-  <!-- Botón filtros -->
-  @for (nivel of nivelesConAlumnos; track nivel.nombre) {
-    @if (tabActivo === nivel.nombre) {
-      <div class="filtro-dropdown-wrapper">
-        <button class="btn-filtro"
-          [class.activo]="tieneFiltrosActivos(nivel)"
-          (click)="mostrarFiltros = !mostrarFiltros">
-          <i class="bi bi-funnel-fill me-2"></i>
-          Filtros
-          @if (tieneFiltrosActivos(nivel)) {
-            <span class="filtro-badge">
-              {{ (filtroGrado[nivel.nombre] ? 1 : 0) + (filtroGrupo[nivel.nombre] ? 1 : 0) }}
-            </span>
+    @for (nivel of nivelesConAlumnos; track nivel.nombre) {
+      @if (tabActivo === nivel.nombre) {
+        <div class="filtro-dropdown-wrapper">
+          <button class="btn-filtro"
+            [class.activo]="tieneFiltrosActivos(nivel)"
+            (click)="mostrarFiltros = !mostrarFiltros">
+            <i class="bi bi-funnel-fill me-2"></i>Filtros
+            @if (tieneFiltrosActivos(nivel)) {
+              <span class="filtro-badge">
+                {{ (filtroGrado[nivel.nombre] ? 1 : 0) +
+                   (filtroGrupo[nivel.nombre] ? 1 : 0) +
+                   (filtroCiclo[nivel.nombre] ? 1 : 0) }}
+              </span>
+            }
+            <i class="bi ms-2"
+              [class.bi-chevron-down]="!mostrarFiltros"
+              [class.bi-chevron-up]="mostrarFiltros"></i>
+          </button>
+
+          @if (mostrarFiltros) {
+            <div class="filtro-panel">
+              <div class="filtro-panel-header">
+                <span class="fw-bold small">Filtrar por</span>
+                @if (tieneFiltrosActivos(nivel)) {
+                  <button class="btn-limpiar-panel" (click)="limpiarFiltros(nivel)">
+                    <i class="bi bi-x-circle me-1"></i>Limpiar todo
+                  </button>
+                }
+              </div>
+
+              <!-- Grado -->
+              <div class="filtro-panel-item">
+                <label class="filtro-label">
+                  <i class="bi bi-mortarboard me-2"></i>Grado / Semestre
+                </label>
+                <div class="filtro-opciones">
+                  <button class="filtro-opcion"
+                    [class.selected]="!filtroGrado[nivel.nombre]"
+                    (click)="filtroGrado[nivel.nombre] = ''; onFiltroGradoChange(nivel)">
+                    Todos
+                  </button>
+                  @for (grado of getGradosDeNivel(nivel); track grado) {
+                    <button class="filtro-opcion"
+                      [class.selected]="filtroGrado[nivel.nombre] === grado"
+                      (click)="filtroGrado[nivel.nombre] = grado; onFiltroGradoChange(nivel)">
+                      {{ grado }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Grupo -->
+              <div class="filtro-panel-item">
+                <label class="filtro-label">
+                  <i class="bi bi-people me-2"></i>Grupo
+                </label>
+                <div class="filtro-opciones">
+                  <button class="filtro-opcion"
+                    [class.selected]="!filtroGrupo[nivel.nombre]"
+                    (click)="filtroGrupo[nivel.nombre] = ''; onFiltroGrupoChange()">
+                    Todos
+                  </button>
+                  @for (grupo of getGruposDeNivel(nivel); track grupo) {
+                    <button class="filtro-opcion"
+                      [class.selected]="filtroGrupo[nivel.nombre] === grupo"
+                      (click)="filtroGrupo[nivel.nombre] = grupo; onFiltroGrupoChange()">
+                      Grupo {{ grupo }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="filtro-panel-footer">
+                <button class="btn btn-dark btn-sm w-100" (click)="mostrarFiltros = false">
+                  <i class="bi bi-check2 me-1"></i>Aplicar
+                </button>
+              </div>
+            </div>
           }
-          <i class="bi ms-2"
-            [class.bi-chevron-down]="!mostrarFiltros"
-            [class.bi-chevron-up]="mostrarFiltros">
-          </i>
-        </button>
-
-        @if (mostrarFiltros) {
-          <div class="filtro-panel">
-            <div class="filtro-panel-header">
-              <span class="fw-bold small">Filtrar por</span>
-              @if (tieneFiltrosActivos(nivel)) {
-                <button class="btn-limpiar-panel" (click)="limpiarFiltros(nivel)">
-                  <i class="bi bi-x-circle me-1"></i>Limpiar todo
-                </button>
-              }
-            </div>
-
-            <!-- Grado -->
-            <div class="filtro-panel-item">
-              <label class="filtro-label">
-                <i class="bi me-2"></i>Grado / Semestre
-              </label>
-              <div class="filtro-opciones">
-                <button class="filtro-opcion"
-                  [class.selected]="!filtroGrado[nivel.nombre]"
-                  (click)="filtroGrado[nivel.nombre] = ''; onFiltroGradoChange(nivel)">
-                  Todos
-                </button>
-                @for (grado of getGradosDeNivel(nivel); track grado) {
-                  <button class="filtro-opcion"
-                    [class.selected]="filtroGrado[nivel.nombre] === grado"
-                    (click)="filtroGrado[nivel.nombre] = grado; onFiltroGradoChange(nivel)">
-                    {{ grado }}
-                  </button>
-                }
-              </div>
-            </div>
-
-            <!-- Grupo -->
-            <div class="filtro-panel-item">
-              <label class="filtro-label">
-                <i class="bi me-2"></i>Grupo
-              </label>
-              <div class="filtro-opciones">
-                <button class="filtro-opcion"
-                  [class.selected]="!filtroGrupo[nivel.nombre]"
-                  (click)="filtroGrupo[nivel.nombre] = ''; onFiltroGrupoChange()">
-                  Todos
-                </button>
-                @for (grupo of getGruposDeNivel(nivel); track grupo) {
-                  <button class="filtro-opcion"
-                    [class.selected]="filtroGrupo[nivel.nombre] === grupo"
-                    (click)="filtroGrupo[nivel.nombre] = grupo; onFiltroGrupoChange()">
-                    Grupo {{ grupo }}
-                  </button>
-                }
-              </div>
-            </div>
-            <div class="filtro-panel-footer">
-              <button class="btn btn-dark btn-sm w-100" (click)="mostrarFiltros = false">
-                <i class="bi bi-check2 me-1"></i>Aplicar
-              </button>
-            </div>
-          </div>
-        }
-      </div>
+        </div>
+      }
     }
-  }
-
-  <!-- Contador -->
-</div>
+  </div>
 
   @if (isLoading) {
     <div class="d-flex justify-content-center py-5">
@@ -129,7 +126,7 @@
       @for (nivel of nivelesConAlumnos; track nivel.nombre) {
         <button class="tab-btn"
           [class.active]="tabActivo === nivel.nombre"
-          (click)="tabActivo = nivel.nombre">
+          (click)="tabActivo = nivel.nombre; mostrarFiltros = false">
           {{ nivel.nombre }}
         </button>
       }
@@ -138,7 +135,7 @@
     <!-- Contenido por tab -->
     @for (nivel of nivelesConAlumnos; track nivel.nombre) {
       @if (tabActivo === nivel.nombre) {
-        <div class="card border-0 shadow-sm">
+        <div class="card shadow-sm rounded-4 overflow-hidden">
           <div class="card-body p-0">
             @if (getAlumnosFiltradosPorNivel(nivel).length === 0) {
               <div class="text-center py-5 text-muted">
@@ -153,7 +150,7 @@
                       <th class="ps-4">Nombre</th>
                       <th>Matrícula</th>
                       <th>Grado/Semestre</th>
-                      <th>Grupo</th>
+                      <th>Grupos</th>
                       <th class="text-end pe-4" style="width:90px;">Acciones</th>
                     </tr>
                   </thead>
@@ -162,8 +159,16 @@
                       <tr>
                         <td class="ps-4 fw-semibold">{{ alumno.nombre }}</td>
                         <td class="text-muted small font-monospace">{{ alumno.matricula }}</td>
-                        <td class="small">{{ alumno.nivel_academico }}</td>
-                        <td><span class="badge bg-dark">{{ alumno.grupos_nombres }}</span></td>
+                        <td class="small">{{ alumno.nivel_academico || '—' }}</td>
+                        <td>
+                          @if (alumno.grupos_nombres) {
+                            @for (g of alumno.grupos_nombres; track g) {
+                              <span class="badge bg-dark me-1">{{ g }}</span>
+                            }
+                          } @else {
+                            <span class="text-muted small">Sin grupo</span>
+                          }
+                        </td>
                         <td class="text-end pe-4">
                           <div class="d-flex justify-content-end gap-1">
                             <button class="btn-accion btn-accion-edit" title="Editar"
@@ -201,7 +206,8 @@
                             (click)="cambiarPagina(nivel, p)">{{ p }}</button>
                         </li>
                       }
-                      <li class="page-item" [class.disabled]="getPaginaActiva(nivel) === getTotalPaginasFiltradas(nivel)">
+                      <li class="page-item"
+                        [class.disabled]="getPaginaActiva(nivel) === getTotalPaginasFiltradas(nivel)">
                         <button class="page-link border-0 rounded"
                           (click)="cambiarPagina(nivel, getPaginaActiva(nivel) + 1)">
                           <i class="bi bi-chevron-right"></i>
@@ -221,7 +227,7 @@
 
 <!-- ══════════ MODAL ALUMNO ══════════ -->
 <div class="modal fade" id="modalAlumno" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:440px;">
     <div class="modal-content border-0 shadow-lg">
 
       <div class="modal-header border-0 px-4 pt-4 pb-0">
@@ -234,7 +240,9 @@
               {{ modoEdicion ? 'Editar alumno' : 'Nuevo alumno' }}
             </h6>
             <p class="text-muted mb-0" style="font-size:12px;">
-              {{ modoEdicion ? 'Modifica los datos del alumno' : 'Ingresa los datos del nuevo alumno' }}
+              {{ modoEdicion
+                ? 'Modifica el nombre del alumno'
+                : 'Asigna el alumno a un grupo desde el módulo de Grupos' }}
             </p>
           </div>
         </div>
@@ -246,8 +254,10 @@
 
           <!-- Nombre -->
           <div class="mb-3">
-            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Nombre completo</label>
-            <input type="text" class="form-control form-control"
+            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">
+              Nombre completo
+            </label>
+            <input type="text" class="form-control"
               [class.is-invalid]="nombre.invalid && nombre.touched"
               formControlName="nombre"
               placeholder="Ej: Juan Pérez García" />
@@ -257,114 +267,49 @@
             </div>
           </div>
 
-          <!-- Matrícula: solo lectura al editar, generada auto al crear -->
-          @if (modoEdicion) {
-            <div class="mb-3">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Matrícula</label>
+          <!-- Matrícula -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">
+              Matrícula
+            </label>
+            @if (modoEdicion) {
               <div class="input-group">
                 <span class="input-group-text bg-light border-end-0">
                   <i class="bi bi-hash text-muted"></i>
                 </span>
                 <input type="text" class="form-control border-start-0 bg-light text-muted"
-                  [value]="alumnoSeleccionado?.matricula"
-                  readonly />
+                  [value]="alumnoSeleccionado?.matricula" readonly />
               </div>
               <div class="form-text">La matrícula no puede modificarse</div>
-            </div>
-          } @else {
-            <div class="mb-3">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Matrícula</label>
+            } @else {
               <div class="input-group">
                 <span class="input-group-text bg-light border-end-0">
                   <i class="bi bi-magic text-muted"></i>
                 </span>
                 <input type="text" class="form-control border-start-0 bg-light text-muted"
-                  value="Se generará automáticamente"
-                  readonly />
+                  value="Se generará automáticamente" readonly />
               </div>
               <div class="form-text">El sistema asignará un número único al guardar</div>
-            </div>
-          }
-
-          <!-- Nivel Educativo -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Nivel educativo</label>
-            <select class="form-select form-select"
-              [(ngModel)]="nivelEducativoSeleccionado"
-              [ngModelOptions]="{standalone: true}"
-              (change)="onNivelEducativoChange()">
-              <option [value]="null" disabled>Selecciona un nivel</option>
-              @for (nivel of nivelesEducativos; track nivel.id) {
-                <option [value]="nivel.id">{{ nivel.nombre }}</option>
-              }
-            </select>
+            }
           </div>
 
-          <!-- Grado / Semestre -->
-          @if (nivelEducativoSeleccionado) {
-            <div class="mb-3">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">Grado / Semestre</label>
-              <select class="form-select form-select"
-                [(ngModel)]="nivelAcademicoSeleccionado"
-                [ngModelOptions]="{standalone: true}"
-                (change)="onNivelAcademicoChange()">
-                <option [value]="null" disabled>Selecciona el grado</option>
-                @for (na of nivelesAcademicosFiltrados; track na.id) {
-                  <option [value]="na.id">{{ na.nombre }}</option>
-                }
-              </select>
-            </div>
-          }
-
-          <!-- Grupos -->
-          @if (nivelAcademicoSeleccionado) {
-            <div class="mb-1">
-              <label class="form-label fw-semibold small text-uppercase text-muted ls-1">
-                {{ modoEdicion ? 'Grupos asignados' : 'Grupo' }}
-              </label>
-
-              @if (!modoEdicion) {
-                <select class="form-select form-select"
-                  [class.is-invalid]="grupo_id.invalid && grupo_id.touched"
-                  formControlName="grupo_id">
-                  <option value="" disabled>Selecciona el grupo</option>
-                  @if (gruposFiltrados.length === 0) {
-                    <option disabled>No hay grupos para este grado</option>
-                  }
-                  @for (g of gruposFiltrados; track g.id) {
-                    <option [value]="g.id">Grupo {{ g.nombre }}</option>
-                  }
-                </select>
-                <div class="invalid-feedback">El grupo es requerido</div>
-              } @else {
-                @if (gruposFiltrados.length === 0) {
-                  <p class="text-muted small">No hay grupos disponibles para este nivel</p>
-                } @else {
-                  <div class="d-flex flex-wrap gap-2 mt-1">
-                    @for (g of gruposFiltrados; track g.id) {
-                      <button type="button"
-                        class="btn btn-sm grupo-toggle"
-                        [class.selected]="isGrupoSeleccionado(g.id)"
-                        (click)="toggleGrupo(g.id)">
-                        <i class="bi me-1"
-                          [class.bi-check-circle-fill]="isGrupoSeleccionado(g.id)"
-                          [class.bi-circle]="!isGrupoSeleccionado(g.id)">
-                        </i>
-                        Grupo {{ g.nombre }}
-                      </button>
-                    }
-                  </div>
-                  @if (gruposSeleccionados.length === 0) {
-                    <div class="text-danger small mt-2">Selecciona al menos un grupo</div>
-                  } @else {
-                    <div class="text-muted small mt-2">
-                      <i class="bi bi-check2 me-1"></i>{{ gruposSeleccionados.length }} grupo(s) seleccionado(s)
-                    </div>
-                  }
-                }
+          <!-- Nivel educativo -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted ls-1">
+              Nivel educativo
+            </label>
+            <select class="form-select"
+              [(ngModel)]="nivelEducativoSeleccionado"
+              [ngModelOptions]="{standalone: true}">
+              <option [ngValue]="null">Sin nivel asignado</option>
+              @for (nivel of nivelesEducativos; track nivel.id) {
+                <option [ngValue]="nivel.id">{{ nivel.nombre }}</option>
               }
-            </div>
-          }
+            </select>
+            @if (modoEdicion) {
+              <div class="form-text">Cambiar el nivel no modifica los grupos actuales.</div>
+            }
+          </div>
 
         </form>
       </div>
@@ -398,7 +343,9 @@
           </div>
           <div>
             <h6 class="modal-title fw-bold mb-0">Importar desde Excel</h6>
-            <p class="text-muted mb-0" style="font-size:12px;">Las matrículas se generan automáticamente</p>
+            <p class="text-muted mb-0" style="font-size:12px;">
+              Las matrículas se generan automáticamente
+            </p>
           </div>
         </div>
         <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
@@ -426,27 +373,17 @@
 
         <!-- Info columnas -->
         <div class="columns-info mb-4">
-          <p class="small fw-semibold mb-2 text-muted text-uppercase" style="letter-spacing:.05em;">Columnas requeridas</p>
+          <p class="small fw-semibold mb-2 text-muted text-uppercase" style="letter-spacing:.05em;">
+            Columnas requeridas
+          </p>
           <div class="d-flex gap-2 flex-wrap">
-            <div class="col-badge">
-              <i class="bi bi-person me-1"></i>nombre
-            </div>
-            <div class="col-badge">
-              <i class="bi bi-mortarboard me-1"></i>nivel_educativo
-            </div>
-            <div class="col-badge">
-              <i class="bi bi-layers me-1"></i>grado
-            </div>
-            <div class="col-badge">
-              <i class="bi bi-people me-1"></i>grupo
-            </div>
-            <div class="col-badge col-badge-auto">
-              <i class="bi bi-magic me-1"></i>matricula - auto
-            </div>
+            <div class="col-badge"><i class="bi bi-person me-1"></i>nombre</div>
+            <div class="col-badge"><i class="bi bi-mortarboard me-1"></i>nivel_educativo (opcional)</div>
+            <div class="col-badge col-badge-auto"><i class="bi bi-magic me-1"></i>matricula - auto</div>
           </div>
           <p class="small text-muted mt-2 mb-0">
             <i class="bi bi-info-circle me-1"></i>
-            Los valores deben coincidir exactamente con los nombres registrados en el sistema
+            Asigna los grupos desde el módulo de Grupos después de importar
           </p>
         </div>
 
@@ -461,7 +398,6 @@
               (change)="onArchivoExcel($event)" />
           </div>
         } @else {
-          <!-- Preview -->
           <div class="preview-container">
             <div class="d-flex align-items-center justify-content-between mb-3">
               <div>
@@ -478,8 +414,6 @@
                   <tr>
                     <th>Nombre</th>
                     <th>Nivel educativo</th>
-                    <th>Grado</th>
-                    <th>Grupo</th>
                     <th class="text-muted">Matrícula</th>
                   </tr>
                 </thead>
@@ -487,15 +421,13 @@
                   @for (a of alumnosExcel.slice(0,5); track a.nombre) {
                     <tr>
                       <td class="fw-semibold small">{{ a.nombre }}</td>
-                      <td class="small">{{ a.nivel_educativo }}</td>
-                      <td class="small">{{ a.grado }}</td>
-                      <td class="small">{{ a.grupo }}</td>
+                      <td class="small">{{ a.nivel_educativo || '—' }}</td>
                       <td class="small text-muted fst-italic">Se generará</td>
                     </tr>
                   }
                   @if (alumnosExcel.length > 5) {
                     <tr>
-                      <td colspan="5" class="text-center text-muted small py-2">
+                      <td colspan="3" class="text-center text-muted small py-2">
                         <i class="bi bi-three-dots me-1"></i>
                         y {{ alumnosExcel.length - 5 }} alumno(s) más
                       </td>
@@ -510,8 +442,7 @@
       </div>
 
       <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
-        <button type="button" class="btn btn-outline-dark btn-sm"
-          (click)="descargarPlantilla()">
+        <button type="button" class="btn btn-outline-dark btn-sm" (click)="descargarPlantilla()">
           <i class="bi bi-download me-1"></i>Plantilla
         </button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
