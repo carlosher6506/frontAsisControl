@@ -18,7 +18,6 @@ import { Usuario } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-tasks',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './tasks.component.html',
   styleUrl: './tasks.component.scss'

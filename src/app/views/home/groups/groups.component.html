@@ -59,12 +59,8 @@
                 {{ grupo.nivel_educativo || 'Sin nivel' }}
               </p>
               <h2 class="mb-0 fw-bold fs-4">
-                {{ grupo.nivel_academico }} · Grupo {{ grupo.nombre }}
+                {{ grupo.nivel_academico }}  Grupo {{ grupo.nombre }}
               </h2>
-              <p class="mb-0 mt-1 opacity-75 small">
-                <i class="bi bi-person me-1"></i>{{ getNombreMaestro(grupo.maestro_id) }}
-              </p>
-              <i class="bi bi-mortarboard-fill group-icon"></i>
             </div>
 
             <!-- Body -->
@@ -93,7 +89,7 @@
             <!-- Footer -->
             <div class="card-footer-custom d-flex justify-content-between align-items-center">
               <span class="text-muted small">
-                <i class="bi bi-calendar3 me-1"></i>{{ getNombreCiclo(grupo.ciclo_escolar_id) }}
+
               </span>
               <button class="btn-action-delete" (click)="eliminar(grupo)">
                 <i class="bi bi-trash me-1"></i>Eliminar

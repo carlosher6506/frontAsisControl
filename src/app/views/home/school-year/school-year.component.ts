@@ -7,7 +7,6 @@ import { CicloEscolar, CrearCiclo, ActualizarCiclo } from '../../../core/models/
 
 @Component({
   selector: 'app-school-year',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './school-year.component.html',
   styleUrl: './school-year.component.scss'

@@ -19,7 +19,6 @@ import fil from '@angular/common/locales/fil';
 
 @Component({
   selector: 'app-ratings',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './ratings.component.html',
   styleUrl: './ratings.component.scss'

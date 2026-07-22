@@ -15,43 +15,42 @@ interface NivelConAlumnos {
 
 @Component({
   selector: 'app-students',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './students.component.html',
   styleUrl: './students.component.scss'
 })
 export class StudentsComponent implements OnInit {
 
-  // ── Datos ──────────────────────────────────────────────────────────────────
+  // Datos
   alumnos: Alumno[] = [];
   nivelesEducativos: NivelEducativo[] = [];
 
-  // ── Estado UI ──────────────────────────────────────────────────────────────
+  // Estado UI
   isLoading = true;
   isSubmitting = false;
   modoEdicion = false;
   mostrarFiltros = false;
 
-  // ── Selección ──────────────────────────────────────────────────────────────
+  // Selección
   alumnoSeleccionado: Alumno | null = null;
   nivelEducativoSeleccionado: number | null = null;
 
-  // ── Búsqueda y filtros ─────────────────────────────────────────────────────
+  // Búsqueda y filtros
   textoBusqueda = '';
   tabActivo = '';
   filtroGrado: { [nivel: string]: string } = {};
   filtroGrupo: { [nivel: string]: string } = {};
   filtroCiclo: { [nivel: string]: string } = {};
 
-  // ── Paginación ─────────────────────────────────────────────────────────────
-  readonly pageSize = 15;
+  // Paginación
+  readonly pageSize = 10;
   private paginasPorNivel: Map<string, number> = new Map();
 
-  // ── Excel ──────────────────────────────────────────────────────────────────
+  // Excel
   alumnosExcel: { nombre: string; nivel_educativo: string }[] = [];
   importando = false;
 
-  // ── Form ───────────────────────────────────────────────────────────────────
+  // Form
   form: FormGroup;
 
   constructor(
@@ -69,10 +68,9 @@ export class StudentsComponent implements OnInit {
     this.cargarDatos();
   }
 
-  // ── Getters form ───────────────────────────────────────────────────────────
   get nombre() { return this.form.get('nombre')!; }
 
-  // ── Niveles con alumnos (tabs) ─────────────────────────────────────────────
+  // Niveles con alumnos
   get alumnosFiltrados(): Alumno[] {
     if (!this.textoBusqueda.trim()) return this.alumnos;
     const texto = this.textoBusqueda.toLowerCase();
@@ -92,12 +90,11 @@ export class StudentsComponent implements OnInit {
     return Array.from(mapa.entries()).map(([nombre, alumnos]) => ({ nombre, alumnos }));
   }
 
-  // ── Búsqueda ───────────────────────────────────────────────────────────────
   onBusqueda(): void {
     this.paginasPorNivel.clear();
   }
 
-  // ── Filtros ────────────────────────────────────────────────────────────────
+  // Filtros
   getGradosDeNivel(nivel: NivelConAlumnos): string[] {
     return [...new Set(nivel.alumnos.map(a => a.nivel_academico).filter(Boolean))];
   }
@@ -161,7 +158,7 @@ export class StudentsComponent implements OnInit {
     return !!(this.filtroGrado[nivel.nombre] || this.filtroGrupo[nivel.nombre] || this.filtroCiclo[nivel.nombre]);
   }
 
-  // ── Paginación ─────────────────────────────────────────────────────────────
+  // Paginación
   getPaginaActiva(nivel: NivelConAlumnos): number {
     return this.paginasPorNivel.get(nivel.nombre) ?? 1;
   }
@@ -201,7 +198,7 @@ export class StudentsComponent implements OnInit {
     this.paginasPorNivel.set(nivel.nombre, pagina);
   }
 
-  // ── Carga de datos ─────────────────────────────────────────────────────────
+  // Carga de datos
   cargarDatos(): void {
     this.isLoading = true;
     this.studentsService.obtenerAlumnos().subscribe({
@@ -222,7 +219,6 @@ export class StudentsComponent implements OnInit {
     });
   }
 
-  // ── Modal crear ────────────────────────────────────────────────────────────
   abrirModalCrear(): void {
     this.modoEdicion = false;
     this.alumnoSeleccionado = null;
@@ -230,7 +226,6 @@ export class StudentsComponent implements OnInit {
     this.form.reset();
   }
 
-  // ── Modal editar ───────────────────────────────────────────────────────────
   abrirModalEditar(alumno: Alumno): void {
     this.modoEdicion = true;
     this.alumnoSeleccionado = alumno;
@@ -241,7 +236,6 @@ export class StudentsComponent implements OnInit {
     this.form.patchValue({ nombre: alumno.nombre });
   }
 
-  // ── Guardar ────────────────────────────────────────────────────────────────
   guardar(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.isSubmitting = true;
@@ -289,7 +283,6 @@ export class StudentsComponent implements OnInit {
     }
   }
 
-  // ── Eliminar ───────────────────────────────────────────────────────────────
   async eliminar(alumno: Alumno): Promise<void> {
     const result = await this.sweetAlert.confirmDelete(`¿Eliminar a ${alumno.nombre}?`);
     if (result.isConfirmed) {
@@ -303,7 +296,6 @@ export class StudentsComponent implements OnInit {
     }
   }
 
-  // ── Excel ──────────────────────────────────────────────────────────────────
   onArchivoExcel(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -374,7 +366,6 @@ export class StudentsComponent implements OnInit {
     XLSX.writeFile(wb, 'plantilla_alumnos.xlsx');
   }
 
-  // ── Cerrar modales ─────────────────────────────────────────────────────────
   cerrarModal(): void {
     this.form.reset();
     this.modoEdicion = false;

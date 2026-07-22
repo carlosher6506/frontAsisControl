@@ -20,7 +20,6 @@ import { forkJoin, switchMap, throwError } from 'rxjs';
 
 @Component({
   selector: 'app-groups',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './groups.component.html',
   styleUrl: './groups.component.scss'

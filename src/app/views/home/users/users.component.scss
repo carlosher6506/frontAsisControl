@@ -11,6 +11,7 @@
 .search-box,
 .role-filter {
   position: relative;
+  height: 42;
 }
 
 .search-box {
@@ -22,12 +23,12 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  color: #6c757d;
+  color: #31363a;
   z-index: 1;
 }
 
 .search-icon { left: .85rem; }
-.filter-icon { left: .4rem; }
+.filter-icon { left: .4rem; height: 20px; font-size: .80rem;}
 
 .search-input,
 .role-filter .form-select {
@@ -35,6 +36,10 @@
   border: 1px solid #dee2e6;
   border-radius: .7rem;
   box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
+  font-weight: 500;
+  font-size: .80rem;
+  font-weight: 500;
+  height: 42px;
 
   &:focus {
     border-color: #6c757d;
@@ -78,16 +83,16 @@
     background: #212529;
     border: 0;
     color: #fff;
-    font-size: .85rem;
+    font-size: .92rem;
     letter-spacing: .06em;
     padding-bottom: .9rem;
     padding-top: .9rem;
   }
 
-  tbody td {
+  tbody tr {
     border-color: #edf0f2;
-    padding-bottom: .85rem;
-    padding-top: 1rem;
+    padding-bottom: .3rem;
+    padding-top: .3rem;
     font-size: .92rem;
   }
 
@@ -135,7 +140,7 @@
   &:hover { background: #dc3545; border-color: #dc3545; color: #fff; }
 }
 
-/* ================= PAGINACIÓN ================= */
+// PAGINACION
 
 .pagination {
   display: flex;
@@ -171,21 +176,21 @@
   transition: .2s;
 }
 
-/* Hover */
+// Hover
 
 .pagination .page-link:hover {
   background: #f2f2f2 !important;
   color: #212529;
 }
 
-/* Página activa */
+// Pagina activa
 
 .pagination .page-item.active .page-link {
   background: #212529 !important;
   color: #fff !important;
 }
 
-/* Flechas */
+// Flechas
 
 .pagination .page-item:first-child .page-link,
 .pagination .page-item:last-child .page-link {
@@ -193,14 +198,14 @@
   color: #6b7280;
 }
 
-/* Hover flechas */
+// Hover flechas
 
 .pagination .page-item:first-child .page-link:hover,
 .pagination .page-item:last-child .page-link:hover {
   background: #e9ecef !important;
 }
 
-/* Flechas deshabilitadas */
+// Flechas deshabilitadas
 
 .pagination .page-item.disabled .page-link {
   background: #f3f4f6 !important;
@@ -208,13 +213,9 @@
   pointer-events: none;
 }
 
-/* Elimina el borde azul al hacer click */
-
 .pagination .page-link:focus {
   box-shadow: none !important;
 }
-
-/* Elimina el borde de Bootstrap */
 
 .pagination .page-link:focus-visible {
   outline: none;

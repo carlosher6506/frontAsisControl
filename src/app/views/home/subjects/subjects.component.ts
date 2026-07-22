@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule} from '@angular/forms';
 import { MateriasService } from '../../../core/services/materias.service';
 import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
 import { GroupsService } from '../../../core/services/groups.service';
@@ -11,16 +11,20 @@ import { Materia } from '../../../core/models/subjects.model';
 import { GrupoMateria } from '../../../core/models/groupSubject.model';
 import { Grupo } from '../../../core/models/group.model';
 import { Usuario } from '../../../core/models/user.model';
+import { finalize, pipe } from 'rxjs';
+
+const ITEMS_POR_PAGINA = 9;
+const NIVEL_TODOS = 'Todos';
 
 @Component({
   selector: 'app-subjects',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './subjects.component.html',
   styleUrl: './subjects.component.scss'
 })
 export class SubjectsComponent implements OnInit {
 
+  // Datos base
   materias: Materia[] = [];
   grupoMaterias: GrupoMateria[] = [];
   grupos: Grupo[] = [];
@@ -36,6 +40,19 @@ export class SubjectsComponent implements OnInit {
   formMateria: FormGroup;
   formAsignacion: FormGroup;
 
+  // Paginación: Catálogo de materias
+  paginaMaterias = 1;
+  readonly itemsPorPagina = ITEMS_POR_PAGINA;
+  // Vista activa: alterna entre Catálogo y Asignación
+  vistaActiva: 'catalogo' | 'asignacion' = 'catalogo';
+
+  // Búsqueda + paginación + nivel + maestro: Asignaciones
+  busquedaAsignacion = '';
+  nivelSeleccionado: string = NIVEL_TODOS;
+  maestroSeleccionado: number | 'todos' = 'todos';
+  paginaAsignaciones = 1;
+  readonly NIVEL_TODOS = NIVEL_TODOS;
+
   constructor(
     private materiasService: MateriasService,
     private grupoMateriasService: GrupoMateriasService,
@@ -48,7 +65,7 @@ export class SubjectsComponent implements OnInit {
     this.usuario = this.authService.getUsuario();
 
     this.formMateria = this.fb.group({
-      nombre: ['', Validators.required]
+      nombre: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]]
     });
 
     this.formAsignacion = this.fb.group({
@@ -70,19 +87,26 @@ export class SubjectsComponent implements OnInit {
     this.isLoadingMaterias = true;
     this.isLoadingAsignaciones = true;
 
-    // El backend ya filtra por maestro_id automáticamente
-    this.materiasService.obtenerMaterias().subscribe({
-      next: (data) => { this.materias = data; this.isLoadingMaterias = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las materias'); this.isLoadingMaterias = false; }
-    });
+    this.materiasService.obtenerMaterias()
+      .pipe(finalize(() => (this.isLoadingMaterias = false)))
+      .subscribe({
+        next: (data) => {
+          this.materias = data;
+          this.clampPagina('materias');
+        },
+        error: () => this.sweetAlert.error('Error', 'No se pudieron cargar las materias')
+      });
 
-    // El backend ya filtra por maestro_id, no necesitamos filtrar en frontend
-    this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
-      next: (data) => { this.grupoMaterias = data; this.isLoadingAsignaciones = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las asignaciones'); this.isLoadingAsignaciones = false; }
-    });
+    this.grupoMateriasService.obtenerGrupoMaterias()
+      .pipe(finalize(() => (this.isLoadingAsignaciones = false)))
+      .subscribe({
+        next: (data) => {
+          this.grupoMaterias = data;
+          this.clampPagina('asignaciones');
+        },
+        error: () => this.sweetAlert.error('Error', 'No se pudieron cargar las asignaciones')
+      });
 
-    // Grupos: el backend ya filtra por maestro también
     this.groupsService.obtenerGrupos().subscribe({
       next: (data) => { this.grupos = data; }
     });
@@ -97,32 +121,35 @@ export class SubjectsComponent implements OnInit {
     }
   }
 
-  // ── CRUD Materia ───────────────────────────────────────────────
+  // Crud para las Materias
   guardarMateria(): void {
     if (this.formMateria.invalid) { this.formMateria.markAllAsTouched(); return; }
     this.isSubmittingMateria = true;
+    const payload = { nombre: this.formMateria.value.nombre.trim() };
 
     if (this.materiaEditando) {
-      this.materiasService.actualizarMateria(this.materiaEditando.id, this.formMateria.value).subscribe({
-        next: () => {
-          this.sweetAlert.toast('Materia actualizada', 'success');
-          this.materiaEditando = null;
-          this.formMateria.reset();
-          this.cargarDatos();
-          this.isSubmittingMateria = false;
-        },
-        error: () => { this.sweetAlert.error('Error', 'No se pudo actualizar'); this.isSubmittingMateria = false; }
-      });
+      this.materiasService.actualizarMateria(this.materiaEditando.id, payload)
+        .pipe(finalize(() => (this.isSubmittingMateria = false)))
+        .subscribe({
+          next: () => {
+            this.sweetAlert.toast('Materia actualizada', 'success');
+            this.materiaEditando = null;
+            this.formMateria.reset();
+            this.cargarDatos();
+          },
+          error: (err) => this.sweetAlert.error('Error', err.error?.message || 'No se pudo actualizar')
+        });
     } else {
-      this.materiasService.crearMateria(this.formMateria.value).subscribe({
-        next: () => {
-          this.sweetAlert.toast('Materia creada', 'success');
-          this.formMateria.reset();
-          this.cargarDatos();
-          this.isSubmittingMateria = false;
-        },
-        error: (err) => { this.sweetAlert.error('Error', err.error?.message || 'No se pudo crear'); this.isSubmittingMateria = false; }
-      });
+      this.materiasService.crearMateria(payload)
+        .pipe(finalize(() => (this.isSubmittingMateria = false)))
+        .subscribe({
+          next: () => {
+            this.sweetAlert.toast('Materia creada', 'success');
+            this.formMateria.reset();
+            this.cargarDatos();
+          },
+          error: (err) => this.sweetAlert.error('Error', err.error?.message || 'No se pudo crear')
+        });
     }
   }
 
@@ -140,8 +167,11 @@ export class SubjectsComponent implements OnInit {
     const result = await this.sweetAlert.confirmDelete(`¿Eliminar materia "${materia.nombre}"?`);
     if (result.isConfirmed) {
       this.materiasService.eliminarMateria(materia.id).subscribe({
-        next: () => { this.sweetAlert.toast('Materia eliminada', 'success'); this.cargarDatos(); },
-        error: () => this.sweetAlert.error('Error', 'No se pudo eliminar')
+        next: () => {
+          this.sweetAlert.toast('Materia eliminada', 'success');
+          this.cargarDatos();
+        },
+        error: (err) => this.sweetAlert.error('Error', err.error?.message || 'No se pudo eliminar')
       });
     }
   }
@@ -150,7 +180,7 @@ export class SubjectsComponent implements OnInit {
     return `${grupo.nivel_educativo || ''} ${grupo.nivel_academico || ''} ${grupo.nombre}`.trim();
   }
 
-  // ── Asignación ─────────────────────────────────────────────────
+  // Asignacion
   asignarMateria(): void {
     if (this.formAsignacion.invalid) { this.formAsignacion.markAllAsTouched(); return; }
     this.isSubmittingAsignacion = true;
@@ -161,16 +191,17 @@ export class SubjectsComponent implements OnInit {
       maestro_id: Number(this.formAsignacion.value.maestro_id)
     };
 
-    this.grupoMateriasService.asignarMateria(data).subscribe({
-      next: () => {
-        this.sweetAlert.toast('Materia asignada al grupo', 'success');
-        this.formAsignacion.reset();
-        if (!this.esAdmin) this.formAsignacion.get('maestro_id')!.setValue(this.usuario?.id);
-        this.cargarDatos();
-        this.isSubmittingAsignacion = false;
-      },
-      error: (err) => { this.sweetAlert.error('Error', err.error?.message || 'No se pudo asignar'); this.isSubmittingAsignacion = false; }
-    });
+    this.grupoMateriasService.asignarMateria(data)
+      .pipe(finalize(() => (this.isSubmittingAsignacion = false)))
+      .subscribe({
+        next: () => {
+          this.sweetAlert.toast('Materia asignada al grupo', 'success');
+          this.formAsignacion.reset();
+          if (!this.esAdmin) this.formAsignacion.get('maestro_id')!.setValue(this.usuario?.id);
+          this.cargarDatos();
+        },
+        error: (err) => this.sweetAlert.error('Error', err.error?.message || 'No se pudo asignar')
+      });
   }
 
   async eliminarAsignacion(gm: GrupoMateria): Promise<void> {
@@ -179,14 +210,148 @@ export class SubjectsComponent implements OnInit {
     );
     if (result.isConfirmed) {
       this.grupoMateriasService.eliminarGrupoMateria(gm.id).subscribe({
-        next: () => { this.sweetAlert.toast('Asignación eliminada', 'success'); this.cargarDatos(); },
-        error: () => this.sweetAlert.error('Error', 'No se pudo eliminar')
+        next: () => {
+          this.sweetAlert.toast('Asignación eliminada', 'success');
+          this.cargarDatos();
+        },
+        error: (err) => this.sweetAlert.error('Error', err.error?.message || 'No se pudo eliminar')
       });
     }
   }
 
-  getNombreGrupo(grupo_id: number): string {
-    const grupo = this.grupos.find(g => g.id === grupo_id);
-    return grupo ? grupo.nombre : `Grupo ${grupo_id}`;
+  // Paginacion para el catalogo
+
+  get totalPaginasMaterias(): number {
+    return Math.max(1, Math.ceil(this.materias.length / this.itemsPorPagina));
+  }
+
+  get materiasPaginadas(): Materia[] {
+    const inicio = (this.paginaMaterias - 1) * this.itemsPorPagina;
+    return this.materias.slice(inicio, inicio + this.itemsPorPagina);
+  }
+
+  cambiarPaginaMaterias(delta: number): void {
+    const nueva = this.paginaMaterias + delta;
+    if (nueva >= 1 && nueva <= this.totalPaginasMaterias) {
+      this.paginaMaterias = nueva;
+    }
+  }
+
+  // Paginacion, busqueda y filtro para asignaciones
+
+  private nivelDe(gm: GrupoMateria): string {
+    return gm.nivel_educativo?.trim() || 'Sin nivel';
+  }
+
+  get nivelesDisponibles(): string[] {
+    const set = new Set(this.grupoMaterias.map(gm => this.nivelDe(gm)));
+    return [this.NIVEL_TODOS, ...Array.from(set).sort()];
+  }
+
+  get maestrosEnAsignaciones(): { id: number; nombre: string }[] {
+    const mapa = new Map<number, string>();
+    this.grupoMaterias.forEach(gm => {
+      if (gm.maestro_id != null) mapa.set(gm.maestro_id, gm.maestro_nombre || `Maestro ${gm.maestro_id}`);
+    });
+    return Array.from(mapa, ([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }
+
+  get hayFiltrosActivosAsignacion(): boolean {
+    return !!this.busquedaAsignacion || this.nivelSeleccionado !== this.NIVEL_TODOS || this.maestroSeleccionado !== 'todos';
+  }
+
+  get asignacionesFiltradas(): GrupoMateria[] {
+    const termino = this.busquedaAsignacion.trim().toLowerCase();
+
+    return this.grupoMaterias.filter(gm => {
+      const coincideNivel = this.nivelSeleccionado === this.NIVEL_TODOS
+        || this.nivelDe(gm) === this.nivelSeleccionado;
+
+      const coincideMaestro = this.maestroSeleccionado === 'todos'
+        || gm.maestro_id === this.maestroSeleccionado;
+
+      if (!coincideNivel || !coincideMaestro) return false;
+      if (!termino) return true;
+
+      return (gm.materia_nombre || '').toLowerCase().includes(termino)
+        || (gm.grupo_nombre || '').toLowerCase().includes(termino)
+        || (gm.maestro_nombre || '').toLowerCase().includes(termino);
+    });
+  }
+
+  get totalPaginasAsignaciones(): number {
+    return Math.max(1, Math.ceil(this.asignacionesFiltradas.length / this.itemsPorPagina));
+  }
+
+  get asignacionesPaginadas(): GrupoMateria[] {
+    const inicio = (this.paginaAsignaciones - 1) * this.itemsPorPagina;
+    return this.asignacionesFiltradas.slice(inicio, inicio + this.itemsPorPagina);
+  }
+
+  seleccionarNivel(nivel: string): void {
+    this.nivelSeleccionado = nivel;
+    this.paginaAsignaciones = 1;
+  }
+
+  onBuscarAsignacion(valor: string): void {
+    this.busquedaAsignacion = valor;
+    this.paginaAsignaciones = 1;
+  }
+
+  onFiltrarMaestro(valor: string): void {
+    this.maestroSeleccionado = valor === 'todos' ? 'todos' : Number(valor);
+    this.paginaAsignaciones = 1;
+  }
+
+  limpiarFiltrosAsignacion(): void {
+    this.busquedaAsignacion = '';
+    this.nivelSeleccionado = this.NIVEL_TODOS;
+    this.maestroSeleccionado = 'todos';
+    this.paginaAsignaciones = 1;
+  }
+
+  cambiarPaginaAsignaciones(delta: number): void {
+    const nueva = this.paginaAsignaciones + delta;
+    if (nueva >= 1 && nueva <= this.totalPaginasAsignaciones) {
+      this.paginaAsignaciones = nueva;
+    }
+  }
+
+  private clampPagina(tipo: 'materias' | 'asignaciones'): void {
+    if (tipo === 'materias' && this.paginaMaterias > this.totalPaginasMaterias) {
+      this.paginaMaterias = this.totalPaginasMaterias;
+    }
+    if (tipo === 'asignaciones' && this.paginaAsignaciones > this.totalPaginasAsignaciones) {
+      this.paginaAsignaciones = this.totalPaginasAsignaciones;
+    }
+  }
+
+  irAPaginaMaterias(pagina: number): void {
+    if (pagina >= 1 && pagina <= this.totalPaginasMaterias) {
+      this.paginaMaterias = pagina;
+    }
+  }
+
+  irAPaginaAsignaciones(pagina: number): void {
+    if (pagina >= 1 && pagina <= this.totalPaginasAsignaciones) {
+      this.paginaAsignaciones = pagina;
+    }
+  }
+
+  paginasVisibles(paginaActual: number, totalPaginas: number): (number | '...')[] {
+    const vecinas = 1;
+    const paginas: (number | '...')[] = [];
+
+    for (let i = 1; i <= totalPaginas; i++) {
+      const esBorde = i === 1 || i === totalPaginas;
+      const esVecina = i >= paginaActual - vecinas && i <= paginaActual + vecinas;
+
+      if (esBorde || esVecina) {
+        paginas.push(i);
+      } else if (paginas[paginas.length - 1] !== '...') {
+        paginas.push('...');
+      }
+    }
+    return paginas;
   }
 }

@@ -14,7 +14,6 @@ import { Usuario } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-evaluations',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './evaluations.component.html',
   styleUrl: './evaluations.component.scss'

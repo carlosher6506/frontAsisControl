@@ -9,7 +9,6 @@ import { NivelAcademico, CrearNivelAcademico, ActualizarNivelAcademico } from '.
 
 @Component({
   selector: 'app-levels',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './levels.component.html',
   styleUrl: './levels.component.scss'
