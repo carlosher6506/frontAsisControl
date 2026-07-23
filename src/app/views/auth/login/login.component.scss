@@ -27,19 +27,112 @@
   z-index: 1;
 }
 
-// Card encima del video
+// Card encima del video — ahora en dos paneles (marca + formulario)
 .login-card {
   position: relative;
   z-index: 2;
-  max-width: 520px;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 980px;
   border-radius: 20px;
   overflow: hidden;
   animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 767.98px) {
+    flex-direction: column;
+    max-width: 480px;
+  }
 }
 
-// Header negro
-.login-header {
-  background-color: #000000;
+// ═══════════ PANEL DE MARCA ═══════════
+.login-brand-panel {
+  position: relative;
+  flex: 0 0 46%;
+  min-width: 0;
+  background: linear-gradient(155deg, #000000 0%, #033349 55%, #008dce 130%);
+  color: #fff;
+  padding: 3.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+
+  @media (max-width: 767.98px) {
+    flex: 0 0 auto;
+    padding: 2.25rem 1.75rem 3.25rem;
+  }
+}
+
+.brand-content {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-eyebrow {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 1.25rem;
+}
+
+.brand-name {
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0 0 .85rem;
+}
+
+.brand-tagline {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: .98rem;
+  line-height: 1.55;
+  max-width: 300px;
+  margin: 0;
+}
+
+.brand-footer {
+  position: relative;
+  z-index: 1;
+  font-size: .78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+// Divisor ondulado — el blanco del panel de formulario "muerde" el panel de marca
+.wave-divider {
+  position: absolute;
+  fill: #fff;
+  z-index: 0;
+}
+
+.wave-divider--vertical {
+  top: 0;
+  right: -1px;
+  width: 46px;
+  height: 100%;
+}
+
+.wave-divider--horizontal {
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 34px;
+}
+
+// ═══════════ PANEL DE FORMULARIO ═══════════
+.login-form-panel {
+  flex: 1 1 auto;
+  background: #fff;
+  padding: 2.75rem 2.5rem;
+  min-width: 0;
+  max-height: 92vh;
+  overflow-y: auto;
+
+  @media (max-width: 767.98px) {
+    padding: 2rem 1.75rem 2.25rem;
+  }
 }
 
 // Logo
@@ -49,10 +142,10 @@
   object-fit: contain;
 }
 
-// Botón con acento naranja al hover
+// Botón con acento naranja/azul al hover — ya conectado en el HTML
 .login-btn {
-  background-color: #000;
-  border-color: #000;
+  background-color: #012435;
+  border-color: #033349;
   transition: all 0.25s ease;
 
   &:hover:not(:disabled) {
@@ -126,7 +219,7 @@
   color: white;
 }
 
-.card-body {
+.animate-form {
   animation: fadeSlide .4s ease;
 }
 
@@ -161,6 +254,19 @@
   &:active:not(:disabled) {
     transform: translateY(0);
   }
+}
+
+.recover-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
 }
 
 .form-control:focus,

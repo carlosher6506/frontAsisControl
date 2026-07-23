@@ -3,13 +3,11 @@
   <!-- SIDEBAR -->
   <aside class="sidebar d-flex flex-column">
     <!-- Logo -->
-    <div class="d-flex align-items-center gap-2 px-3 py-3">
+    <div class="sidebar-brand d-flex align-items-center gap-2 px-3 py-3">
       <img src="/images/Logo_5.png" alt="Logo" class="sidebar-logo" />
-      @if (sidebarOpen) {
-        <span class="brand-name fw-bold text-white">AsisControl</span>
-      }
+      <span class="brand-name fw-bold text-white">AsisControl</span>
     </div>
-    <hr class="border-secondary mx-3 my-0" />
+    <div class="sidebar-divider mx-3"></div>
 
     <!-- Menú -->
     <nav class="flex-grow-1 py-2">
@@ -20,32 +18,27 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
             class="nav-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none"
-            [title]="!sidebarOpen ? item.label : ''">
+            [title]="item.label">
             <i class="bi bi-{{ item.icon }} nav-icon"></i>
-            @if (sidebarOpen) {
-              <span class="nav-label">{{ item.label }}</span>
-            }
+            <span class="nav-label">{{ item.label }}</span>
           </a>
         } @else {
           <div
             class="nav-item nav-parent d-flex align-items-center justify-content-between px-3 py-2"
+            [title]="item.label"
             (click)="toggleMenu(item)">
             <div class="d-flex align-items-center gap-3">
               <i class="bi bi-{{ item.icon }} nav-icon"></i>
-              @if (sidebarOpen) {
-                <span class="nav-label">{{ item.label }}</span>
-              }
+              <span class="nav-label">{{ item.label }}</span>
             </div>
-            @if (sidebarOpen) {
-              <i
-                class="bi bi-chevron-right submenu-arrow"
-                [class.rotate]="item.open">
-              </i>
-            }
+            <i
+              class="bi bi-chevron-right submenu-arrow"
+              [class.rotate]="item.open">
+            </i>
           </div>
           <div
             class="submenu-wrapper"
-            [class.open]="item.open && sidebarOpen">
+            [class.open]="item.open">
             @for (child of item.children; track child.route) {
               <a
                 [routerLink]="child.route"
@@ -59,7 +52,7 @@
         }
       }
     </nav>
-    <hr class="border-secondary mx-3 my-0" />
+    <div class="sidebar-divider mx-3"></div>
   </aside>
 
   <!-- CONTENIDO -->
@@ -69,7 +62,7 @@
     <nav class="top-navbar d-flex align-items-center justify-content-between px-4">
 
       <!-- Toggle sidebar -->
-      <button class="btn btn-link text-dark p-0 text-decoration-none" (click)="toggleSidebar()">
+      <button class="sidebar-toggle-btn" (click)="toggleSidebar()" aria-label="Fijar/ocultar menú">
         <i class="bi bi-list fs-4"></i>
       </button>
 
@@ -90,7 +83,7 @@
             {{ usuario?.nombre?.charAt(0)?.toUpperCase() }}
           </button>
 
-          <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+          <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-2">
             <li class="px-3 py-2">
               <p class="fw-semibold mb-0 small text-dark">{{ usuario?.nombre }}</p>
               <p class="mb-0 small text-muted">{{ usuario?.rol }}</p>

@@ -1,4 +1,4 @@
-<div class="login-wrapper min-vh-100 d-flex align-items-center justify-content-center px-3">
+<div class="login-wrapper min-vh-100 d-flex align-items-center justify-content-center px-3 py-4">
   <!-- VIDEO BACKGROUND -->
   <video class="video-bg" autoplay muted loop playsinline>
     <source src="/images/bg-login.mp4" type="video/mp4" />
@@ -6,16 +6,37 @@
   <div class="video-overlay"></div>
 
   <!-- CARD -->
-  <div class="card shadow-lg border-0 w-100 login-card">
+  <div class="card shadow-lg border-0 login-card">
 
-    <!-- HEADER -->
-    <div class="card-header text-white text-center border-0 py-4 login-header">
-      <img src="/images/icon_2.png" alt="Logo" class="login-logo mb-3"/>
+    <!-- PANEL DE MARCA -->
+    <div class="login-brand-panel">
+      <div class="brand-content">
+        <span class="brand-eyebrow">Bienvenido a</span>
+        <img src="/images/Logo_5.png" alt="Logo" class="login-logo mb-2" />
+        <h2 class="brand-name">AsisControl</h2>
+        <p class="brand-tagline d-none d-md-block">
+          Administra materias, grupos y calificaciones desde un solo lugar.
+        </p>
+      </div>
+
+      <div class="brand-footer d-none d-md-block">© 2026 Gohe-Dev</div>
+
+      <!-- Onda vertical (desktop): divide el panel de marca del formulario -->
+      <svg class="wave-divider wave-divider--vertical d-none d-md-block" viewBox="0 0 100 1000" preserveAspectRatio="none">
+        <path d="M50,0 C80,50 80,150 50,200 C20,250 20,350 50,400 C80,450 80,550 50,600 C20,650 20,750 50,800 C80,850 80,950 50,1000 L100,1000 L100,0 Z" />
+      </svg>
+
+      <!-- Onda horizontal (móvil): divide el panel de marca del formulario -->
+      <svg class="wave-divider wave-divider--horizontal d-md-none" viewBox="0 0 1000 100" preserveAspectRatio="none">
+        <path d="M0,50 C50,80 150,80 200,50 C250,20 350,20 400,50 C450,80 550,80 600,50 C650,20 750,20 800,50 C850,80 950,80 1000,50 L1000,100 L0,100 Z" />
+      </svg>
     </div>
 
-    <!-- SWITCH TABS -->
-    <div class="px-4 pt-4">
-      <div class="switch-tabs">
+    <!-- PANEL DE FORMULARIO -->
+    <div class="login-form-panel">
+
+      <!-- SWITCH TABS -->
+      <div class="switch-tabs mb-4">
         <div class="switch-indicator" [class.right]="tabActivo === 'registro'"></div>
         <button type="button" class="switch-btn"
                 [class.active]="tabActivo === 'login'"
@@ -28,181 +49,80 @@
           Crear cuenta
         </button>
       </div>
-    </div>
 
-    <!-- BODY -->
-    <div class="card-body p-4 p-md-5 animate-form">
+      <div class="animate-form">
 
-      <!-- ====================== LOGIN ====================== -->
-      @if (tabActivo === 'login') {
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-          @if (loginBloqueado) {
-            <div class="alert alert-warning small d-flex gap-2 align-items-start" role="alert">
-              <i class="bi bi-shield-lock-fill mt-1"></i>
-              <span>
-                Por seguridad, el acceso está temporalmente limitado. Intenta de nuevo en
-                {{ segundosBloqueo }} segundos.
-              </span>
+        <!-- ====================== LOGIN ====================== -->
+        @if (tabActivo === 'login') {
+          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+            @if (loginBloqueado) {
+              <div class="alert alert-warning small d-flex gap-2 align-items-start" role="alert">
+                <i class="bi bi-shield-lock-fill mt-1"></i>
+                <span>
+                  Por seguridad, el acceso está temporalmente limitado. Intenta de nuevo en
+                  {{ segundosBloqueo }} segundos.
+                </span>
+              </div>
+            }
+
+            <!-- EMAIL -->
+            <div class="mb-3">
+              <label for="login-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
+              <input id="login-email" type="email" class="form-control bg-light"
+                     [class.is-invalid]="email.invalid && email.touched"
+                     formControlName="email" autocomplete="username"
+                     autocapitalize="none" spellcheck="false" maxlength="254"/>
+              <div class="invalid-feedback">
+                @if (email.errors?.['required']) { El correo es requerido }
+                @if (email.errors?.['email']) { Ingresa un correo válido }
+              </div>
             </div>
-          }
 
-          <!-- EMAIL -->
-          <div class="mb-3">
-            <label for="login-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
-            <input id="login-email" type="email" class="form-control bg-light"
-                   [class.is-invalid]="email.invalid && email.touched"
-                   formControlName="email" autocomplete="username"
-                   autocapitalize="none" spellcheck="false" maxlength="254"/>
-            <div class="invalid-feedback">
-              @if (email.errors?.['required']) { El correo es requerido }
-              @if (email.errors?.['email']) { Ingresa un correo válido }
+            <!-- PASSWORD -->
+            <div class="mb-3">
+              <label for="login-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
+              <div class="input-group">
+                <input id="login-password" [type]="showPassword ? 'text' : 'password'"
+                       class="form-control bg-light border-end-0"
+                       [class.is-invalid]="password.invalid && password.touched"
+                       formControlName="password" autocomplete="current-password" maxlength="256"/>
+                <button type="button" class="btn btn-light border border-start-0"
+                        (click)="showPassword = !showPassword"
+                        [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                  <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+                </button>
+              </div>
+              @if (password.invalid && password.touched) {
+                <div class="text-danger small mt-1">La contraseña es requerida.</div>
+              }
             </div>
-          </div>
 
-          <!-- PASSWORD -->
-          <div class="mb-3">
-            <label for="login-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
-            <div class="input-group">
-              <input id="login-password" [type]="showPassword ? 'text' : 'password'"
-                     class="form-control bg-light border-end-0"
-                     [class.is-invalid]="password.invalid && password.touched"
-                     formControlName="password" autocomplete="current-password" maxlength="256"/>
-              <button type="button" class="btn btn-light border border-start-0"
-                      (click)="showPassword = !showPassword"
-                      [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
-                <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+            <!-- FORGOT PASSWORD -->
+            <div class="text-end mb-4">
+              <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none"
+                      (click)="cambiarTab('recuperar')">
+                ¿Olvidaste tu contraseña?
               </button>
             </div>
-            @if (password.invalid && password.touched) {
-              <div class="text-danger small mt-1">La contraseña es requerida.</div>
-            }
-          </div>
 
-          <!-- FORGOT PASSWORD -->
-          <div class="text-end mb-4">
-            <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none"
-                    (click)="cambiarTab('recuperar')">
-              ¿Olvidaste tu contraseña?
+            <!-- BOTÓN INICIAR SESIÓN -->
+            <button type="submit" class="btn login-btn text-white w-100 py-2 fw-bold" [disabled]="isLoading || loginBloqueado">
+              @if (isLoading) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Iniciando...
+              } @else {
+                <i class="bi bi-box-arrow-in-right me-2"></i>
+                Iniciar sesión
+              }
             </button>
-          </div>
+          </form>
 
-          <!-- BOTÓN INICIAR SESIÓN -->
-          <button type="submit" class="btn btn-dark w-100 py-2 fw-bold" [disabled]="isLoading || loginBloqueado">
-            @if (isLoading) {
-              <span class="spinner-border spinner-border-sm me-2"></span>
-              Iniciando...
-            } @else {
-              <i class="bi bi-box-arrow-in-right me-2"></i>
-              Iniciar sesión
-            }
-          </button>
-        </form>
-
-        <!-- BOTÓN GOOGLE - LOGIN -->
-        <div class="mt-4">
-          <div class="d-flex align-items-center my-3">
-            <hr class="flex-grow-1 border-secondary opacity-25">
-          </div>
-          <button type="button"
-                  class="btn btn-google w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
-                  [disabled]="isLoadingGoogle"
-                  (click)="loginConGoogle()">
-            @if (isLoadingGoogle) {
-              <span class="spinner-border spinner-border-sm"></span>
-              Conectando...
-            } @else {
-              <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-              </svg>
-              Continuar con Google
-            }
-          </button>
-        </div>
-
-        @if (emailNoVerificado) {
-          <div class="alert alert-warning mt-3 d-flex align-items-start gap-2">
-            <i class="bi bi-envelope-exclamation-fill flex-shrink-0 mt-1"></i>
-            <div class="small">
-              <p class="fw-semibold mb-1">Correo no verificado</p>
-              <p class="mb-2">Debes verificar tu correo antes de iniciar sesión.</p>
-              <button class="btn btn-sm btn-warning fw-semibold"
-                      [disabled]="enviandoVerificacion"
-                      (click)="reenviarVerificacionLogin()">
-                @if (enviandoVerificacion) {
-                  <span class="spinner-border spinner-border-sm me-1"></span>
-                }
-                Reenviar correo de verificación
-              </button>
-            </div>
-          </div>
-        }
-      }
-
-      <!-- ====================== REGISTRO ====================== -->
-      @if (tabActivo === 'registro') {
-        <form [formGroup]="registroForm" (ngSubmit)="onRegistro()" novalidate>
-          <!-- NOMBRE -->
-          <div class="mb-3">
-            <label for="registro-nombre" class="form-label fw-semibold text-secondary small">Nombre completo</label>
-            <input id="registro-nombre" type="text" class="form-control bg-light"
-                   formControlName="nombre" autocomplete="name" maxlength="120"/>
-          </div>
-
-          <!-- EMAIL -->
-          <div class="mb-3">
-            <label for="registro-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
-            <input id="registro-email" type="email" class="form-control bg-light"
-                   formControlName="email" autocomplete="email" autocapitalize="none"
-                   spellcheck="false" maxlength="254"/>
-          </div>
-
-          <!-- PASSWORD -->
-          <div class="mb-3">
-            <label for="registro-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
-            <div class="input-group">
-              <input id="registro-password" [type]="showPasswordRegistro ? 'text' : 'password'"
-                     class="form-control bg-light border-end-0"
-                     formControlName="password" autocomplete="new-password" maxlength="256"/>
-              <button type="button" class="btn btn-light border border-start-0"
-                      (click)="showPasswordRegistro = !showPasswordRegistro"
-                      [attr.aria-label]="showPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'">
-                <i class="bi" [class.bi-eye]="!showPasswordRegistro"
-                   [class.bi-eye-slash]="showPasswordRegistro"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- CONFIRMAR PASSWORD -->
-          <div class="mb-4">
-            <label for="confirmar-password" class="form-label fw-semibold text-secondary small">Confirmar contraseña</label>
-            <input id="confirmar-password" type="password" class="form-control bg-light"
-                   formControlName="confirmarPassword" autocomplete="new-password" maxlength="256"/>
-            <div class="text-danger small mt-1"
-                 *ngIf="registroForm.get('confirmarPassword')?.touched && registroForm.errors?.['passwordMismatch']">
-              Las contraseñas no coinciden
-            </div>
-          </div>
-
-          <!-- BOTÓN REGISTRO -->
-          <button type="submit" class="btn btn-dark w-100 py-2 fw-bold" [disabled]="isLoadingRegistro">
-            @if (isLoadingRegistro) {
-              <span class="spinner-border spinner-border-sm me-2"></span>
-              Creando cuenta...
-            } @else {
-              <i class="bi bi-person-plus me-2"></i>
-              Crear cuenta
-            }
-          </button>
-
-          <!-- BOTÓN GOOGLE - REGISTRO -->
+          <!-- BOTÓN GOOGLE - LOGIN -->
           <div class="mt-4">
             <div class="d-flex align-items-center my-3">
-              <hr class="flex-grow-1 border-secondary opacity-25">
-              <span class="px-3 text-muted small">o continúa con</span>
-              <hr class="flex-grow-1 border-secondary opacity-25">
+                <hr class="flex-grow-1 border-secondary opacity-25">
+                <span class="px-3 text-muted small">o continúa con</span>
+                <hr class="flex-grow-1 border-secondary opacity-25">
             </div>
             <button type="button"
                     class="btn btn-google w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
@@ -222,48 +142,146 @@
               }
             </button>
           </div>
-        </form>
-      }
 
-      <!-- ====================== RECUPERAR ====================== -->
-      @if (tabActivo === 'recuperar') {
-        <div class="text-center mb-4">
-          <div class="recover-icon mb-3"><i class="bi bi-shield-lock"></i></div>
-          <h4 class="fw-bold">Recuperar contraseña</h4>
+          @if (emailNoVerificado) {
+            <div class="alert alert-warning mt-3 d-flex align-items-start gap-2">
+              <i class="bi bi-envelope-exclamation-fill flex-shrink-0 mt-1"></i>
+              <div class="small">
+                <p class="fw-semibold mb-1">Correo no verificado</p>
+                <p class="mb-2">Debes verificar tu correo antes de iniciar sesión.</p>
+                <button class="btn btn-sm btn-warning fw-semibold"
+                        [disabled]="enviandoVerificacion"
+                        (click)="reenviarVerificacionLogin()">
+                  @if (enviandoVerificacion) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  }
+                  Reenviar correo de verificación
+                </button>
+              </div>
+            </div>
+          }
+        }
 
-          <form [formGroup]="resetForm" (ngSubmit)="onSolicitarReset()" novalidate>
-            <div class="mb-4">
-              <label for="reset-email" class="form-label fw-semibold small">Correo electrónico</label>
-              <input id="reset-email" type="email" class="form-control bg-light"
-                     [class.is-invalid]="resetForm.get('email')!.invalid && resetForm.get('email')!.touched"
-                     formControlName="email" autocomplete="email" autocapitalize="none"
-                     spellcheck="false" maxlength="254"/>
-              <div class="invalid-feedback">Ingresa un correo válido</div>
+        <!-- ====================== REGISTRO ====================== -->
+        @if (tabActivo === 'registro') {
+          <form [formGroup]="registroForm" (ngSubmit)="onRegistro()" novalidate>
+            <!-- NOMBRE -->
+            <div class="mb-3">
+              <label for="registro-nombre" class="form-label fw-semibold text-secondary small">Nombre completo</label>
+              <input id="registro-nombre" type="text" class="form-control bg-light"
+                     formControlName="nombre" autocomplete="name" maxlength="120"/>
             </div>
 
-            <button type="submit" class="btn btn-dark w-100 py-2 fw-bold mb-3"
-                    [disabled]="solicitandoReset">
-              @if (solicitandoReset) {
+            <!-- EMAIL -->
+            <div class="mb-3">
+              <label for="registro-email" class="form-label fw-semibold text-secondary small">Correo electrónico</label>
+              <input id="registro-email" type="email" class="form-control bg-light"
+                     formControlName="email" autocomplete="email" autocapitalize="none"
+                     spellcheck="false" maxlength="254"/>
+            </div>
+
+            <!-- PASSWORD -->
+            <div class="mb-3">
+              <label for="registro-password" class="form-label fw-semibold text-secondary small">Contraseña</label>
+              <div class="input-group">
+                <input id="registro-password" [type]="showPasswordRegistro ? 'text' : 'password'"
+                       class="form-control bg-light border-end-0"
+                       formControlName="password" autocomplete="new-password" maxlength="256"/>
+                <button type="button" class="btn btn-light border border-start-0"
+                        (click)="showPasswordRegistro = !showPasswordRegistro"
+                        [attr.aria-label]="showPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                  <i class="bi" [class.bi-eye]="!showPasswordRegistro"
+                     [class.bi-eye-slash]="showPasswordRegistro"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- CONFIRMAR PASSWORD -->
+            <div class="mb-4">
+              <label for="confirmar-password" class="form-label fw-semibold text-secondary small">Confirmar contraseña</label>
+              <input id="confirmar-password" type="password" class="form-control bg-light"
+                     formControlName="confirmarPassword" autocomplete="new-password" maxlength="256"/>
+              <div class="text-danger small mt-1"
+                   *ngIf="registroForm.get('confirmarPassword')?.touched && registroForm.errors?.['passwordMismatch']">
+                Las contraseñas no coinciden
+              </div>
+            </div>
+
+            <!-- BOTÓN REGISTRO -->
+            <button type="submit" class="btn login-btn text-white w-100 py-2 fw-bold" [disabled]="isLoadingRegistro">
+              @if (isLoadingRegistro) {
                 <span class="spinner-border spinner-border-sm me-2"></span>
+                Creando cuenta...
+              } @else {
+                <i class="bi bi-person-plus me-2"></i>
+                Crear cuenta
               }
-              Enviar enlace de recuperación
             </button>
 
-            <div class="text-center">
-              <button type="button" class="btn btn-link btn-sm text-muted p-0"
-                      (click)="cambiarTab('login')">
-                <i class="bi bi-arrow-left me-1"></i> Volver al inicio de sesión
+            <!-- BOTÓN GOOGLE - REGISTRO -->
+            <div class="mt-4">
+              <div class="d-flex align-items-center my-3">
+                <hr class="flex-grow-1 border-secondary opacity-25">
+                <span class="px-3 text-muted small">o continúa con</span>
+                <hr class="flex-grow-1 border-secondary opacity-25">
+              </div>
+              <button type="button"
+                      class="btn btn-google w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                      [disabled]="isLoadingGoogle"
+                      (click)="loginConGoogle()">
+                @if (isLoadingGoogle) {
+                  <span class="spinner-border spinner-border-sm"></span>
+                  Conectando...
+                } @else {
+                  <svg width="18" height="18" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                  </svg>
+                  Continuar con Google
+                }
               </button>
             </div>
           </form>
-        </div>
-      }
+        }
 
+        <!-- ====================== RECUPERAR ====================== -->
+        @if (tabActivo === 'recuperar') {
+          <div class="text-center mb-4">
+            <div class="recover-icon mb-3"><i class="bi bi-shield-lock"></i></div>
+            <h4 class="fw-bold">Recuperar contraseña</h4>
+
+            <form [formGroup]="resetForm" (ngSubmit)="onSolicitarReset()" novalidate>
+              <div class="mb-4">
+                <label for="reset-email" class="form-label fw-semibold small">Correo electrónico</label>
+                <input id="reset-email" type="email" class="form-control bg-light"
+                       [class.is-invalid]="resetForm.get('email')!.invalid && resetForm.get('email')!.touched"
+                       formControlName="email" autocomplete="email" autocapitalize="none"
+                       spellcheck="false" maxlength="254"/>
+                <div class="invalid-feedback">Ingresa un correo válido</div>
+              </div>
+
+              <button type="submit" class="btn login-btn text-white w-100 py-2 fw-bold mb-3"
+                      [disabled]="solicitandoReset">
+                @if (solicitandoReset) {
+                  <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                Enviar enlace de recuperación
+              </button>
+
+              <div class="text-center">
+                <button type="button" class="btn btn-link btn-sm text-muted p-0"
+                        (click)="cambiarTab('login')">
+                  <i class="bi bi-arrow-left me-1"></i> Volver al inicio de sesión
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+      </div>
     </div>
 
-    <!-- FOOTER -->
-    <div class="card-footer text-center text-muted small py-3 bg-light border-0">
-      © 2026 Gohe-Dev
-    </div>
   </div>
 </div>
