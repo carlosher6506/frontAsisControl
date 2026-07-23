@@ -13,18 +13,50 @@
 
     <!-- Menú -->
     <nav class="flex-grow-1 py-2">
-      @for (item of menuFiltrado; track item.route) {
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
-          class="nav-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none"
-          [title]="!sidebarOpen ? item.label : ''">
-          <i class="bi bi-{{ item.icon }} nav-icon"></i>
-          @if (sidebarOpen) {
-            <span class="nav-label">{{ item.label }}</span>
-          }
-        </a>
+      @for (item of menuFiltrado; track item.label) {
+        @if (!item.children) {
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
+            class="nav-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none"
+            [title]="!sidebarOpen ? item.label : ''">
+            <i class="bi bi-{{ item.icon }} nav-icon"></i>
+            @if (sidebarOpen) {
+              <span class="nav-label">{{ item.label }}</span>
+            }
+          </a>
+        } @else {
+          <div
+            class="nav-item nav-parent d-flex align-items-center justify-content-between px-3 py-2"
+            (click)="toggleMenu(item)">
+            <div class="d-flex align-items-center gap-3">
+              <i class="bi bi-{{ item.icon }} nav-icon"></i>
+              @if (sidebarOpen) {
+                <span class="nav-label">{{ item.label }}</span>
+              }
+            </div>
+            @if (sidebarOpen) {
+              <i
+                class="bi bi-chevron-right submenu-arrow"
+                [class.rotate]="item.open">
+              </i>
+            }
+          </div>
+          <div
+            class="submenu-wrapper"
+            [class.open]="item.open && sidebarOpen">
+            @for (child of item.children; track child.route) {
+              <a
+                [routerLink]="child.route"
+                routerLinkActive="active"
+                class="submenu-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none">
+                <i class="bi bi-{{ child.icon }}"></i>
+                <span>{{ child.label }}</span>
+              </a>
+            }
+          </div>
+        }
       }
     </nav>
     <hr class="border-secondary mx-3 my-0" />

@@ -122,3 +122,63 @@ $accent              : #008dceb9;
 .page-content {
   overflow-y: auto;
 }
+
+
+/* Padre */
+
+.nav-parent{
+    cursor:pointer;
+    user-select:none;
+}
+
+/* Flecha */
+
+.submenu-arrow{
+    transition:.25s ease;
+    font-size:.8rem;
+}
+
+.submenu-arrow.rotate{
+    transform:rotate(90deg);
+}
+
+/* Contenedor animado */
+
+.submenu-wrapper{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .28s ease;
+}
+
+.submenu-wrapper.open{
+    max-height:400px;
+}
+
+/* Línea lateral */
+
+.submenu{
+    margin-left:1rem;
+}
+
+/* Hijos */
+
+.submenu-item{
+    margin:4px 12px 4px 42px;
+    border-radius:10px;
+    color:#adb5bd;
+    transition:.2s;
+    position:relative;
+}
+
+
+
+.submenu-item:hover{
+    background:rgba(255,255,255,.08);
+    color:#fff;
+    transform:translateX(4px);
+}
+
+.submenu-item.active{
+    background: $accent;
+    color:#fff;
+}

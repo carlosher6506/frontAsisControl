@@ -3,6 +3,8 @@ export interface MenuItem {
   icon: string;
   route: string;
   roles: string[];
+  children?: MenuItem[];
+  open?: boolean;
 }
 
 export interface DashboardStats {

@@ -23,11 +23,19 @@ export class DashboardComponent {
     { label: 'Estudiantes',     icon: 'person-fill',        route: '/dashboard/students',       roles: ['admin', 'maestro'] },
     { label: 'Grupos',          icon: 'collection-fill',    route: '/dashboard/groups',         roles: ['admin', 'maestro'] },
     { label: 'Materias',        icon: 'book-fill',          route: '/dashboard/subjects',       roles: ['admin', 'maestro'] },
-    { label: 'Tareas',          icon: 'journal-check',      route: '/dashboard/tasks',          roles: ['admin', 'maestro'] },
-    { label: 'Calificaciones',  icon: 'star-fill',          route: '/dashboard/ratings',        roles: ['admin', 'maestro'] },
-    { label: 'Año Escolar',     icon: 'calendar-fill',      route: '/dashboard/schoolYear',     roles: ['admin'] },
-    { label: 'Niveles',         icon: 'bar-chart-fill',     route: '/dashboard/levels',         roles: ['admin'] },
-    { label: 'Configuraciones', icon: 'clipboard-check',    route: '/dashboard/evaluations',    roles: ['admin', 'maestro'] },
+    { label: 'Evaluaciones',    icon: 'clipboard-check',    route: '',                          roles: ['admin', 'maestro'],   open: false,
+      children:[
+        { label: 'Tipo Evaluación',    icon: 'gear-fill',           route: '/dashboard/evaluations',     roles: ['admin', 'maestro']},
+        { label: 'Crear Tareas',       icon: 'journal-check',       route: '/dashboard/tasks',           roles: ['admin', 'maestro'] },
+        { label: 'Calificaciones',     icon: 'star-fill',           route: '/dashboard/ratings',         roles: ['admin', 'maestro'] }
+      ]
+    },
+    { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin', 'maestro'],   open: false,
+      children:[
+        { label: 'Ciclo Escolar',      icon: 'calendar-fill',      route: '/dashboard/schoolYear',     roles: ['admin'] },
+        { label: 'Ajustes Niveles',    icon: 'bar-chart-fill',     route: '/dashboard/levels',         roles: ['admin'] },
+      ]
+    },
     { label: 'Mi perfil',       icon: 'person-circle',      route: '/dashboard/profile',        roles: ['admin', 'maestro'] },
   ];
 
@@ -46,6 +54,10 @@ export class DashboardComponent {
 
   toggleSidebar(): void{
     this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  toggleMenu(item: MenuItem): void {
+    item.open = !item.open;
   }
 
   async logout(): Promise<void>{

@@ -56,8 +56,8 @@ export class ProfileComponent implements OnInit {
           telefono: data.telefono || '',
           curp: data.curp || '',
           rfc: data.rfc || '',
-          especialdiad: data.especialidad || '',
-          carrerra: data.carrera || '',
+          especialidad: data.especialidad || '',
+          carrera: data.carrera || '',
           direccion: data.direccion || '',
           codigo_classroom: data.codigo_classroom || ''
         });
