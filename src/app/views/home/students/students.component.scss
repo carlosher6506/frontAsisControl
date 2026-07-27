@@ -125,8 +125,6 @@
 .tabs-wrapper {
   display: flex;
   gap: 4px;
-  border-bottom: 2px solid #e9ecef;
-  padding-bottom: 0;
 }
 
 .tab-btn {
@@ -151,7 +149,7 @@
   }
 }
 
-// === Filtros ===
+// Filtros
 .filtros-bar {
   background: #f8f9fa;
   border-radius: 10px;

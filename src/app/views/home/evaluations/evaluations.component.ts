@@ -7,10 +7,12 @@ import { EtiquetasService } from '../../../core/services/etiquetas.service';
 import { GroupsService } from '../../../core/services/groups.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { ConfiguracionEvaluacion, CrearEvaluacion } from '../../../core/models/evaluation.model';
+import { ConfiguracionEvaluacion, CrearEvaluacion, GrupoDeNivel, TipoCalculo, TipoEvaluacion, TipoPeriodo } from '../../../core/models/evaluation.model';
 import { Etiqueta, CrearEtiqueta } from '../../../core/models/label.model';
 import { Grupo } from '../../../core/models/group.model';
 import { Usuario } from '../../../core/models/user.model';
+import { TIPOS_CALCULO, TIPOS_EVALUACION, TIPOS_PERIODO } from '../../../core/constants/evaluations.constants'
+import { agruparPorNivelAcademico } from '../../../core/utils/evaluations.utils'
 
 @Component({
   selector: 'app-evaluations',
@@ -28,24 +30,14 @@ export class EvaluationsComponent implements OnInit {
   isLoadingEvaluaciones = true;
   evaluacionActiva: ConfiguracionEvaluacion | null = null;
   etiquetaEditando: Etiqueta | null = null;
+  nivelSeleccionado: string = 'Todos';
 
   formEvaluacion: FormGroup;
   formEtiqueta: FormGroup;
 
-  tiposEvaluacion = [
-    { value: 'puntos',   label: 'Por puntos' },
-    { value: 'promedio', label: 'Por promedio' }
-  ];
-
-  tiposPeriodo = [
-    { value: 'parcial',   label: 'Parciales' },
-    { value: 'trimestre', label: 'Trimestres' }
-  ];
-
-  tiposCalculo = [
-    { value: 'neto',     label: 'Neto (cada etiqueta vale X por periodo)' },
-    { value: 'dividido', label: 'Dividido (valor total ÷ periodos)' }
-  ];
+  readonly tiposEvaluacion = TIPOS_EVALUACION;
+  readonly tiposPeriodo = TIPOS_PERIODO;
+  readonly tiposCalculo = TIPOS_CALCULO
 
   constructor(
     private evaluationsService: EvaluationsService,
@@ -58,15 +50,15 @@ export class EvaluationsComponent implements OnInit {
     this.usuario = this.authService.getUsuario();
 
     this.formEvaluacion = this.fb.group({
-      grupo_id:        ['', Validators.required],
+      grupo_id: ['', Validators.required],
       tipo_evaluacion: ['', Validators.required],
-      num_periodos:    [3, [Validators.required, Validators.min(1), Validators.max(9)]],
-      tipo_periodo:    ['parcial', Validators.required],
-      tipo_calculo:    ['neto', Validators.required]
+      num_periodos: [3, [Validators.required, Validators.min(1), Validators.max(9)]],
+      tipo_periodo: ['parcial', Validators.required],
+      tipo_calculo: ['neto', Validators.required]
     });
 
     this.formEtiqueta = this.fb.group({
-      nombre:      ['', Validators.required],
+      nombre: ['', Validators.required],
       valor_total: ['', [Validators.required, Validators.min(0)]]
     });
 
@@ -105,14 +97,31 @@ export class EvaluationsComponent implements OnInit {
     return this.etiquetas.filter(e => e.configuracion_id === this.evaluacionActiva!.id);
   }
 
+  get nivelesConEvaluaciones(): GrupoDeNivel[]{
+    return agruparPorNivelAcademico(this.evaluaciones);
+  }
+
+  get nivelesAcademicos(): string[] {
+    return [
+      'Todos',
+      ...new Set(this.evaluaciones.map(e => e.nivel_educativo!))
+    ];
+  }
+
+  get evaluacionesFiltradas(): GrupoDeNivel[]{
+    if (this.nivelSeleccionado === 'Todos'){
+      return this.nivelesConEvaluaciones;
+    }
+
+    return this.nivelesConEvaluaciones.filter(g => g.nivel === this.nivelSeleccionado);
+  }
+
   cargarDatos(): void {
     this.isLoadingEvaluaciones = true;
-
     // Primero carga grupos, luego evaluaciones que dependen de ellos
     this.groupsService.obtenerGrupos().subscribe({
       next: (data) => {
         this.grupos = data;
-
         // Ahora sí carga evaluaciones, grupos ya están disponibles
         this.evaluationsService.obtenerEvaluaciones().subscribe({
           next: (evData) => {
@@ -123,17 +132,12 @@ export class EvaluationsComponent implements OnInit {
         });
       }
     });
-
     this.etiquetasService.obtenerEtiquetas().subscribe({
       next: (data) => this.etiquetas = data
     });
   }
 
   seleccionarEvaluacion(evaluacion: ConfiguracionEvaluacion): void {
-    if (this.evaluacionActiva?.id === evaluacion.id) {
-      this.evaluacionActiva = null;
-      return;
-    }
     this.evaluacionActiva = evaluacion;
     this.etiquetaEditando = null;
     this.formEtiqueta.reset();
@@ -143,16 +147,18 @@ export class EvaluationsComponent implements OnInit {
     return `${evaluacion.nivel_educativo || ''} ${evaluacion.nivel_academico || ''} ${evaluacion.grupo_nombre || ''}`.trim();
   }
 
-  // ── CRUD Evaluación ────────────────────────────────────────────
+  // Crud para evaluacion
   crearEvaluacion(): void {
     if (this.formEvaluacion.invalid) { this.formEvaluacion.markAllAsTouched(); return; }
 
+    const valores = this.formEvaluacion.getRawValue();
+
     const data: CrearEvaluacion = {
-      grupo_id:        Number(this.formEvaluacion.value.grupo_id),
-      tipo_evaluacion: this.formEvaluacion.value.tipo_evaluacion,
-      num_periodos:    Number(this.formEvaluacion.value.num_periodos),
-      tipo_periodo:    this.formEvaluacion.value.tipo_periodo,
-      tipo_calculo:    this.formEvaluacion.value.tipo_calculo
+      grupo_id: Number(valores.grupo_id),
+      tipo_evaluacion: valores.tipo_evaluacion as TipoEvaluacion,
+      num_periodos:    Number(valores.num_periodos),
+      tipo_periodo:    valores.tipo_periodo as TipoPeriodo,
+      tipo_calculo:    valores.tipo_calculo as TipoCalculo
     };
 
     this.evaluationsService.crearEvaluacion(data).subscribe({
@@ -183,7 +189,7 @@ export class EvaluationsComponent implements OnInit {
     }
   }
 
-  // ── CRUD Etiqueta ──────────────────────────────────────────────
+  // crud para las etiquetas
   guardarEtiqueta(): void {
     if (this.formEtiqueta.invalid) { this.formEtiqueta.markAllAsTouched(); return; }
 
@@ -201,8 +207,8 @@ export class EvaluationsComponent implements OnInit {
       if (!this.evaluacionActiva) return;
       const data: CrearEtiqueta = {
         configuracion_id: this.evaluacionActiva.id,
-        nombre:           this.formEtiqueta.value.nombre,
-        valor_total:      Number(this.formEtiqueta.value.valor_total)
+        nombre: this.formEtiqueta.value.nombre,
+        valor_total: Number(this.formEtiqueta.value.valor_total)
       };
       this.etiquetasService.crearEtiqueta(data).subscribe({
         next: () => {
@@ -217,7 +223,10 @@ export class EvaluationsComponent implements OnInit {
 
   editarEtiqueta(etiqueta: Etiqueta): void {
     this.etiquetaEditando = etiqueta;
-    this.formEtiqueta.patchValue({ nombre: etiqueta.nombre, valor_total: etiqueta.valor_total });
+    this.formEtiqueta.patchValue({
+      nombre: etiqueta.nombre,
+      valor_total: etiqueta.valor_total
+    });
   }
 
   cancelarEdicionEtiqueta(): void {

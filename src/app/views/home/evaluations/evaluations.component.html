@@ -3,8 +3,8 @@
   <!-- Encabezado -->
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-      <h4 class="fw-bold mb-1">Evaluaciones</h4>
-      <p class="text-muted small mb-0">Configuración de evaluaciones y etiquetas por grupo</p>
+      <h4 class="fw-bold mb-1">Tipo Evaluación</h4>
+      <p class="text-muted small mb-0">Configuración de evaluaciones por grupo</p>
     </div>
     <button class="btn btn-dark"
       data-bs-toggle="modal" data-bs-target="#modalEvaluacion">
@@ -12,213 +12,213 @@
     </button>
   </div>
 
-  <div class="row g-3">
+  <ul class="nav nav-tabs border-0 mb-4">
+    @for (nivel of nivelesAcademicos; track nivel) {
+      <li class="nav-item">
+        <button
+          type="button"
+          class="nav-link"
+          [class.active]="nivelSeleccionado === nivel"
+          (click)="nivelSeleccionado = nivel">
+          {{ nivel }}
+        </button>
+      </li>
+    }
+  </ul>
 
-    <!-- ══════ COLUMNA 1 — CONFIGURACIONES ══════ -->
-    <div [class]="evaluacionActiva ? 'col-12 col-lg-4' : 'col-12'">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-0 pt-3 pb-2">
-          <h6 class="fw-bold mb-0">
-            <i class="bi bi-clipboard-check me-2"></i>Configuraciones
-          </h6>
-          <p class="text-muted mb-0" style="font-size:0.75rem;">
-            Clic para ver etiquetas - clic de nuevo para cerrar
-          </p>
-        </div>
-        <div class="card-body p-0">
-          @if (isLoadingEvaluaciones) {
-            <div class="d-flex justify-content-center py-4">
-              <div class="spinner-border spinner-border-sm text-dark"></div>
-            </div>
-          } @else if (evaluaciones.length === 0) {
-            <div class="text-center py-4 text-muted">
-              <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
-              <p class="small mb-0">No hay configuraciones registradas</p>
-            </div>
-          } @else {
-            <div class="list-group list-group-flush">
-              @for (eval of evaluaciones; track eval.id) {
-                <button
-                  class="list-group-item list-group-item-action border-0 px-3 py-2"
-                  [class.active]="evaluacionActiva?.id === eval.id"
-                  (click)="seleccionarEvaluacion(eval)">
-                  <div class="d-flex align-items-start justify-content-between">
-                    <div>
-                      <p class="fw-semibold small mb-1">{{ getNombreGrupo(eval) }}</p>
-                      <div class="d-flex gap-1 flex-wrap">
-                        <span class="badge bg-secondary">{{ eval.tipo_evaluacion }}</span>
-                        <span class="badge bg-dark">
-                          {{ eval.num_periodos }} {{ eval.tipo_periodo }}s
-                        </span>
-                        @if (eval.tipo_evaluacion === 'puntos') {
-                          <span class="badge bg-warning text-dark">{{ eval.tipo_calculo }}</span>
-                        }
-                      </div>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger border-0 flex-shrink-0 ms-2"
-                      (click)="$event.stopPropagation(); eliminarEvaluacion(eval)">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </button>
-              }
+  <!-- CARDS AGRUPADAS POR NIVEL -->
+  @if (isLoadingEvaluaciones) {
+    <div class="d-flex justify-content-center py-5">
+      <div class="spinner-border spinner-border-sm text-dark"></div>
+    </div>
+  } @else if (evaluaciones.length === 0) {
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
+      <p class="small mb-0">No hay configuraciones registradas</p>
+    </div>
+  } @else {
+    @for (grupoNivel of evaluacionesFiltradas; track grupoNivel.nivel) {
+      <div class="mb-4">
+        <div class="row g-3">
+          @for (eval of grupoNivel.evaluaciones; track eval.id) {
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="config-card">
+                <!-- Header -->
+                <div class="config-card-header">
+                  <span class="config-card-level">
+                    {{ eval.nivel_educativo }}
+                  </span>
+                  <h5>{{eval.nivel_academico}} Grupo {{ eval.grupo_nombre }}</h5>
+                </div>
+
+                <!-- Body -->
+                <div class="config-card-body">
+                  <button
+                    class="btn btn-dark w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalDetalleEvaluacion"
+                    (click)="seleccionarEvaluacion(eval)">
+                    <i class="bi bi-sliders me-2"></i>Ver configuración
+                  </button>
+                </div>
+
+                <!-- Footer -->
+                <div class="config-card-footer">
+                  <button
+                    class="btn btn-link text-danger p-0"
+                    (click)="eliminarEvaluacion(eval)">
+                    <i class="bi bi-trash me-1"></i>
+                    Eliminar
+                  </button>
+                </div>
+              </div>
             </div>
           }
         </div>
       </div>
-    </div>
-
-    <!-- ══════ COLUMNA 2 — ETIQUETAS (solo si hay evaluación activa y es por puntos) ══════ -->
-    @if (evaluacionActiva) {
-      <div class="col-12 col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white border-0 pt-3 pb-2">
-            <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <h6 class="fw-bold mb-0">
-                  <i class="bi bi-tags me-2"></i>Etiquetas
-                </h6>
-                <p class="text-muted mb-0" style="font-size:0.75rem;">
-                  {{ getNombreGrupo(evaluacionActiva) }}
-                </p>
-              </div>
-              @if (!esPorPuntos) {
-                <span class="badge bg-secondary">
-                  Evaluación por promedio - no requiere etiquetas
-                </span>
-              }
-            </div>
-          </div>
-
-          <div class="card-body">
-
-            @if (!esPorPuntos) {
-
-              <!-- Mensaje promedio -->
-              <div class="alert alert-dark d-flex gap-3 align-items-start">
-                <i class="bi bi-info-circle fs-5 flex-shrink-0"></i>
-                <div class="small">
-                  <p class="fw-semibold mb-1">Evaluación por promedio</p>
-                  <p class="mb-0">
-                    Las calificaciones se registran directamente en las tareas del módulo
-                    <strong>Tareas</strong> y se promedian automáticamente al final del periodo.
-                    No se necesitan etiquetas.
-                  </p>
-                </div>
-              </div>
-
-            } @else {
-
-              <div class="row g-3">
-
-                <!-- Lista etiquetas -->
-                <div class="col-12 col-md-7">
-                  @if (etiquetasFiltradas.length === 0) {
-                    <div class="text-center py-4 text-muted">
-                      <i class="bi bi-tags fs-2 d-block mb-2"></i>
-                      <p class="small mb-0">No hay etiquetas para esta configuración</p>
-                    </div>
-                  } @else {
-                    <div class="table-responsive">
-                      <table class="table table-hover align-middle mb-0">
-                        <thead class="table-dark">
-                          <tr>
-                            <th>Nombre</th>
-                            <th>Valor</th>
-                            <th class="text-end">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @for (etiqueta of etiquetasFiltradas; track etiqueta.id) {
-                            <tr>
-                              <td class="fw-semibold small">{{ etiqueta.nombre }}</td>
-                              <td>
-                                <span class="badge bg-dark">{{ etiqueta.valor_total }} pts</span>
-                              </td>
-                              <td class="text-end">
-                                <button class="btn btn-sm btn-outline-dark me-1"
-                                  (click)="editarEtiqueta(etiqueta)">
-                                  <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger"
-                                  (click)="eliminarEtiqueta(etiqueta)">
-                                  <i class="bi bi-trash"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          }
-                        </tbody>
-                      </table>
-                    </div>
-                  }
-                </div>
-
-                <!-- Form etiqueta -->
-                <div class="col-12 col-md-5">
-                  <div class="card border-0 bg-light p-3">
-                    <p class="fw-semibold small mb-3">
-                      @if (etiquetaEditando) {
-                        <i class="bi bi-pencil me-1"></i>Editando: {{ etiquetaEditando.nombre }}
-                      } @else {
-                        <i class="bi bi-plus-circle me-1"></i>Nueva etiqueta
-                      }
-                    </p>
-                    <form [formGroup]="formEtiqueta" (ngSubmit)="guardarEtiqueta()" novalidate>
-
-                      <div class="mb-2">
-                        <label class="form-label fw-semibold small mb-1">Nombre</label>
-                        <input type="text" class="form-control form-control-sm"
-                          [class.is-invalid]="formEtiqueta.get('nombre')!.invalid && formEtiqueta.get('nombre')!.touched"
-                          formControlName="nombre"
-                          placeholder="Ej: Actividades, Examen, Prontuario..." />
-                        <div class="invalid-feedback">El nombre es requerido</div>
-                      </div>
-
-                      <div class="mb-3">
-                        <label class="form-label fw-semibold small mb-1">Valor en puntos</label>
-                        <input type="number" class="form-control form-control-sm"
-                          [class.is-invalid]="formEtiqueta.get('valor_total')!.invalid && formEtiqueta.get('valor_total')!.touched"
-                          formControlName="valor_total"
-                          placeholder="Ej: 4, 3, 2..." min="0" step="0.5" />
-                        <div class="invalid-feedback">El valor es requerido</div>
-                      </div>
-
-                      <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-dark btn-sm flex-grow-1">
-                          {{ etiquetaEditando ? 'Actualizar' : 'Agregar etiqueta' }}
-                        </button>
-                        @if (etiquetaEditando) {
-                          <button type="button" class="btn btn-outline-secondary btn-sm"
-                            (click)="cancelarEdicionEtiqueta()">
-                            Cancelar
-                          </button>
-                        }
-                      </div>
-
-                    </form>
-                  </div>
-                </div>
-
-              </div>
-
-            }
-
-          </div>
-        </div>
-      </div>
     }
+  }
+</div>
 
+<!-- MODAL DETALLE DE CONFIGURACIÓN -->
+<div class="modal fade" id="modalDetalleEvaluacion" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      @if (evaluacionActiva) {
+
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h5 class="modal-title fw-bold mb-0">{{ evaluacionActiva.nivel_academico }} Grupo {{ evaluacionActiva.grupo_nombre }}</h5>
+            <p class="text-muted small mb-0"> {{ evaluacionActiva.nivel_educativo?.toLocaleUpperCase() }} </p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body pt-3">
+          <!-- Tipo de configuración asignado -->
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            @if (!esPorPuntos){
+              <span class="config-pill"> {{ evaluacionActiva.num_periodos }} {{ evaluacionActiva.tipo_periodo }}s
+              {{ evaluacionActiva.tipo_evaluacion === 'puntos' ? 'por puntos' : 'por promedio' }} </span>
+            }
+            @if (esPorPuntos) {
+              <span class="config-pill"> {{ evaluacionActiva.num_periodos }} {{ evaluacionActiva.tipo_periodo }}es
+              {{ evaluacionActiva.tipo_evaluacion === 'puntos' ? 'por puntos' : 'por promedio' }} </span>
+              <span class="config-pill">
+                {{ evaluacionActiva.tipo_calculo === 'neto' ? 'Cálculo neto' : 'Cálculo dividido' }}
+              </span>
+            }
+          </div>
+          <br>
+
+          @if (!esPorPuntos) {
+
+            <!-- Mensaje promedio -->
+            <div class="d-flex gap-3 align-items-start info-panel">
+              <i class="bi bi-info-circle fs-5 flex-shrink-0"></i>
+              <p class="small mb-0">
+                Las calificaciones se registran directamente en el módulo <strong>Tareas</strong>
+                y se promedian automáticamente al final del periodo. No se necesitan etiquetas.
+              </p>
+            </div>
+
+          } @else {
+
+            <div class="row g-4">
+
+              <!-- Lista etiquetas -->
+              <div class="col-12 col-md-7">
+                <h6 class="fw-semibold small text-uppercase text-muted mb-2">Etiquetas</h6>
+                @if (etiquetasFiltradas.length === 0) {
+                  <div class="text-center py-4 text-muted">
+                    <i class="bi bi-tags fs-2 d-block mb-2"></i>
+                    <p class="small mb-0">No hay etiquetas para esta configuración</p>
+                  </div>
+                } @else {
+                  <div class="tag-list">
+                    @for (etiqueta of etiquetasFiltradas; track etiqueta.id) {
+                      <div class="tag-row">
+                        <span class="small fw-semibold">{{ etiqueta.nombre }}</span>
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge bg-dark">{{ etiqueta.valor_total }} pts</span>
+                          <button class="btn btn-sm btn-outline-dark border-0 py-0 px-1"
+                            (click)="editarEtiqueta(etiqueta)" aria-label="Editar etiqueta">
+                            <i class="bi bi-pencil"></i>
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger border-0 py-0 px-1"
+                            (click)="eliminarEtiqueta(etiqueta)" aria-label="Eliminar etiqueta">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Form etiqueta -->
+              <div class="col-12 col-md-5">
+                <div class="tag-form-box">
+                  <p class="fw-semibold small mb-3">
+                    @if (etiquetaEditando) {
+                      <i class="bi bi-pencil me-1"></i>Editando: {{ etiquetaEditando.nombre }}
+                    } @else {
+                      <i class="bi bi-plus-circle me-1"></i>Nueva etiqueta
+                    }
+                  </p>
+                  <form [formGroup]="formEtiqueta" (ngSubmit)="guardarEtiqueta()" novalidate>
+
+                    <div class="mb-2">
+                      <label class="form-label fw-semibold small mb-1">Nombre</label>
+                      <input type="text" class="form-control form-control-sm"
+                        [class.is-invalid]="formEtiqueta.get('nombre')!.invalid && formEtiqueta.get('nombre')!.touched"
+                        formControlName="nombre"
+                        placeholder="Ej: Actividades, Examen, Prontuario..." />
+                      <div class="invalid-feedback">El nombre es requerido</div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold small mb-1">Valor en puntos</label>
+                      <input type="number" class="form-control form-control-sm"
+                        [class.is-invalid]="formEtiqueta.get('valor_total')!.invalid && formEtiqueta.get('valor_total')!.touched"
+                        formControlName="valor_total"
+                        placeholder="Ej: 4, 3, 2..." min="0" step="0.5" />
+                      <div class="invalid-feedback">El valor es requerido</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                      <button type="submit" class="btn btn-dark btn-sm flex-grow-1">
+                        {{ etiquetaEditando ? 'Actualizar' : 'Agregar etiqueta' }}
+                      </button>
+                      @if (etiquetaEditando) {
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                          (click)="cancelarEdicionEtiqueta()">
+                          Cancelar
+                        </button>
+                      }
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      }
+    </div>
   </div>
 </div>
 
-<!-- ══════════ MODAL NUEVA CONFIGURACIÓN ══════════ -->
+<!-- MODAL NUEVA CONFIGURACIÓN -->
 <div class="modal fade" id="modalEvaluacion" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow">
 
       <div class="modal-header bg-dark text-white border-0">
         <h5 class="modal-title fw-bold">
-          <i class="bi bi-clipboard-check me-2"></i>Nueva configuración de evaluación
+          <i class="bi bi-clipboard-check me-2"></i>Nueva configuración
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
