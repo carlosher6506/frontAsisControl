@@ -3,15 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { StudentsService } from '../../../core/services/students.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { Alumno, CrearAlumno } from '../../../core/models/student.model';
+import { Alumno, CrearAlumno, NivelConAlumnos } from '../../../core/models/student.model';
 import { EducationLevelsService } from '../../../core/services/education-levels.service';
 import { NivelEducativo } from '../../../core/models/education-level.model';
 import * as XLSX from 'xlsx';
-
-interface NivelConAlumnos {
-  nombre: string;
-  alumnos: Alumno[];
-}
 
 @Component({
   selector: 'app-students',
@@ -299,12 +294,38 @@ export class StudentsComponent implements OnInit {
   onArchivoExcel(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
+    const archivo = input.files[0];
+
+    const extensionesPermitidas = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    if (!extensionesPermitidas.includes(archivo.type)) {
+      this.sweetAlert.error(
+        'Archivo inválido',
+        'Solo se permiten archivos Excel .xlsx'
+      );
+      input.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const data = new Uint8Array(e.target!.result as ArrayBuffer);
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, {
+        type: 'array',
+        cellFormula: false,
+        cellHTML: false,
+        cellStyles: false
+      });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+      if (rows.length > 1000) {
+        this.sweetAlert.error(
+          'Demasiados registros',
+          'El máximo permitido son 1000 alumnos por archivo'
+        );
+        return;
+      }
       this.alumnosExcel = rows.map(r => ({
         nombre:          r['nombre']          || r['Nombre']          || '',
         nivel_educativo: r['nivel_educativo'] || r['Nivel Educativo'] || '',

@@ -21,3 +21,8 @@ export interface CrearAlumno {
   nombre: string;
   nivel_educativo_id?: number;
 }
+
+export interface NivelConAlumnos {
+  nombre: string;
+  alumnos: Alumno[];
+}
