@@ -22,3 +22,10 @@ export interface CrearTarea {
   etiqueta_id?: number | null;
   valor_propio?: number | null;
 }
+
+export interface FiltrosGrupoTareas {
+  nivelAcademico: string;
+  grupo: string;
+  materia: string;
+  texto: string;
+}

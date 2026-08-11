@@ -36,18 +36,18 @@
     opacity: 0.3;
 }
 
-/* Body */
+// Body
 .card-body-custom {
     padding: 1.25rem 1.35rem 0.75rem;
 }
 
-/* Footer */
+// Footer
 .card-footer-custom {
     padding: 0.75rem 1.35rem 1.25rem;
     border-top: 1px solid #dee2e6;
 }
 
-/* Botones principales */
+// Botones principales
 .btn-main {
     width: 100%;
     background: #212529;
@@ -60,7 +60,7 @@
     margin-bottom: 0.7rem;
 }
 
-/* Botones de acción con texto */
+// Botones de acción con texto
 .btn-action-text {
     display: flex;
     align-items: center;
@@ -164,7 +164,7 @@
   &:hover { color: #212529; }
 }
 
-// === Tabs ===
+// Tabs
 .tabs-wrapper {
   display: flex;
   gap: 4px;
@@ -191,7 +191,7 @@
   }
 }
 
-// === Paginación ===
+// Paginación
 .pagination .page-link {
   color: #212529;
   min-width: 30px;
@@ -209,7 +209,7 @@
 
 .pagination .page-item.disabled .page-link { color: #adb5bd; }
 
-// === Botón quitar alumno ===
+// Botón quitar alumno
 .btn-accion-quitar {
   width: 30px;
   height: 30px;

@@ -1,307 +1,244 @@
-<div>
-
-  <!-- Encabezado -->
-  <div class="mb-4">
-    <h4 class="fw-bold mb-1">Tareas</h4>
-    <p class="text-muted small mb-0">Gestión de tareas por grupo, materia y periodo</p>
-  </div>
-
-  <!-- Selector de grupo -->
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-      <div class="row g-3 align-items-end">
-
-        <div class="col-12 col-md-4">
-          <label class="form-label fw-semibold small">Grupo</label>
-          <select class="form-select form-select-sm"
-            [(ngModel)]="grupoSeleccionado"
-            (change)="onGrupoChange()">
-            <option [value]="null" disabled>Selecciona un grupo</option>
-            @for (g of gruposFiltrados; track g.id) {
-              <option [value]="g.id">{{ getNombreCompletoGrupo(g) }}</option>
-            }
-          </select>
-        </div>
-
-        @if (grupoSeleccionado && configEvaluacion) {
-          <div class="col-12 col-md-6">
-            <div class="d-flex gap-2 flex-wrap align-items-center">
-              <span class="text-muted small">Configuración:</span>
-              <span class="badge bg-dark">{{ configEvaluacion.tipo_evaluacion }}</span>
-              <span class="badge bg-secondary">
-                {{ configEvaluacion.num_periodos }} {{ configEvaluacion.tipo_periodo }}s
-              </span>
-              @if (configEvaluacion.tipo_evaluacion === 'puntos') {
-                <span class="badge bg-warning text-dark">{{ configEvaluacion.tipo_calculo }}</span>
-              }
-            </div>
-          </div>
-        }
-
-        @if (grupoSeleccionado && !configEvaluacion) {
-          <div class="col-12 col-md-6">
-            <div class="alert alert-warning small py-2 mb-0">
-              <i class="bi bi-exclamation-triangle me-1"></i>
-              Este grupo no tiene configuración de evaluación. Configúrala en el módulo de Evaluaciones.
-            </div>
-          </div>
-        }
-
-      </div>
+<section class="tasks-page">
+  <header class="page-heading">
+    <div>
+      <h4>Tareas</h4>
+      <p>Selecciona un grupo para administrar sus actividades.</p>
     </div>
-  </div>
+  </header>
 
-  @if (grupoSeleccionado && configEvaluacion) {
-    <div class="row g-3">
-
-      <!-- ══════ MATERIAS ══════ -->
-      <div class="col-12 col-lg-3">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white border-0 pt-3 pb-2">
-            <h6 class="fw-bold mb-0"><i class="bi bi-book me-2"></i>Materias</h6>
-            <p class="text-muted mb-0" style="font-size:0.75rem;">Selecciona una materia</p>
-          </div>
-          <div class="card-body p-0">
-            @if (materiasFiltradas.length === 0) {
-              <div class="text-center py-4 text-muted">
-                <i class="bi bi-book fs-2 d-block mb-2"></i>
-                <p class="small mb-0">No hay materias asignadas a este grupo</p>
+  <section class="groups-panel" aria-label="Grupos disponibles">
+    <div class="catalogue-toolbar">
+      <div class="search-field">
+        <i class="bi bi-search"></i>
+        <input [(ngModel)]="filtros.texto" type="search" class="form-control"
+          placeholder="Buscar grupo, grado o materia..." aria-label="Buscar grupos">
+      </div>
+      <div class="filters-dropdown-wrapper">
+        <button type="button" class="filters-button" [class.active]="mostrarFiltros"
+          (click)="alternarFiltros()" [attr.aria-expanded]="mostrarFiltros">
+          <i class="bi bi-funnel-fill"></i>Filtros<i class="bi" [class.bi-chevron-up]="mostrarFiltros"
+            [class.bi-chevron-down]="!mostrarFiltros">
+          </i>
+        </button>
+        @if (mostrarFiltros) {
+          <div class="filters-drawer">
+            <div class="filters-header">
+              <span>Filtrar por</span>
+              @if (hayFiltrosActivos) {
+                <button type="button" (click)="limpiarFiltros()">
+                  <i class="bi bi-x-circle me-1"></i>Limpiar todo
+                </button>
+              }
+            </div>
+            <div class="filters-item">
+              <label>Grado / Semestre</label>
+              <div class="filter-options">
+                <button type="button" [class.selected]="!filtros.nivelAcademico" (click)="filtros.nivelAcademico = ''">Todos</button>
+                @for (nivel of nivelesAcademicos; track nivel) {
+                  <button type="button" [class.selected]="filtros.nivelAcademico === nivel"
+                    (click)="filtros.nivelAcademico = nivel">{{ nivel }}
+                  </button> }
               </div>
-            } @else {
-              <div class="list-group list-group-flush">
-                @for (gm of materiasFiltradas; track gm.id) {
-                  <button
-                    class="list-group-item list-group-item-action border-0 px-3 py-2"
-                    [class.active]="grupoMateriaSeleccionado?.id === gm.id"
-                    (click)="seleccionarMateria(gm)">
-                    <p class="fw-semibold small mb-0">{{ gm.materia_nombre }}</p>
-                    <p class="mb-0" style="font-size:0.75rem;"
-                      [class.text-white-50]="grupoMateriaSeleccionado?.id === gm.id"
-                      [class.text-muted]="grupoMateriaSeleccionado?.id !== gm.id">
-                      {{ gm.maestro_nombre }}
-                    </p>
-                  </button>
+            </div>
+            <div class="filters-item"><label>Grupo</label>
+              <div class="filter-options">
+                <button type="button" [class.selected]="!filtros.grupo" (click)="filtros.grupo = ''">Todos</button>
+                @for (grupo of nombresGrupos; track grupo) {
+                  <button type="button" [class.selected]="filtros.grupo === grupo" (click)="filtros.grupo = grupo">Grupo {{ grupo }}</button>
                 }
+              </div>
+            </div>
+            <div class="filters-footer">
+              <button type="button" class="btn btn-dark btn-sm w-100" (click)="mostrarFiltros = false">
+                <i class="bi bi-check2 me-1"></i>Aplicar
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+      @if (hayFiltrosActivos) {
+        <button type="button" class="clear-filters" (click)="limpiarFiltros()">Limpiar</button>
+      }
+    </div>
+    <nav class="education-tabs" aria-label="Nivel educativo">
+      @for (nivel of nivelesEducativos; track nivel) {
+        <button type="button" [class.active]="nivelActivo === nivel" (click)="seleccionarNivel(nivel)">{{ nivel }}</button>
+      }
+    </nav>
+    @if (isLoading) {
+      <div class="empty-state">
+        <span class="spinner-border"></span>
+        <p>Cargando grupos...</p>
+      </div> }
+    @else if (gruposFiltrados.length) {
+      <div class="groups-grid">
+        @for (grupo of gruposFiltrados; track grupo.id) {
+          <button type="button" class="group-card" (click)="seleccionarGrupo(grupo)"
+            [attr.aria-label]="'Crear tareas para ' + obtenerNombreGrupo(grupo)">
+            <span class="group-card-heading">
+              <span class="card-top">{{ grupo.nivel_educativo || 'Nivel educativo' }}</span>
+              <strong>{{ obtenerNombreGrupo(grupo) }}</strong>
+            </span>
+            <span class="group-card-body">
+              <span class="group-details">
+                  <h6>{{ materiasDelGrupo(grupo.id).length }} Materia{{ materiasDelGrupo(grupo.id).length === 1 ? '' : 's' }}</h6>
+              </span><span class="create-task-action">
+                <i class="bi bi-plus-lg"></i>Crear tareas</span>
+              </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No encontramos grupos</h6>
+        <p>Ajusta la búsqueda o los filtros para ver más resultados.</p>
+      </div> }
+  </section>
+</section>
+
+@if (modalAbierto && grupoSeleccionado) {
+  <div class="task-modal-backdrop" (click)="cerrarModal()"></div>
+  <section class="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+    <header class="modal-header-custom">
+      <div>
+        <h5 id="task-modal-title">{{ obtenerNombreGrupo(grupoSeleccionado) }}</h5>
+      </div>
+      <button type="button" class="close-button" (click)="cerrarModal()" aria-label="Cerrar creación de tareas">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+    <div class="modal-content-custom">
+      @if (!configEvaluacion) {
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle me-2"></i>Este grupo no tiene configuración de evaluación. Configúrala en el módulo de Evaluaciones.
+        </div>
+      }
+      @else {
+        <div class="configuration-summary">
+          <span>Configuración</span>
+          <span class="badge text-bg-dark">{{ configEvaluacion.tipo_evaluacion }}</span>
+          <span class="badge text-bg-secondary">{{ configEvaluacion.num_periodos }} {{ configEvaluacion.tipo_periodo }}s</span>
+          @if (esPorPuntos) {
+            <span class="badge text-bg-warning">{{ configEvaluacion.tipo_calculo }}</span>
+          }
+        </div>
+        <div class="modal-workspace">
+          <aside class="subjects-sidebar">
+            <p>Selecciona una materia</p>
+            @for (materia of materiasFiltradas; track materia.id) {
+              <button type="button" [class.active]="grupoMateriaSeleccionado?.id === materia.id" (click)="seleccionarMateria(materia)">
+                <strong>{{ materia.materia_nombre }}</strong>
+                <span>{{ materia.maestro_nombre }}</span>
+              </button>
+            }
+            @if (!materiasFiltradas.length) {
+              <div class="sidebar-empty">No hay materias asignadas.</div>
+            }
+          </aside>
+          <main class="tasks-workspace">
+            @if (!grupoMateriaSeleccionado) {
+              <div class="empty-state compact">
+                <i class="bi bi-arrow-left"></i>
+                <p>Selecciona una materia para continuar.</p>
               </div>
             }
-          </div>
-        </div>
-      </div>
-
-      <!-- ══════ TAREAS ══════ -->
-      <div class="col-12 col-lg-9">
-        <div class="card border-0 shadow-sm h-100">
-
-          @if (!grupoMateriaSeleccionado) {
-            <div class="card-body text-center py-5 text-muted">
-              <i class="bi bi-arrow-left fs-2 d-block mb-2"></i>
-              <p class="small mb-0">Selecciona una materia para ver sus tareas</p>
-            </div>
-          } @else {
-
-            <div class="card-header bg-white border-0 pt-3 pb-0">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="fw-bold mb-0">{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
-                <div class="input-group" style="max-width:240px;">
-                  <span class="input-group-text bg-white border-end-0 py-1">
-                    <i class="bi bi-search text-muted small"></i>
-                  </span>
-                  <input type="text" class="form-control form-control-sm border-start-0"
-                    placeholder="Buscar tarea..."
-                    [(ngModel)]="textoBusqueda" />
+            @else {
+              <div class="tasks-header">
+                <div>
+                  <h6>{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
+                  <div class="period-tabs">
+                    @for (periodo of periodos; track periodo) {
+                      <button type="button" [class.active]="periodoSeleccionado === periodo"
+                        (click)="seleccionarPeriodo(periodo)">{{ nombrePeriodo }} {{ periodo }}
+                      </button>
+                    }
+                  </div>
+                </div>
+                <div class="task-search">
+                  <i class="bi bi-search"></i>
+                  <input [(ngModel)]="textoBusquedaTareas" class="form-control form-control-sm" placeholder="Buscar tarea">
                 </div>
               </div>
-
-              <!-- Tabs de periodos — así el maestro navega entre parciales/trimestres -->
-              <ul class="nav nav-tabs border-0">
-                @for (p of periodos; track p) {
-                  <li class="nav-item">
-                    <button class="nav-link"
-                      [class.active]="periodoSeleccionado === p"
-                      [class.text-dark]="periodoSeleccionado !== p"
-                      (click)="seleccionarPeriodo(p)">
-                      {{ nombrePeriodo }} {{ p }}
-                    </button>
-                  </li>
+              <div class="task-list">
+                @if (!tareasFiltradas.length) {
+                  <p class="text-muted text-center py-3 mb-0">Aún no hay tareas para este periodo.</p>
                 }
-              </ul>
-            </div>
-
-            <div class="card-body">
-
-              <!-- Tabla de tareas existentes -->
-              @if (tareasFiltradas.length === 0) {
-                <div class="text-center py-3 text-muted">
-                  <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
-                  <p class="small mb-0">No hay tareas para este periodo</p>
-                </div>
-              } @else {
-                <div class="table-responsive mb-3">
-                  <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
-                      <tr>
-                        <th>Nombre</th>
-                        @if (esPorPuntos) {
-                          <th>Etiqueta</th>
-                          <th>Valor</th>
-                        }
-                        <th>Fecha</th>
-                        <th class="text-end">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (tarea of tareasFiltradas; track tarea.id) {
-                        <tr>
-                          <td class="fw-semibold small">{{ tarea.nombre }}</td>
-
-                          @if (esPorPuntos) {
-                            <td>
-                              @if (tarea.etiqueta_nombre) {
-                                <span class="badge bg-dark">{{ tarea.etiqueta_nombre }}</span>
-                              } @else {
-                                <span class="badge bg-warning text-dark">Sin etiqueta</span>
-                              }
-                            </td>
-                            <td class="small">
-                              <!-- Verde = valor fijo asignado manualmente -->
-                              @if (tarea.valor_propio) {
-                                <span class="badge bg-success">
-                                  {{ tarea.valor_propio }} pts
-                                </span>
-                              <!-- Gris = valor calculado automáticamente dividiendo la etiqueta -->
-                              } @else if (tarea.etiqueta_id) {
-                                <span class="badge bg-secondary">Auto</span>
-                              } @else {
-                                <span class="text-muted">—</span>
-                              }
-                            </td>
+                @else {
+                  @for (tarea of tareasFiltradas; track tarea.id) {
+                    <article class="task-row">
+                      <div>
+                        <strong>{{ tarea.nombre }}</strong>
+                        <span>{{ tarea.fecha ? (tarea.fecha | date:'dd/MM/yyyy') : 'Sin fecha' }}</span>
+                      </div>
+                      @if (esPorPuntos) {
+                        <div class="task-tags">
+                          @if (tarea.etiqueta_nombre) {
+                            <span class="badge text-bg-light">{{ tarea.etiqueta_nombre }}</span>
+                          } @if (tarea.valor_propio !== null && tarea.valor_propio !== undefined) {
+                            <span class="badge text-bg-success">{{ tarea.valor_propio }} pts</span>
                           }
-
-                          <td class="text-muted small">
-                            {{ tarea.fecha ? (tarea.fecha | date:'dd/MM/yyyy') : '—' }}
-                          </td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-dark me-1"
-                              (click)="editarTarea(tarea)">
-                              <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger"
-                              (click)="eliminar(tarea)">
-                              <i class="bi bi-trash"></i>
-                            </button>
-                          </td>
-                        </tr>
+                        </div>
                       }
-                    </tbody>
-                  </table>
-                </div>
-              }
-
-              <!-- Formulario para crear o editar tarea -->
-              <div class="card border-0 bg-light p-3">
-                <p class="fw-semibold small mb-3">
-                  @if (tareaEditando) {
-                    <i class="bi bi-pencil me-1"></i>Editando: {{ tareaEditando.nombre }}
-                  } @else {
-                    <i class="bi bi-plus-circle me-1"></i>
-                    Nueva tarea — {{ nombrePeriodo }} {{ periodoSeleccionado }}
+                      <div>
+                        <button class="icon-action" (click)="editarTarea(tarea)" aria-label="Editar tarea">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="icon-action danger" (click)="eliminar(tarea)" aria-label="Eliminar tarea">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </article>
                   }
-                </p>
-
-                <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
-                  <div class="row g-2 align-items-start">
-
-                    <!-- Nombre de la tarea -->
-                    <div [class]="esPorPuntos ? 'col-12 col-md-3' : 'col-12 col-md-6'">
-                      <input type="text" class="form-control form-control-sm"
-                        [class.is-invalid]="form.get('nombre')!.invalid && form.get('nombre')!.touched"
-                        formControlName="nombre"
-                        placeholder="Nombre de la tarea" />
-                      <div class="invalid-feedback">El nombre es requerido</div>
+                }
+              </div>
+              <form class="task-form" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+                <div class="form-title">{{ tareaEditando ? 'Editar tarea' : 'Nueva tarea' }}
+                  @if (tareaEditando) {
+                    <button type="button" (click)="cancelarEdicion()" class="btn btn-sm btn-link">Cancelar</button>
+                  }
+                </div>
+                <div class="form-grid">
+                  <div>
+                    <label>Nombre</label>
+                    <input formControlName="nombre" class="form-control" maxlength="150" placeholder="Nombre de la tarea"
+                      [class.is-invalid]="form.get('nombre')?.invalid && form.get('nombre')?.touched">
+                      <div class="invalid-feedback">El nombre es requerido.</div>
                     </div>
-
-                    <!-- Etiqueta y valor_propio — solo cuando es evaluación por puntos -->
+                    <div>
+                      <label>Fecha de entrega</label>
+                      <input type="date" formControlName="fecha" class="form-control">
+                    </div>
                     @if (esPorPuntos) {
-
-                      <!-- Select de etiqueta -->
-                      <div class="col-12 col-md-3">
-                        <select class="form-select form-select-sm" formControlName="etiqueta_id">
+                      <div>
+                        <label>Etiqueta</label>
+                        <select formControlName="etiqueta_id" class="form-select">
                           <option value="">Sin etiqueta</option>
-                          @if (etiquetasFiltradas.length === 0) {
-                            <option disabled>Sin etiquetas configuradas</option>
-                          }
-                          @for (e of etiquetasFiltradas; track e.id) {
-                            <option [value]="e.id">
-                              {{ e.nombre }} ({{ e.valor_total }}pts)
-                            </option>
+                          @for (etiqueta of etiquetasFiltradas; track etiqueta.id) {
+                            <option [value]="etiqueta.id">{{ etiqueta.nombre}}</option>
                           }
                         </select>
                       </div>
-
-                      <!-- Valor propio — opcional, muestra puntos disponibles en tiempo real -->
-                      <div class="col-12 col-md-2">
-                        <input type="number" class="form-control form-control-sm"
-                          formControlName="valor_propio"
-                          placeholder="Pts (opcional)"
-                          min="0"
-                          [max]="getPuntosDisponibles() ?? 999"
-                          step="0.5" />
-
-                        <!-- Indicador de puntos disponibles -->
-                        @if (form.value.etiqueta_id && getPuntosDisponibles() !== null) {
-                          @if (getPuntosDisponibles()! > 0) {
-                            <small class="text-success" style="font-size:0.7rem;">
-                              <i class="bi bi-check-circle me-1"></i>
-                              Disponible: <strong>{{ getPuntosDisponibles() }} pts</strong>
-                            </small>
-                          } @else {
-                            <!-- Alerta cuando ya no hay puntos disponibles -->
-                            <small class="text-danger" style="font-size:0.7rem;">
-                              <i class="bi bi-exclamation-circle me-1"></i>
-                              Sin puntos disponibles
-                            </small>
-                          }
-                        } @else {
-                          <small class="text-muted" style="font-size:0.7rem;">
-                            Vacío = auto
-                          </small>
+                      <div>
+                        <label>Puntos propios
+                          <small>(opcional)</small>
+                        </label>
+                        <input type="number" formControlName="valor_propio" min="0" step="0.5"
+                          class="form-control" placeholder="Automático">
+                        @if (getPuntosDisponibles() !== null) {
+                          <small class="availability">Disponibles: {{ getPuntosDisponibles() }} pts</small>
                         }
                       </div>
-
                     }
-
-                    <!-- Fecha de entrega -->
-                    <div class="col-12 col-md-2">
-                      <input type="date" class="form-control form-control-sm"
-                        formControlName="fecha" />
-                    </div>
-
-                    <!-- Botones de acción -->
-                    <div class="col-12 col-md-2 d-flex gap-1">
-                      <button type="submit" class="btn btn-dark btn-sm flex-grow-1"
-                        [disabled]="isSubmitting || (esPorPuntos && form.value.etiqueta_id && getPuntosDisponibles() !== null && getPuntosDisponibles()! <= 0 && !form.value.valor_propio)">
-                        @if (isSubmitting) {
-                          <span class="spinner-border spinner-border-sm"></span>
-                        } @else {
-                          {{ tareaEditando ? 'OK' : 'Agregar' }}
-                        }
-                      </button>
-                      @if (tareaEditando) {
-                        <button type="button" class="btn btn-outline-secondary btn-sm"
-                          (click)="cancelarEdicion()">✕</button>
-                      }
-                    </div>
-
+                    <button type="submit" class="btn btn-dark submit-button"
+                      [disabled]="isSubmitting">{{ isSubmitting ? 'Guardando...' : (tareaEditando ? 'Guardar cambios' : 'Agregar tarea') }}
+                    </button>
                   </div>
                 </form>
-              </div>
-
-            </div>
-          }
+            }
+          </main>
         </div>
-      </div>
-
+      }
     </div>
-  }
-
-</div>
+  </section>
+}
