@@ -1,342 +1,282 @@
-<div>
+<section class="tasks-page ratings-page">
+  <header class="page-heading">
+    <div>
+      <h4>Calificaciones</h4>
+      <p>Selecciona un grupo para capturar y consultar sus calificaciones.</p>
+    </div>
+  </header>
 
-  <!-- Encabezado -->
-  <div class="mb-4">
-    <h4 class="fw-bold mb-1">Calificaciones</h4>
-    <p class="text-muted small mb-0">Captura de calificaciones por alumno y materia</p>
-  </div>
+  <section class="groups-panel" aria-label="Grupos disponibles">
+    <nav class="education-tabs" aria-label="Nivel educativo">
+      @for (nivel of nivelesEducativos; track nivel) {
+        <button
+          type="button"
+          [class.active]="nivelActivo === nivel"
+          (click)="seleccionarNivel(nivel)"
+        >
+          {{ nivel }}
+        </button>
+      }
+    </nav>
 
-  <!-- Filtros -->
-  <div class="card border-0 shadow-sm mb-3 no-print">
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-12 col-md-4">
-          <label class="form-label fw-semibold small">Grupo</label>
-          <select class="form-select form-select-sm"
-            [(ngModel)]="grupoSeleccionado"
-            (change)="onGrupoChange()">
-            <option [value]="null" disabled>Selecciona un grupo</option>
-            @for (g of gruposFiltrados; track g.id) {
-              <option [value]="g.id">{{ getNombreCompletoGrupo(g) }}</option>
-            }
-          </select>
-        </div>
-
-        @if (grupoSeleccionado) {
-          <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold small">Materia</label>
-            <select class="form-select form-select-sm"
-              [ngModel]="grupoMateriaSeleccionado?.id"
-              (ngModelChange)="onMateriaChange($event)">
-              <option [value]="null" disabled>Selecciona una materia</option>
-              @for (gm of materiasFiltradas; track gm.id) {
-                <option [value]="gm.id">{{ gm.materia_nombre }}</option>
-              }
-            </select>
-          </div>
-        }
-
-        @if (configEvaluacion) {
-          <div class="col-12 col-md-4 d-flex align-items-end gap-2 flex-wrap">
-            @if (grupoMateriaSeleccionado && alumnosFiltrados.length > 0) {
-              <button class="btn btn-sm btn-outline-succes ms-auto" (click)="exportarCalificaciones()"><i class="bi bi-file-earmark-excel me-1"></i>
-                Exportar Calificaciones</button>
-            }
-          </div>
+    @if (!nivelesEducativos.length) {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos disponibles</h6>
+        <p>No hay grupos asignados para capturar calificaciones.</p>
+      </div>
+    } @else if (gruposPorNivel.length) {
+      <div class="groups-grid">
+        @for (grupo of gruposPorNivel; track grupo.id) {
+          <button
+            type="button"
+            class="group-card"
+            (click)="seleccionarGrupo(grupo)"
+            [attr.aria-label]="'Capturar calificaciones de ' + obtenerNombreGrupo(grupo)"
+          >
+            <span class="group-card-heading">
+              <span class="card-top">{{ grupo.nivel_educativo || 'Nivel educativo' }}</span>
+              <strong>{{ obtenerNombreGrupo(grupo) }}</strong>
+            </span>
+            <span class="group-card-body">
+              <span class="group-details">
+                <span
+                  ><i class="bi bi-book"></i
+                  >{{ materiasDelGrupo(grupo.id).length }} materia(s)</span
+                >
+              </span>
+              <span class="create-task-action">
+                <i class="bi bi-pencil-square"></i>Capturar calificaciones
+              </span>
+            </span>
+          </button>
         }
       </div>
-    </div>
-  </div>
+    } @else {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos en este nivel</h6>
+        <p>Selecciona otro nivel educativo.</p>
+      </div>
+    }
+  </section>
+</section>
 
-  @if (grupoMateriaSeleccionado && configEvaluacion) {
-    <div class="row g-3">
+@if (modalAbierto && grupoSeleccionado) {
+  <div class="task-modal-backdrop" (click)="cerrarModal()"></div>
+  <section
+    class="task-modal ratings-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ratings-modal-title"
+  >
+    <header class="modal-header-custom">
+      <div>
+        <h5 id="ratings-modal-title">
+          {{ grupoActivo ? obtenerNombreGrupo(grupoActivo) : '' }}
+        </h5>
+      </div>
+      <button
+        type="button"
+        class="close-button"
+        (click)="cerrarModal()"
+        aria-label="Cerrar calificaciones"
+      >
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
 
-      <!-- ══════ ALUMNOS ══════ -->
-      <div class="col-12 col-lg-3 no-print">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white border-0 pt-3 pb-2">
-            <h6 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>Alumnos</h6>
-            <p class="text-muted mb-0" style="font-size:0.75rem;">
-              {{ alumnosFiltrados.length }} alumno(s)
-            </p>
-          </div>
-          <div class="card-body p-0">
-            @if (alumnosFiltrados.length === 0) {
-              <div class="text-center py-4 text-muted">
-                <i class="bi bi-person-x fs-2 d-block mb-2"></i>
-                <p class="small mb-0">No hay alumnos en este grupo</p>
+    <div class="modal-content-custom">
+      @if (!configEvaluacion) {
+        <div class="alert alert-warning mb-0">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Este grupo no tiene configuración de evaluación.
+        </div>
+      } @else {
+        <div class="configuration-summary">
+          <span>Configuración</span>
+          <span class="badge text-bg-dark">{{ configEvaluacion.tipo_evaluacion }}</span>
+          <span class="badge text-bg-secondary"
+            >{{ configEvaluacion.num_periodos }} {{ configEvaluacion.tipo_periodo }}s</span
+          >
+          @if (esPorPuntos) {
+            <span class="badge text-bg-warning">{{ configEvaluacion.tipo_calculo }}</span>
+          }
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-dark ms-auto"
+            (click)="exportarCalificaciones()"
+          >
+            <i class="bi bi-file-earmark-excel me-1"></i>Exportar concentrado
+          </button>
+        </div>
+
+        <div class="modal-workspace">
+          <aside class="subjects-sidebar">
+            <p>Selecciona una materia</p>
+            @for (materia of materiasFiltradas; track materia.id) {
+              <button
+                type="button"
+                [class.active]="grupoMateriaSeleccionado?.id === materia.id"
+                (click)="seleccionarMateria(materia)"
+              >
+                <strong>{{ materia.materia_nombre }}</strong>
+                <span>{{ materia.maestro_nombre }}</span>
+              </button>
+            }
+            @if (!materiasFiltradas.length) {
+              <div class="sidebar-empty">No hay materias asignadas.</div>
+            }
+          </aside>
+
+          <main class="tasks-workspace ratings-workspace">
+            @if (!grupoMateriaSeleccionado) {
+              <div class="empty-state compact">
+                <i class="bi bi-arrow-left"></i>
+                <p>Selecciona una materia para ver sus alumnos.</p>
+              </div>
+            } @else if (!alumnoSeleccionado) {
+              <div class="ratings-header">
+                <div>
+                  <h6>{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
+                  <p>Selecciona un alumno para capturar sus calificaciones.</p>
+                </div>
+              </div>
+              <div class="students-grid">
+                @for (alumno of alumnos; track alumno.id) {
+                  <button type="button" class="student-card" (click)="seleccionarAlumno(alumno)">
+                    <span class="student-initial">{{ alumno.nombre.charAt(0).toUpperCase() }}</span>
+                    <span
+                      ><strong>{{ alumno.nombre }}</strong
+                      ><small>{{ alumno.matricula || 'Sin matrícula' }}</small></span
+                    >
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                }
+                @if (!alumnos.length) {
+                  <p class="text-muted text-center py-4">No hay alumnos en este grupo.</p>
+                }
               </div>
             } @else {
-              <div class="list-group list-group-flush">
-                @for (alumno of alumnosPaginados; track alumno.id) {
+              <div class="ratings-header">
+                <div>
+                  <button type="button" class="back-button" (click)="alumnoSeleccionado = null">
+                    <i class="bi bi-arrow-left"></i> Alumnos
+                  </button>
+                  <h6>{{ alumnoSeleccionado.nombre }}</h6>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-dark btn-sm"
+                  (click)="exportarBoletaPdf()"
+                  [disabled]="isLoadingBoleta"
+                >
+                  <i class="bi bi-file-earmark-pdf me-1"></i
+                  >{{ isLoadingBoleta ? 'Generando PDF...' : 'Descargar boleta (PDF)' }}
+                </button>
+              </div>
+
+              <div class="period-tabs">
+                @for (periodo of periodos; track periodo) {
                   <button
-                    class="list-group-item list-group-item-action border-0 px-3 py-2"
-                    [class.active]="alumnoSeleccionado?.id === alumno.id"
-                    (click)="seleccionarAlumno(alumno)">
-                    <div class="d-flex align-items-center gap-2">
-                      <div class="rounded-circle bg-dark text-white d-flex
-                                  align-items-center justify-content-center flex-shrink-0"
-                        style="width:32px;height:32px;font-size:0.8rem;font-weight:700;">
-                        {{ alumno.nombre.charAt(0).toUpperCase() }}
-                      </div>
-                      <div>
-                        <p class="fw-semibold small mb-0">{{ alumno.nombre }}</p>
-                        <p class="mb-0" style="font-size:0.72rem;"
-                          [class.text-white-50]="alumnoSeleccionado?.id === alumno.id"
-                          [class.text-muted]="alumnoSeleccionado?.id !== alumno.id">
-                          {{ alumno.matricula || 'Sin matrícula' }}
-                        </p>
-                      </div>
-                    </div>
+                    type="button"
+                    [class.active]="periodoSeleccionado === periodo"
+                    (click)="seleccionarPeriodo(periodo)"
+                  >
+                    {{ nombrePeriodo }} {{ periodo }}
                   </button>
                 }
               </div>
-            }
-          </div>
 
-          <!-- PAGINACIÓN AGREGADA -->
-          @if (alumnosFiltrados.length > elementosPorPagina) {
-            <div class="card-footer bg-white border-0 py-3">
-              <div class="d-flex justify-content-between align-items-center px-3">
-                <small class="text-muted">
-                  {{ (paginaActual-1)*elementosPorPagina + 1 }} -
-                  {{ paginaActual * elementosPorPagina > alumnosFiltrados.length ? alumnosFiltrados.length : paginaActual * elementosPorPagina }}
-                  de {{ alumnosFiltrados.length }}
-                </small>
-
-                <ul class="pagination pagination-sm mb-0">
-                  <li class="page-item" [class.disabled]="paginaActual === 1">
-                    <button class="page-link" (click)="paginaAnterior()" [disabled]="paginaActual === 1">←</button>
-                  </li>
-                  <li class="page-item disabled">
-                    <span class="page-link">{{ paginaActual }} / {{ totalPaginas }}</span>
-                  </li>
-                  <li class="page-item" [class.disabled]="paginaActual === totalPaginas">
-                    <button class="page-link" (click)="paginaSiguiente()" [disabled]="paginaActual === totalPaginas">→</button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- ══════ CALIFICACIONES ══════ -->
-      <div class="col-12 col-lg-9">
-        @if (!alumnoSeleccionado) {
-          <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-5 text-muted">
-              <i class="bi bi-arrow-left fs-2 d-block mb-2"></i>
-              <p class="small mb-0">Selecciona un alumno</p>
-            </div>
-          </div>
-        } @else if (mostrarBoleta) {
-
-          <!-- ══════ BOLETA ══════ -->
-          <div class="card border-0 shadow-sm" id="boleta">
-            <div class="card-header bg-white border-0 pt-3 d-flex
-                        align-items-center justify-content-between no-print">
-              <h6 class="fw-bold mb-0">
-                <i class="bi bi-file-earmark-text me-2"></i>Boleta de calificaciones
-              </h6>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-dark" (click)="imprimirBoleta()">
-                  <i class="bi bi-printer me-1"></i>Imprimir / PDF
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" (click)="cerrarBoleta()">
-                  <i class="bi bi-x-lg me-1"></i>Cerrar
-                </button>
-              </div>
-            </div>
-
-            <div class="card-body p-4">
-              @if (isLoadingBoleta) {
-                <div class="d-flex justify-content-center py-4">
-                  <div class="spinner-border text-dark"></div>
-                </div>
-              } @else if (boleta) {
-
-                <!-- Header boleta -->
-                <div class="text-center mb-4 boleta-header">
-                  <h5 class="fw-bold mb-1">BOLETA DE CALIFICACIONES</h5>
-                  <p class="text-muted small mb-0">{{ boleta.alumno.ciclo_escolar }}</p>
-                </div>
-
-                <div class="row g-3 mb-4">
-                  <div class="col-6">
-                    <p class="small mb-1"><strong>Alumno:</strong> {{ boleta.alumno.nombre }}</p>
-                    <p class="small mb-1"><strong>Matrícula:</strong> {{ boleta.alumno.matricula || '—' }}</p>
-                  </div>
-                  <div class="col-6">
-                    <p class="small mb-1"><strong>Nivel:</strong> {{ boleta.alumno.nivel_educativo }}</p>
-                    <p class="small mb-1"><strong>Grado:</strong> {{ boleta.alumno.nivel_academico }} {{ boleta.alumno.grupo_nombre }}</p>
-                  </div>
-                </div>
-
-                <hr />
-
-                <!-- Tabla por materia -->
-                @for (materia of materiasUnicas; track materia) {
-                  <div class="mb-4">
-                    <h6 class="fw-bold mb-2">{{ materia }}</h6>
-                    <div class="table-responsive">
-                      <table class="table table-bordered table-sm align-middle mb-0">
-                        <thead class="table-dark">
-                          <tr>
-                            <th>Periodo</th>
-                            <th>Calificación</th>
-                            <th>Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @for (item of getCalificacionesPorMateria(materia); track item.periodo) {
-                            <tr>
-                              <td class="small">
-                                {{ item.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial' }}
-                                {{ item.periodo }}
-                              </td>
-                              <td class="fw-bold text-center">
-                                {{ calcularCalificacionFinal(item) }}
-                              </td>
-                              <td class="text-center">
-                                <span class="badge {{ getBadgeCalificacion(calcularCalificacionFinal(item), item.calificacion_minima_aprobatoria) }}">
-                                  {{ calcularCalificacionFinal(item) >= item.calificacion_minima_aprobatoria ? 'Aprobado' : 'Reprobado' }}
-                                </span>
-                              </td>
-                            </tr>
-                          }
-                          <!-- Promedio final -->
-                          <tr class="table-dark">
-                            <td class="fw-bold small">Promedio final</td>
-                            <td class="fw-bold text-center">
-                              {{
-                                (getCalificacionesPorMateria(materia)
-                                  .reduce((s, i) => s + calcularCalificacionFinal(i), 0) /
-                                  getCalificacionesPorMateria(materia).length
-                                ) | number:'1.1-1'
-                              }}
-                            </td>
-                            <td></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                }
-
-              }
-            </div>
-          </div>
-
-        } @else {
-
-          <!-- ══════ CAPTURA ══════ -->
-          <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 pt-3 pb-0">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="rounded-circle bg-dark text-white d-flex
-                              align-items-center justify-content-center"
-                    style="width:40px;height:40px;font-weight:700;">
-                    {{ alumnoSeleccionado.nombre.charAt(0).toUpperCase() }}
-                  </div>
-                  <div>
-                    <h6 class="fw-bold mb-0">{{ alumnoSeleccionado.nombre }}</h6>
-                    <p class="text-muted small mb-0">
-                      {{ grupoMateriaSeleccionado.materia_nombre }} —
-                      {{ alumnoSeleccionado.matricula || 'Sin matrícula' }}
-                    </p>
-                  </div>
-                </div>
-                <button class="btn btn-sm btn-outline-dark" (click)="verBoleta()">
-                  <i class="bi bi-file-earmark-text me-1"></i>Ver boleta
-                </button>
-              </div>
-
-              <!-- Tabs periodos -->
-              <ul class="nav nav-tabs border-0">
-                @for (p of periodos; track p) {
-                  <li class="nav-item">
-                    <button class="nav-link"
-                      [class.active]="periodoSeleccionado === p"
-                      [class.text-dark]="periodoSeleccionado !== p"
-                      (click)="seleccionarPeriodo(p)">
-                      {{ nombrePeriodo }} {{ p }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-
-            <div class="card-body">
               @if (isLoading) {
-                <div class="d-flex justify-content-center py-4">
-                  <div class="spinner-border text-dark"></div>
-                </div>
-              } @else if (calificacionesPeriodo.length === 0) {
-                <div class="text-center py-4 text-muted">
-                  <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
-                  <p class="small mb-0">No hay tareas para este periodo</p>
+                <div class="empty-state compact"><span class="spinner-border"></span></div>
+              } @else if (!calificacionesPeriodo.length) {
+                <div class="empty-state compact">
+                  <i class="bi bi-journal-x"></i>
+                  <p>Aún no hay tareas en este periodo.</p>
                 </div>
               } @else {
-                <div class="table-responsive mb-3">
-                  <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
+                @if (usaEscalaCien) {
+                }
+                <div class="ratings-table-wrapper">
+                  <table class="ratings-table">
+                    <thead>
                       <tr>
                         <th>Tarea</th>
                         @if (esPorPuntos) {
                           <th>Etiqueta</th>
-                          <th>Calif. (0-100)</th>
+                          <th>Calificación</th>
                           <th>Puntos</th>
-                          <th>Máx</th>
+                          <th>Máximo</th>
                         } @else {
-                          <th>Calificación (0-10)</th>
+                          <th>Calificación</th>
                         }
                         <th>Fecha</th>
-                        <th>Guardar</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
-                      @for (cal of calificacionesPeriodo; track cal.tarea_id) {
-                        <tr>
-                          <td class="fw-semibold small">{{ cal.tarea_nombre }}</td>
-
+                      @for (calificacion of calificacionesPeriodo; track calificacion.tarea_id) {
+                        <tr [class.modified]="estaModificada(calificacion)">
+                          <td>
+                            <strong>{{ calificacion.tarea_nombre }}</strong>
+                          </td>
                           @if (esPorPuntos) {
                             <td>
-                              @if (cal.etiqueta_nombre) {
-                                <span class="badge bg-dark">{{ cal.etiqueta_nombre }}</span>
-                              } @else {
-                                <span class="text-muted small">—</span>
-                              }
+                              <strong class="badge text-bg-light">{{
+                                calificacion.etiqueta_nombre || 'Sin etiqueta'
+                              }}</strong>
                             </td>
-                            <td style="width:120px;">
-                              <input type="number" class="form-control form-control-sm"
-                                [(ngModel)]="cal.calificacion"
-                                (ngModelChange)="onCalificacionChange(cal)"
-                                max="100" min="0" step="1"
-                                placeholder="0-100" />
+                            <td>
+                              <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                [(ngModel)]="calificacion.calificacion"
+                                (ngModelChange)="onCalificacionChange(calificacion)"
+                                min="0"
+                                [max]="limiteCalificacion"
+                                step="1"
+                                [placeholder]="placeholderCalificacion"
+                              />
                             </td>
-                            <td class="fw-bold text-center">
-                              {{ cal.puntos_obtenidos || 0 }}
+                            <td class="numeric">
+                              {{ formatearDosDecimales(calificacion.puntos_obtenidos || 0) }}
                             </td>
-                            <td class="text-muted small text-center">
-                              {{ cal.valor_tarea || 0 }}
+                            <td class="numeric">
+                              {{ formatearDosDecimales(calificacion.valor_tarea || 0) }}
                             </td>
                           } @else {
-                            <td style="width:140px;">
-                              <input type="number" class="form-control form-control-sm"
-                                [(ngModel)]="cal.calificacion"
-                                max="10" min="0" step="0.5"
-                                placeholder="0-10" />
+                            <td>
+                              <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                [(ngModel)]="calificacion.calificacion"
+                                (ngModelChange)="onCalificacionChange(calificacion)"
+                                min="0"
+                                [max]="limiteCalificacion"
+                                step="0.5"
+                                [placeholder]="placeholderCalificacion"
+                              />
+                              @if (usaEscalaCien && calificacion.calificacion !== null) {
+                                <small class="scale-hint"
+                                  >= {{ equivalenteDiez(calificacion.calificacion) }}/10</small
+                                >
+                              }
                             </td>
                           }
-
-                          <td class="text-muted small">
-                            {{ cal.fecha ? (cal.fecha | date:'dd/MM/yyyy') : '—' }}
+                          <td>
+                            {{
+                              calificacion.fecha ? (calificacion.fecha | date: 'dd/MM/yyyy') : '—'
+                            }}
                           </td>
                           <td>
-                            <button class="btn btn-sm btn-outline-dark"
-                              (click)="guardarCalificacion(cal)">
+                            <button
+                              type="button"
+                              class="icon-action"
+                              (click)="guardarCalificacion(calificacion)"
+                              [disabled]="!estaModificada(calificacion)"
+                              aria-label="Guardar calificación"
+                            >
                               <i class="bi bi-check-lg"></i>
                             </button>
                           </td>
@@ -345,26 +285,47 @@
                     </tbody>
                   </table>
                 </div>
-
-                <!-- Resumen (sin botón Guardar todo) -->
-                <div class="d-flex align-items-center justify-content-between">
-                  @if (esPorPuntos) {
-                    <div class="alert alert-dark mb-0 py-2 px-3 small">
-                      <strong>Total:</strong> {{ getTotalPuntos() }} / {{ getMaxPuntosPeriodo() }} pts
-                      — <strong>Calificación:</strong> {{ getCalificacionFinal() }}/10
-                    </div>
-                  } @else {
-                    <div></div>
-                  }
-                </div>
-
+                <footer class="ratings-footer">
+                  <div class="grade-summary">
+                    @if (esPorPuntos) {
+                      <span
+                        ><small>Total</small
+                        ><strong
+                          >{{ formatearDosDecimales(getTotalPuntos()) }} /
+                          {{ formatearDosDecimales(getMaxPuntosPeriodo()) }} pts</strong
+                        ></span
+                      >
+                    } @else {
+                      <span
+                        ><small>Calificación total</small
+                        ><strong
+                          >{{ formatearDosDecimales(getCalificacionPeriodo()) }}/10</strong
+                        ></span
+                      >
+                    }
+                    <span
+                      ><small>Calificación redondeada</small
+                      ><strong>{{ getCalificacionRedondeada() }}/10</strong></span
+                    >
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-dark btn-sm"
+                    (click)="guardarTodo()"
+                    [disabled]="isSaving || !hayCambiosPeriodo"
+                  >
+                    <i class="bi bi-save2 me-1"></i
+                    >{{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+                    @if (hayCambiosPeriodo && !isSaving) {
+                      <span class="changes-count">{{ numeroCambiosPeriodo }}</span>
+                    }
+                  </button>
+                </footer>
               }
-            </div>
-          </div>
-        }
-      </div>
-
+            }
+          </main>
+        </div>
+      }
     </div>
-  }
-
-</div>
+  </section>
+}

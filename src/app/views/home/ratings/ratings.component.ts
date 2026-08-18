@@ -1,6 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
+import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { RatingsService } from '../../../core/services/ratings.service';
 import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
 import { GroupsService } from '../../../core/services/groups.service';
@@ -8,475 +12,592 @@ import { StudentsService } from '../../../core/services/students.service';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { Calificacion, CalificarRequest, Boleta } from '../../../core/models/rating.model';
+import { Boleta, BoletaMateria, Calificacion, CalificarRequest } from '../../../core/models/rating.model';
 import { GrupoMateria } from '../../../core/models/groupSubject.model';
 import { Grupo } from '../../../core/models/group.model';
 import { Alumno } from '../../../core/models/student.model';
 import { ConfiguracionEvaluacion } from '../../../core/models/evaluation.model';
 import { Usuario } from '../../../core/models/user.model';
-import * as XLSX from 'xlsx';
-import fil from '@angular/common/locales/fil';
+import { calculatePeriodGrade, createRatingSnapshot, equivalenteEscalaDiez, formatTwoDecimals, hasRatingChanged,
+  normalizeNullableNumber, RatingSnapshot, roundFinalGrade, roundTo, sanitizeFileName, sanitizeSheetName,
+} from '../../../core/utils/ratings.utils';
+import { buildRatingReportFragment } from '../../../core/utils/rating-report.template';
+import { ORDEN_NIVELES_EDUCATIVOS } from '../../../core/constants/task.constants';
+import { obtenerNombreGrupo } from '../../../core/utils/task.utils';
+
+const PRIMARY_LEVEL = 'primaria';
+const POINTS_GRADE_LIMIT = 100;
+const STANDARD_GRADE_LIMIT = 10;
+const STUDENTS_PER_PAGE = 6;
 
 @Component({
   selector: 'app-ratings',
   imports: [CommonModule, FormsModule],
   templateUrl: './ratings.component.html',
-  styleUrl: './ratings.component.scss'
+  styleUrl: './ratings.component.scss',
 })
 export class RatingsComponent implements OnInit {
-
   grupos: Grupo[] = [];
   grupoMaterias: GrupoMateria[] = [];
   alumnos: Alumno[] = [];
   evaluaciones: ConfiguracionEvaluacion[] = [];
   calificaciones: Calificacion[] = [];
-  boleta: Boleta | null = null;
   usuario: Usuario | null = null;
-
   isLoading = false;
   isSaving = false;
   isLoadingBoleta = false;
-  mostrarBoleta = false;
+  modalAbierto = false;
   paginaActual = 1;
-  elementosPorPagina = 6;
-
+  readonly elementosPorPagina = STUDENTS_PER_PAGE;
   grupoSeleccionado: number | null = null;
   grupoMateriaSeleccionado: GrupoMateria | null = null;
   alumnoSeleccionado: Alumno | null = null;
-  periodoSeleccionado: number = 1;
+  periodoSeleccionado = 1;
+  nivelActivo = '';
+  private estadoInicial = new Map<number, RatingSnapshot>();
 
   constructor(
-    private ratingsService: RatingsService,
-    private grupoMateriasService: GrupoMateriasService,
-    private groupsService: GroupsService,
-    private studentsService: StudentsService,
-    private evaluationsService: EvaluationsService,
-    private authService: AuthService,
-    private sweetAlert: SweetAlertService
+    private readonly ratingsService: RatingsService,
+    private readonly grupoMateriasService: GrupoMateriasService,
+    private readonly groupsService: GroupsService,
+    private readonly studentsService: StudentsService,
+    private readonly evaluationsService: EvaluationsService,
+    private readonly authService: AuthService,
+    private readonly sweetAlert: SweetAlertService,
   ) {
     this.usuario = this.authService.getUsuario();
-  };
+  }
 
   ngOnInit(): void {
     this.cargarDatos();
-  };
+  }
 
-  // Getters
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.modalAbierto) this.cerrarModal();
+  }
+
   get esAdmin(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'admin';
-  };
+  }
 
   get esPorPuntos(): boolean {
     return this.configEvaluacion?.tipo_evaluacion === 'puntos';
-  };
+  }
+
+  get esPrimaria(): boolean {
+    return (
+      this.grupos
+        .find((g) => g.id === Number(this.grupoSeleccionado))
+        ?.nivel_educativo?.trim()
+        .toLowerCase() === PRIMARY_LEVEL
+    );
+  }
+
+  get usaEscalaCien(): boolean {
+    return this.esPorPuntos;
+  }
+
+  get limiteCalificacion(): number {
+    return this.usaEscalaCien ? POINTS_GRADE_LIMIT : STANDARD_GRADE_LIMIT;
+  }
+
+  get placeholderCalificacion(): string {
+    return this.usaEscalaCien ? '0-100' : '0-10';
+  }
 
   get gruposFiltrados(): Grupo[] {
     if (this.esAdmin) return this.grupos;
-    const gruposConMaterias = this.grupoMaterias
-      .filter(gm => gm.maestro_id === this.usuario?.id)
-      .map(gm => gm.grupo_id);
-    return this.grupos.filter(g => gruposConMaterias.includes(g.id));
-  };
+    const ids = this.grupoMaterias
+      .filter((gm) => gm.maestro_id === this.usuario?.id)
+      .map((gm) => gm.grupo_id);
+    return this.grupos.filter((g) => ids.includes(g.id));
+  }
+
+  get gruposVisibles(): Grupo[] {
+    return this.gruposFiltrados;
+  }
+
+  get nivelesEducativos(): string[] {
+    const niveles = [
+      ...new Set(this.gruposVisibles.map((grupo) => grupo.nivel_educativo).filter(Boolean)),
+    ] as string[];
+    return niveles.sort((a, b) => {
+      const posicionA = ORDEN_NIVELES_EDUCATIVOS.indexOf(a as never);
+      const posicionB = ORDEN_NIVELES_EDUCATIVOS.indexOf(b as never);
+      const ordenA = posicionA === -1 ? Number.MAX_SAFE_INTEGER : posicionA;
+      const ordenB = posicionB === -1 ? Number.MAX_SAFE_INTEGER : posicionB;
+      return ordenA - ordenB || a.localeCompare(b);
+    });
+  }
+
+  get gruposPorNivel(): Grupo[] {
+    return this.gruposVisibles.filter((grupo) => grupo.nivel_educativo === this.nivelActivo);
+  }
 
   get materiasFiltradas(): GrupoMateria[] {
     if (!this.grupoSeleccionado) return [];
-    const materias = this.grupoMaterias.filter(
-      gm => gm.grupo_id === Number(this.grupoSeleccionado)
-    );
-    if (!this.esAdmin) {
-      return materias.filter(gm => gm.maestro_id === this.usuario?.id);
-    }
-    return materias;
-  };
+
+    return this.materiasDelGrupo(this.grupoSeleccionado);
+  }
+
+  materiasDelGrupo(grupoId: number): GrupoMateria[] {
+    return this.grupoMaterias
+      .filter((gm) => gm.grupo_id === grupoId)
+      .filter((gm) => this.esAdmin || gm.maestro_id === this.usuario?.id);
+  }
 
   get alumnosFiltrados(): Alumno[] {
     return this.alumnos;
-  };
+  }
 
   get configEvaluacion(): ConfiguracionEvaluacion | null {
-    if (!this.grupoSeleccionado) return null;
-    return this.evaluaciones.find(e => e.grupo_id === Number(this.grupoSeleccionado)) || null;
-  };
+    return this.evaluaciones.find((e) => e.grupo_id === Number(this.grupoSeleccionado)) ?? null;
+  }
+
+  get grupoActivo(): Grupo | null {
+    return this.grupos.find((grupo) => grupo.id === this.grupoSeleccionado) ?? null;
+  }
 
   get periodos(): number[] {
-    if (!this.configEvaluacion) return [1];
-    return Array.from({ length: this.configEvaluacion.num_periodos }, (_, i) => i + 1);
-  };
+    return Array.from({ length: this.configEvaluacion?.num_periodos ?? 1 }, (_, i) => i + 1);
+  }
 
   get nombrePeriodo(): string {
     return this.configEvaluacion?.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial';
-  };
+  }
 
   get calificacionesPeriodo(): Calificacion[] {
-    return this.calificaciones.filter(c => c.periodo === this.periodoSeleccionado);
-  };
+    return this.calificaciones.filter((c) => c.periodo === this.periodoSeleccionado);
+  }
 
   get alumnosPaginados(): Alumno[] {
-    const inicio = (this.paginaActual - 1) * this.elementosPorPagina;
-    const fin = inicio + this.elementosPorPagina;
-
-    return this.alumnosFiltrados.slice(inicio, fin);
-  };
+    return this.alumnosFiltrados.slice(
+      (this.paginaActual - 1) * this.elementosPorPagina,
+      this.paginaActual * this.elementosPorPagina,
+    );
+  }
 
   get totalPaginas(): number {
-    return Math.ceil(
-      this.alumnosFiltrados.length / this.elementosPorPagina
-    );
-  };
+    return Math.max(1, Math.ceil(this.alumnosFiltrados.length / this.elementosPorPagina));
+  }
 
-  // Cargar datos
+  get hayCambiosPeriodo(): boolean {
+    return this.calificacionesPeriodo.some((cal) => this.estaModificada(cal));
+  }
+
+  get numeroCambiosPeriodo(): number {
+    return this.calificacionesPeriodo.filter((cal) => this.estaModificada(cal)).length;
+  }
+
   cargarDatos(): void {
     this.groupsService.obtenerGrupos().subscribe({
-      next: (data) => this.grupos = data
+      next: (data) => {
+        this.grupos = data;
+        this.actualizarNivelActivo();
+      },
     });
     this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
-      next: (data) => this.grupoMaterias = data
+      next: (data) => {
+        this.grupoMaterias = data;
+        this.actualizarNivelActivo();
+      },
     });
-    this.evaluationsService.obtenerEvaluaciones().subscribe({
-      next: (data) => this.evaluaciones = data
-    });
-  };
+    this.evaluationsService
+      .obtenerEvaluaciones()
+      .subscribe({ next: (data) => (this.evaluaciones = data) });
+  }
 
-  // Helpers
   getNombreCompletoGrupo(grupo: Grupo): string {
     return `${grupo.nivel_educativo || ''} ${grupo.nivel_academico || ''} ${grupo.nombre}`.trim();
-  };
+  }
 
-  // Convierte calificación 0-100 a puntos obtenidos
-  onCalificacionChange(cal: Calificacion): void {
-    if (!this.esPorPuntos || cal.calificacion === null) return;
-    const valorTarea = Number(cal.valor_tarea) || 0;
-    cal.puntos_obtenidos = Math.round((cal.calificacion / 100) * valorTarea * 100) / 100;
-  };
+  obtenerNombreGrupo(grupo: Grupo): string {
+    return obtenerNombreGrupo(grupo);
+  }
 
-  getTotalPuntos(): number {
-    return this.calificacionesPeriodo
-      .reduce((sum, c) => sum + (Number(c.puntos_obtenidos) || 0), 0);
-  };
+  seleccionarNivel(nivel: string): void {
+    this.nivelActivo = nivel;
+  }
 
-  getMaxPuntosPeriodo(): number {
-    return this.calificacionesPeriodo
-      .reduce((sum, c) => sum + (Number(c.valor_tarea) || 0), 0);
-  };
+  seleccionarGrupo(grupo: Grupo): void {
+    this.grupoSeleccionado = grupo.id;
+    this.grupoMateriaSeleccionado = null;
+    this.alumnoSeleccionado = null;
+    this.periodoSeleccionado = 1;
+    this.limpiarCalificaciones();
+    this.modalAbierto = true;
 
-  // Calificación final del periodo (0-10)
-  getCalificacionFinal(): number {
-    const max = this.getMaxPuntosPeriodo();
-    if (max === 0) return 0;
-    return Math.round((this.getTotalPuntos() / max) * 10 * 10) / 10;
-  };
+    this.studentsService.obtenerAlumnosPorGrupo(grupo.id).subscribe({
+      next: (data) => (this.alumnos = data),
+      error: () => this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos.'),
+    });
+  }
 
-  // Cambios materia
+  seleccionarMateria(materia: GrupoMateria): void {
+    this.onMateriaChange(materia.id);
+  }
+
+  cerrarModal(): void {
+    this.modalAbierto = false;
+    this.grupoMateriaSeleccionado = null;
+    this.alumnoSeleccionado = null;
+    this.limpiarCalificaciones();
+  }
+
   onGrupoChange(): void {
     this.grupoMateriaSeleccionado = null;
     this.alumnoSeleccionado = null;
-    this.calificaciones = [];
+    this.limpiarCalificaciones();
     this.periodoSeleccionado = 1;
-    this.mostrarBoleta = false;
-    this.boleta = null;
-    this.alumnos = [];
     this.paginaActual = 1;
-
-    if (this.grupoSeleccionado) {
+    if (this.grupoSeleccionado)
       this.studentsService.obtenerAlumnosPorGrupo(Number(this.grupoSeleccionado)).subscribe({
-        next: (data) => this.alumnos = data,
-        error: () => this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos')
+        next: (data) => (this.alumnos = data),
+        error: () => this.sweetAlert.error('Error', 'No se pudieron cargar los alumnos'),
       });
-    }
-  };
+    else this.alumnos = [];
+  }
 
   onMateriaChange(id: number): void {
-    this.grupoMateriaSeleccionado = this.materiasFiltradas.find(gm => gm.id === Number(id)) || null;
+    this.grupoMateriaSeleccionado =
+      this.materiasFiltradas.find((gm) => gm.id === Number(id)) ?? null;
     this.alumnoSeleccionado = null;
-    this.calificaciones = [];
+    this.limpiarCalificaciones();
     this.periodoSeleccionado = 1;
-    this.mostrarBoleta = false;
-  };
+  }
 
   seleccionarAlumno(alumno: Alumno): void {
     this.alumnoSeleccionado = alumno;
-    this.mostrarBoleta = false;
-    this.boleta = null;
     this.cargarCalificaciones();
-  };
+  }
 
-  seleccionarPeriodo(p: number): void {
-    this.periodoSeleccionado = p;
-  };
+  seleccionarPeriodo(periodo: number): void {
+    this.periodoSeleccionado = periodo;
+  }
 
-  // ── Cargar calificaciones ──────────────────────────────────────
   cargarCalificaciones(): void {
     if (!this.alumnoSeleccionado || !this.grupoMateriaSeleccionado) return;
     this.isLoading = true;
+    this.ratingsService
+      .obtenerCalificacionesPorAlumno(this.alumnoSeleccionado.id, this.grupoMateriaSeleccionado.id)
+      .subscribe({
+        next: (data) => {
+          this.calificaciones = data;
+          this.crearEstadoInicial();
+          this.isLoading = false;
+        },
+        error: () => {
+          this.sweetAlert.error('Error', 'No se pudieron cargar las calificaciones');
+          this.isLoading = false;
+        },
+      });
+  }
 
-    this.ratingsService.obtenerCalificacionesPorAlumno(
-      this.alumnoSeleccionado.id,
-      this.grupoMateriaSeleccionado.id
-    ).subscribe({
-      next: (data) => { this.calificaciones = data; this.isLoading = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudieron cargar las calificaciones'); this.isLoading = false; }
-    });
-  };
+  onCalificacionChange(cal: Calificacion): void {
+    if (cal.calificacion === null || cal.calificacion === undefined) {
+      cal.calificacion = null;
+      cal.puntos_obtenidos = this.esPorPuntos ? null : cal.puntos_obtenidos;
+      return;
+    }
+    cal.calificacion = this.normalizarNumero(cal.calificacion);
+    if (this.esPorPuntos)
+      cal.puntos_obtenidos = this.redondear(
+        (cal.calificacion / POINTS_GRADE_LIMIT) * (Number(cal.valor_tarea) || 0),
+      );
+  }
 
-  // ── Guardar calificación ───────────────────────────────────────
+  estaModificada(cal: Calificacion): boolean {
+    return hasRatingChanged(cal, this.estadoInicial);
+  }
+
   guardarCalificacion(cal: Calificacion): void {
-    console.log('cal completo:', cal);
+    if (!this.alumnoSeleccionado || !this.validarCalificacion(cal)) return;
+    if (!this.estaModificada(cal)) {
+      this.sweetAlert.toast('No hay cambios por guardar', 'info');
+      return;
+    }
+    this.guardar(cal)
+      .then(() => this.sweetAlert.toast('Calificación guardada', 'success'))
+      .catch(() => this.sweetAlert.error('Error', 'No se pudo guardar la calificación'));
+  }
+  async guardarTodo(): Promise<void> {
     if (!this.alumnoSeleccionado) return;
-
-    const data: CalificarRequest = {
-      alumno_id:        this.alumnoSeleccionado.id,
-      tarea_id:         cal.tarea_id,
-      calificacion:     cal.calificacion,
-      puntos_obtenidos: this.esPorPuntos ? cal.puntos_obtenidos : null
-    };
-
-    this.ratingsService.calificar(data).subscribe({
-      next: () => {
-        this.sweetAlert.toast('Calificación guardada', 'success');
-        this.cargarCalificaciones(); // ← solo recarga las calificaciones del alumno
-      },
-      error: () => this.sweetAlert.error('Error', 'No se pudo guardar')
-    });
-  };
-
-  // Guarda todas las calificaciones del periodo de una vez
-  /*async guardarTodo(): Promise<void> {
-    if (!this.alumnoSeleccionado) return;
-
+    const modificadas = this.calificacionesPeriodo.filter((cal) => this.estaModificada(cal));
+    if (!modificadas.length) {
+      this.sweetAlert.toast('No hay cambios por guardar', 'info');
+      return;
+    }
+    if (modificadas.some((cal) => !this.validarCalificacion(cal))) return;
     const result = await this.sweetAlert.confirm(
-      '¿Guardar todas las calificaciones?',
-      `Se guardarán ${this.calificacionesPeriodo.length} calificaciones del ${this.nombrePeriodo} ${this.periodoSeleccionado}`
+      '¿Guardar cambios?',
+      `Se guardarán únicamente ${modificadas.length} calificación(es) modificada(s).`,
     );
-
     if (!result.isConfirmed) return;
-
     this.isSaving = true;
-    this.sweetAlert.loading('Guardando...', 'Por favor espera');
-
-    let exitosos = 0;
-    let fallidos = 0;
-
-    for (const cal of this.calificacionesPeriodo) {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          this.ratingsService.calificar({
-            alumno_id:        this.alumnoSeleccionado!.id,
-            tarea_id:         cal.tarea_id,
-            calificacion:     cal.calificacion,
-            puntos_obtenidos: this.esPorPuntos ? cal.puntos_obtenidos : null
-          }).subscribe({ next: () => resolve(), error: () => reject() });
-        });
-        exitosos++;
-      } catch { fallidos++; }
-    }
-
-    this.sweetAlert.closeLoading();
+    this.sweetAlert.loading('Guardando cambios...', 'Por favor espera');
+    const resultados = await Promise.allSettled(modificadas.map((cal) => this.guardar(cal)));
     this.isSaving = false;
+    this.sweetAlert.closeLoading();
+    const exitosas = resultados.filter((r) => r.status === 'fulfilled').length;
+    const fallidas = resultados.length - exitosas;
+    if (fallidas)
+      this.sweetAlert.warning(
+        'Guardado parcial',
+        `${exitosas} guardadas; ${fallidas} no pudieron guardarse.`,
+      );
+    else
+      this.sweetAlert.success('Cambios guardados', `${exitosas} calificación(es) actualizada(s).`);
+  }
 
-    if (fallidos === 0) {
-      this.sweetAlert.success('¡Guardado!', `${exitosos} calificaciones guardadas correctamente`);
-    } else {
-      this.sweetAlert.warning('Guardado parcial', `${exitosos} guardadas, ${fallidos} fallaron`);
-    }
+  getTotalPuntos(): number {
+    return this.calificacionesPeriodo.reduce((s, c) => s + (Number(c.puntos_obtenidos) || 0), 0);
+  }
 
-    // Solo recarga las calificaciones del alumno actual, no todo
-    this.cargarCalificaciones();
-  }*/
+  getMaxPuntosPeriodo(): number {
+    return this.calificacionesPeriodo.reduce((s, c) => s + (Number(c.valor_tarea) || 0), 0);
+  }
 
-  // ── Boleta ─────────────────────────────────────────────────────
-  verBoleta(): void {
-    if (!this.alumnoSeleccionado) return;
+  getCalificacionPeriodo(): number {
+    return this.calcularPeriodo(this.calificacionesPeriodo);
+  }
+
+  getCalificacionRedondeada(valor = this.getCalificacionPeriodo()): number {
+    return roundFinalGrade(valor);
+  }
+
+  formatearDosDecimales(valor: number): string {
+    return formatTwoDecimals(valor);
+  }
+
+  equivalenteDiez(valor: number | null | undefined): string | null {
+    return equivalenteEscalaDiez(valor, this.usaEscalaCien);
+  }
+
+  async exportarBoletaPdf(): Promise<void> {
+    if (!this.alumnoSeleccionado || this.isLoadingBoleta) return;
     this.isLoadingBoleta = true;
-    this.mostrarBoleta = true;
-
     this.ratingsService.obtenerBoleta(this.alumnoSeleccionado.id).subscribe({
-      next: (data) => { this.boleta = data; this.isLoadingBoleta = false; },
-      error: () => { this.sweetAlert.error('Error', 'No se pudo generar la boleta'); this.isLoadingBoleta = false; }
+      next: async (boleta) => {
+        try {
+          await this.generarPdfBoleta(boleta);
+        } catch {
+          this.sweetAlert.error('Error', 'No se pudo generar el PDF de la boleta');
+        } finally {
+          this.isLoadingBoleta = false;
+        }
+      },
+      error: () => {
+        this.isLoadingBoleta = false;
+        this.sweetAlert.error('Error', 'No se pudo generar la boleta');
+      },
     });
-  };
+  }
 
-  cerrarBoleta(): void {
-    this.mostrarBoleta = false;
-    this.boleta = null;
-  };
-
-  imprimirBoleta(): void {
-    const contenido = document.getElementById('boleta')?.innerHTML;
-    if (!contenido) return;
-
-    const ventana = window.open('', '_blank', 'width=800,height=600');
-    if (!ventana) return;
-
-    ventana.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Boleta — ${this.boleta?.alumno.nombre}</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-        <style>
-          body { padding: 20px; font-family: Arial, sans-serif; }
-          .no-print { display: none !important; }
-          @media print {
-            body { padding: 10px; }
-          }
-        </style>
-      </head>
-      <body>
-        ${contenido}
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() { window.close(); }
-          }
-        </script>
-      </body>
-      </html>
-    `);
-
-    ventana.document.close();
-  };
-
-  // Calificación final calculada para la boleta
-  calcularCalificacionFinal(item: any): number {
-    let calificacion: number;
-
-    if (item.tipo_evaluacion === 'promedio') {
-      calificacion = Number(item.promedio_calificaciones) || 0;
-    } else {
-      const obtenidos = Number(item.total_puntos_obtenidos) || 0;
-      const posibles  = Number(item.total_puntos_posibles)  || 0;
-      if (posibles === 0) return 0;
-      calificacion = (obtenidos / posibles) * 10;
-    }
-
-    // Redondeo correcto: .5 sube, debajo de 6 → 5
-    const redondeado = Math.round(calificacion * 10) / 10;
-
-    // Si está entre 0 y 5.9 (exclusive) → 5
-    if (redondeado > 0 && redondeado < 6) return 5;
-
-    // Redondeo al entero más cercano para la calificación final
-    return Math.round(redondeado);
-  };
-
-  getBadgeCalificacion(cal: number, minimo: number): string {
-    return cal >= minimo ? 'bg-success' : 'bg-danger';
-  };
-
-  // Agrupa calificaciones de boleta por materia
-  get materiasUnicas(): string[] {
-    if (!this.boleta) return [];
-    return [...new Set(this.boleta.calificaciones.map(c => c.materia_nombre))];
-  };
-
-  getCalificacionesPorMateria(materia: string): any[] {
-    if (!this.boleta) return [];
-    return this.boleta.calificaciones.filter(c => c.materia_nombre === materia);
-  };
+  calcularCalificacionFinal(item: BoletaMateria): number {
+    const base =
+      item.tipo_evaluacion === 'promedio'
+        ? Number(item.promedio_calificaciones) || 0
+        : (Number(item.total_puntos_posibles) || 0) > 0
+          ? ((Number(item.total_puntos_obtenidos) || 0) / Number(item.total_puntos_posibles)) * 10
+          : 0;
+    return this.getCalificacionRedondeada(base);
+  }
 
   paginaAnterior(): void {
-    if (this.paginaActual > 1) {
-      this.paginaActual--;
-    }
-  };
+    if (this.paginaActual > 1) this.paginaActual--;
+  }
 
   paginaSiguiente(): void {
-    if (this.paginaActual < this.totalPaginas) {
-      this.paginaActual++;
-    }
-  };
+    if (this.paginaActual < this.totalPaginas) this.paginaActual++;
+  }
 
-
-  exportarCalificaciones(): void{
+  async exportarCalificaciones(): Promise<void> {
     if (!this.grupoMateriaSeleccionado || !this.configEvaluacion) return;
-    const alumnos = this.alumnosFiltrados;
-    const periodos = Array.from(
-      {length: this.configEvaluacion.num_periodos}, (_, i)=> i+1
-    );
-    const tipoPeriodo = this.configEvaluacion.tipo_periodo === 'trimestre' ? 'Trim': 'Parcial';
-    const esPuntos = this.esPorPuntos;
-    this.sweetAlert.loading('Generando Excel...', 'Cargando calificaciones');
-
-    // cargar calificaciones de todos los alumnos en paralelo
-    const peticiones = alumnos.map(alumno =>
-      new Promise<{alumno: Alumno; calificaciones: Calificacion[]}>((resolve) =>{
-        this.ratingsService.obtenerCalificacionesPorAlumno(
-          alumno.id,
-          this.grupoMateriaSeleccionado!.id
-        ).subscribe({
-          next: (cals) => resolve({alumno, calificaciones:cals}),
-          error: ()=> resolve({alumno, calificaciones: []})
+    this.sweetAlert.loading('Generando concentrado...', 'Cargando calificaciones por alumno');
+    try {
+      const resultados = await Promise.all(
+        this.alumnosFiltrados.map(async (alumno) => ({
+          alumno,
+          calificaciones: await firstValueFrom(
+            this.ratingsService.obtenerCalificacionesPorAlumno(
+              alumno.id,
+              this.grupoMateriaSeleccionado!.id,
+            ),
+          ),
+        })),
+      );
+      const tareas = this.obtenerTareasOrdenadas(resultados.flatMap((r) => r.calificaciones));
+      const encabezados = [
+        'Alumno',
+        ...tareas.map((t) => `${this.nombrePeriodo} ${t.periodo} · ${t.tarea_nombre}`),
+        ...this.periodos.map((p) => `${this.nombrePeriodo} ${p} final`),
+        'Promedio final',
+      ];
+      const filas = resultados.map(({ alumno, calificaciones }) => {
+        const fila: Record<string, string | number> = { Alumno: alumno.nombre };
+        tareas.forEach((tarea) => {
+          const calificacion = calificaciones.find((c) => c.tarea_id === tarea.tarea_id);
+          fila[`${this.nombrePeriodo} ${tarea.periodo} · ${tarea.tarea_nombre}`] =
+            calificacion?.calificacion ?? '';
         });
-      })
+        const porPeriodo = this.periodos.map((periodo) =>
+          this.calcularPeriodo(calificaciones.filter((c) => c.periodo === periodo)),
+        );
+        this.periodos.forEach(
+          (periodo, index) =>
+            (fila[`${this.nombrePeriodo} ${periodo} final`] = this.getCalificacionRedondeada(
+              porPeriodo[index],
+            )),
+        );
+        const conDatos = porPeriodo.filter((valor) => valor > 0);
+        fila['Promedio final'] = conDatos.length
+          ? this.getCalificacionRedondeada(conDatos.reduce((s, v) => s + v, 0) / conDatos.length)
+          : 0;
+        return fila;
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(filas, { header: encabezados });
+      ws['!cols'] = encabezados.map((header, index) => ({
+        wch: index === 0 ? 32 : Math.min(Math.max(header.length + 2, 13), 28),
+      }));
+      XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        this.nombreHojaSeguro(this.grupoMateriaSeleccionado.materia_nombre || 'Concentrado'),
+      );
+      const grupo = this.grupos.find((g) => g.id === this.grupoSeleccionado);
+      XLSX.writeFile(
+        wb,
+        this.nombreArchivoSeguro(
+          `Concentrado_${grupo?.nombre || 'Grupo'}_${this.grupoMateriaSeleccionado.materia_nombre || 'Materia'}.xlsx`,
+        ),
+      );
+      this.sweetAlert.toast('Concentrado generado correctamente', 'success');
+    } catch {
+      this.sweetAlert.error('Error', 'No se pudo generar el concentrado');
+    } finally {
+      this.sweetAlert.closeLoading();
+    }
+  }
+
+  private async guardar(cal: Calificacion): Promise<void> {
+    const request: CalificarRequest = {
+      alumno_id: this.alumnoSeleccionado!.id,
+      tarea_id: cal.tarea_id,
+      calificacion: this.normalizarNumeroNulo(cal.calificacion),
+      puntos_obtenidos: this.esPorPuntos ? this.normalizarNumeroNulo(cal.puntos_obtenidos) : null,
+    };
+    await firstValueFrom(this.ratingsService.calificar(request));
+    this.estadoInicial.set(cal.tarea_id, {
+      calificacion: request.calificacion,
+      puntosObtenidos: request.puntos_obtenidos ?? null,
+    });
+  }
+
+  private validarCalificacion(cal: Calificacion): boolean {
+    if (cal.calificacion === null) return true;
+    const valor = Number(cal.calificacion);
+    if (!Number.isFinite(valor) || valor < 0 || valor > this.limiteCalificacion) {
+      this.sweetAlert.error(
+        'Calificación inválida',
+        `Captura un valor entre 0 y ${this.limiteCalificacion}.`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  private crearEstadoInicial(): void {
+    this.estadoInicial = createRatingSnapshot(this.calificaciones);
+  }
+
+  private limpiarCalificaciones(): void {
+    this.calificaciones = [];
+    this.estadoInicial.clear();
+  }
+
+  private actualizarNivelActivo(): void {
+    if (!this.nivelesEducativos.includes(this.nivelActivo)) {
+      this.nivelActivo = this.nivelesEducativos[0] ?? '';
+    }
+  }
+  private normalizarNumero(valor: number | null): number {
+    return roundTo(Number(valor));
+  }
+
+  private normalizarNumeroNulo(valor: number | null | undefined): number | null {
+    return normalizeNullableNumber(valor);
+  }
+
+  private redondear(valor: number): number {
+    return roundTo(valor);
+  }
+
+  private calcularPeriodo(calificaciones: Calificacion[]): number {
+    return calculatePeriodGrade(calificaciones, this.esPorPuntos);
+  }
+
+  private obtenerTareasOrdenadas(calificaciones: Calificacion[]): Calificacion[] {
+    return [...new Map(calificaciones.map((cal) => [cal.tarea_id, cal])).values()].sort(
+      (a, b) =>
+        (a.periodo || 0) - (b.periodo || 0) ||
+        (a.fecha || '').localeCompare(b.fecha || '') ||
+        (a.tarea_nombre || '').localeCompare(b.tarea_nombre || ''),
     );
-    Promise.all(peticiones).then(resultados=>{
-    this.sweetAlert.closeLoading();
+  }
 
-    // Construir cabeceras
-    const cabeceras = ['Nombre'];
-    periodos.forEach(p=> cabeceras.push(`${tipoPeriodo} ${p}`));
+  private nombreArchivoSeguro(nombre: string): string {
+    return sanitizeFileName(nombre);
+  }
 
-    // Construir filas
-    const filas = resultados.map(({alumno, calificaciones})=>{
-      const fila: any = {
-        'Nombre': alumno.nombre,
-      };
-      let sumaFinal = 0;
-      let periodoConDatos = 0;
+  private nombreHojaSeguro(nombre: string): string {
+    return sanitizeSheetName(nombre);
+  }
 
-      periodos.forEach(p => {
-        const calsPeriodo = calificaciones.filter(c => c.periodo === p);
-        let calFinal : number;
+  private async generarPdfBoleta(boleta: Boleta): Promise<void> {
+    const contenedor = document.createElement('div');
+    contenedor.style.position = 'fixed';
+    contenedor.style.top = '0';
+    contenedor.style.left = '-10000px';
+    contenedor.style.zIndex = '-1';
+    contenedor.innerHTML = buildRatingReportFragment(boleta, (item) =>
+      this.calcularCalificacionFinal(item),
+    );
+    document.body.appendChild(contenedor);
 
-        if (esPuntos){
-          const totalObtenidos = calsPeriodo.reduce(
-            (sum, c) => sum + (Number(c.puntos_obtenidos) || 0), 0
-          );
-         const totalPosible = calsPeriodo.reduce(
-            (sum, c) => sum  + (Number(c.valor_tarea) || 0), 0
-         );
-         calFinal = totalPosible > 0 ? Math.round((totalObtenidos/totalPosible) * 10 * 10) / 10 : 0;
-        }else{
-          const califs = calsPeriodo.filter(c => c.calificacion !== null).map(c=>  Number(c.calificacion));
-          calFinal = califs.length > 0 ? Math.round((califs.reduce((a,b)=> a + b, 0) / califs.length) * 10) / 10 : 0;
-        }
+    try {
+      const hoja = contenedor.querySelector<HTMLElement>('.sheet');
+      if (!hoja) throw new Error('No se pudo preparar la boleta para exportar');
 
-        // Aplicar regla del min aprobatorio
-        const minimo = this.configEvaluacion?.num_periodos?? 6;
-        const calAplicada = calFinal > 0 && calFinal < 6 ? 5 : Math.round(calFinal);
-       fila[`${tipoPeriodo} ${p}`] = calAplicada;
-
-       if (calFinal > 0){
-        sumaFinal += calAplicada;
-        periodoConDatos++;
-       }
+      const canvas = await html2canvas(hoja, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
       });
 
-      const promedioFinal = periodoConDatos > 0 ? Math.round(sumaFinal / periodos.length) : 0;
-      fila['Promedio Final'] = promedioFinal;
-      return fila
-    });
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
 
-    // Nombre del grupo y materia para el archivo
-    const grupo = this.grupos.find(g => g.id === this.grupoSeleccionado);
-    const nombreGrupo = grupo ? `${grupo.nivel_educativo || ''} ${grupo.nombre}`.trim() : 'Grupo';
-    const nombreMateria = this.grupoMateriaSeleccionado!.materia_nombre || 'Materia';
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
 
-    // Crear el archivo de excel
+      while (heightLeft > 0) {
+        position -= pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(filas, {header: cabeceras});
-
-    // Ancho de las columnas
-    ws['!cols'] = [
-      {wch : 35}, // Nombre
-      ...periodos.map(()=>({wch : 12})),
-      {wch : 15} // Promedio
-    ];
-    XLSX.utils.book_append_sheet(wb, ws, nombreMateria.substring(0, 31));
-    XLSX.writeFile(wb, `Calificaciones_${nombreGrupo}_${nombreMateria}.xlsx`.replace(/\s+/g, '_').replace(/[^\w_.-]/g, ''));
-    this.sweetAlert.toast('Excel generado correctamente', 'success')
-    });
-  };
+      pdf.save(this.nombreArchivoSeguro(`Boleta_${boleta.alumno.nombre || 'Alumno'}.pdf`));
+    } finally {
+      document.body.removeChild(contenedor);
+    }
+  }
 }

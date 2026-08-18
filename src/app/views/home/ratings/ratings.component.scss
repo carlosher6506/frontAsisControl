@@ -1,26 +1,616 @@
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
+// Page layout (level tabs + group cards)
+.ratings-page {
+  color: #17202a;
+}
 
-@media print {
-  // Oculta todo el layout del dashboard
-  app-root > * { display: none !important; }
+.page-heading {
+  margin: 0 0 1.5rem;
 
-  // Muestra solo la boleta
-  app-root app-ratings { display: block !important; }
-  app-root app-ratings .no-print { display: none !important; }
-  app-root app-ratings #boleta {
-    display: block !important;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding: 20px;
-    background: white;
-    z-index: 9999;
+  h4 {
+    font-weight: 750;
+    margin: 0;
   }
 
-  // Estilos generales de impresión
-  * { -webkit-print-color-adjust: exact !important; }
-  body { background: white !important; margin: 0 !important; }
-  .sidebar, .top-navbar, .no-print { display: none !important; }
+  p {
+    color: #6b7280;
+    margin: 0.25rem 0 0;
+  }
+}
+
+.groups-panel {
+  overflow: hidden;
+}
+
+.education-tabs {
+  display: flex;
+  gap: 0.2rem;
+  overflow-x: auto;
+
+  button {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: #607080;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.95rem 1.4rem 0.85rem;
+    white-space: nowrap;
+
+    &.active {
+      border-color: #20252a;
+      color: #17202a;
+      font-weight: 750;
+    }
+  }
+}
+
+.groups-grid {
+  display: grid;
+  gap: 1.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
+  padding: 1.8rem 0;
+}
+
+.group-card {
+  appearance: none;
+  background: #fff;
+  border: 1px solid #dce1e5;
+  border-radius: 1.25rem;
+  color: #17202a;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s,
+    border-color 0.18s;
+  width: 100%;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #1d252d;
+    box-shadow: 0 12px 25px rgba(24, 39, 75, 0.14);
+    outline: 0;
+    transform: translateY(-4px);
+  }
+
+  span {
+    display: block;
+  }
+
+  .group-card-heading {
+    background: #20252a;
+    color: #fff;
+    min-height: 25px;
+    padding: 1rem 0.85rem;
+  }
+
+  .card-top {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    font-size: 1.52rem;
+    font-weight: 700;
+    margin-top: 0.55rem;
+  }
+
+  .group-card-body {
+    min-height: 160px;
+    padding: 1.25rem 1.75rem 1.5rem;
+  }
+
+  .group-details {
+    color: #63707c;
+    display: flex;
+    font-size: 0.84rem;
+    gap: 1.1rem;
+    margin-bottom: 1.2rem;
+
+    i {
+      margin-right: 0.35rem;
+    }
+  }
+
+  .create-task-action {
+    align-items: center;
+    background: #20252a;
+    border-radius: 0.75rem;
+    color: #fff;
+    display: flex;
+    font-size: 0.92rem;
+    font-weight: 700;
+    gap: 0.6rem;
+    justify-content: center;
+    min-height: 55px;
+  }
+}
+
+.empty-state {
+  align-items: center;
+  color: #77818a;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+  text-align: center;
+
+  i {
+    font-size: 2rem;
+    margin-bottom: 0.7rem;
+  }
+
+  h6 {
+    color: #3e4750;
+    font-weight: 750;
+  }
+
+  p {
+    font-size: 0.84rem;
+    margin: 0.15rem 0;
+    max-width: 320px;
+  }
+
+  &.compact {
+    min-height: 250px;
+  }
+}
+
+// Modal shell
+.task-modal-backdrop {
+  background: rgba(17, 24, 39, 0.56);
+  inset: 0;
+  position: fixed;
+  z-index: 1040;
+}
+
+.task-modal {
+  background: #f7f8fa;
+  border-radius: 1.15rem;
+  box-shadow: 0 20px 65px rgba(0, 0, 0, 0.27);
+  display: flex;
+  flex-direction: column;
+  height: min(92vh, 960px);
+  left: 50%;
+  overflow: hidden;
+  position: fixed;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(96vw, 1150px);
+  z-index: 1041;
+
+  // Ratings capture needs more breathing room than the base task modal.
+  &.ratings-modal {
+    width: min(96vw, 1400px);
+  }
+}
+
+.modal-header-custom {
+  align-items: center;
+  background: #20252a;
+  color: #fff;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  padding: 1.3rem 1.5rem;
+
+  h5 {
+    font-size: 1.2rem;
+    font-weight: 750;
+    margin: 0;
+  }
+}
+
+.close-button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.13);
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
+
+.modal-content-custom {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1.25rem 1.4rem 1.4rem;
+}
+
+.configuration-summary {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e4e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 3px 10px rgba(32, 37, 42, 0.04);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 0.95rem;
+
+  span:first-child {
+    color: #65707a;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.2rem;
+  }
+}
+
+// Workspace: subjects sidebar + capture area
+.modal-workspace {
+  background: #fff;
+  border: 1px solid #e1e5e8;
+  border-radius: 0.9rem;
+  box-shadow: 0 4px 14px rgba(32, 37, 42, 0.04);
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 640px;
+  overflow: hidden;
+}
+
+.subjects-sidebar {
+  background: #f5f6f7;
+  border-right: 1px solid #e3e6e8;
+  padding: 1.15rem 0.75rem;
+
+  p {
+    color: #5c6670;
+    font-size: 0.78rem;
+    font-weight: 750;
+    margin: 0 0.55rem 0.8rem;
+    text-transform: uppercase;
+  }
+
+  button {
+    background: #fff;
+    border: 1px solid transparent;
+    border-radius: 0.6rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    display: block;
+    margin-bottom: 0.35rem;
+    padding: 0.75rem 0.8rem;
+    text-align: left;
+    width: 100%;
+
+    &:hover {
+      border-color: #cdd3d8;
+    }
+
+    &.active {
+      background: #202932;
+      color: #fff;
+
+      span {
+        color: #cfd4d9;
+      }
+    }
+
+    strong,
+    span {
+      display: block;
+      font-size: 0.84rem;
+    }
+
+    span {
+      color: #7a838c;
+      font-size: 0.72rem;
+      margin-top: 0.18rem;
+    }
+  }
+}
+
+.sidebar-empty {
+  color: #7a838c;
+  font-size: 0.8rem;
+  padding: 1rem 0.55rem;
+}
+
+// Right-hand capture area. This is a simple vertical stack:
+// header -> (student grid | period tabs + table) -> footer.
+// It must NOT be a grid — that was the bug causing the distorted layout.
+.ratings-workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.3rem;
+}
+
+.ratings-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+
+  h6 {
+    font-weight: 750;
+    margin: 0.35rem 0;
+  }
+
+  p {
+    color: #717b84;
+    font-size: 0.8rem;
+    margin: 0;
+  }
+}
+
+.back-button {
+  background: transparent;
+  border: 0;
+  color: #56616b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+// Full roster shown right after picking a subject.
+.students-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.student-card {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e0e4e7;
+  border-radius: 0.65rem;
+  color: #202932;
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  text-align: left;
+  transition: 0.15s;
+  width: 100%;
+
+  &:hover {
+    border-color: #202932;
+    box-shadow: 0 4px 12px rgba(32, 37, 42, 0.1);
+  }
+
+  > span:nth-child(2) {
+    flex: 1;
+  }
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 0.83rem;
+  }
+
+  small {
+    color: #77818a;
+    font-size: 0.72rem;
+    margin-top: 0.1rem;
+  }
+}
+
+.student-initial {
+  align-items: center;
+  background: #202932;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 34px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  height: 34px;
+  justify-content: center;
+}
+
+// Single definition — a plain horizontal row of tabs, not a grid/columns.
+.period-tabs {
+  border-bottom: 1px solid #e7eaed;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+
+  button {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: #69737c;
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.6rem 0.8rem;
+    white-space: nowrap;
+
+    &.active {
+      border-color: #202932;
+      color: #202932;
+    }
+  }
+}
+
+.ratings-table-wrapper {
+  overflow-x: auto;
+}
+
+.ratings-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
+  min-width: 680px;
+  width: 100%;
+
+  th {
+    background: #202932;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    padding: 0.68rem 0.7rem;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  th:first-child {
+    border-radius: 0.45rem 0 0 0.45rem;
+  }
+
+  th:last-child {
+    border-radius: 0 0.45rem 0.45rem 0;
+  }
+
+  td {
+    border-bottom: 1px solid #edf0f2;
+    padding: 0.65rem 0.7rem;
+    vertical-align: middle;
+  }
+
+  tr.modified td {
+    background: #fff9e6;
+  }
+
+  input {
+    max-width: 115px;
+  }
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  text-align: center;
+}
+
+.icon-action {
+  background: transparent;
+  border: 1px solid #cfd5da;
+  border-radius: 0.4rem;
+  color: #202932;
+  height: 31px;
+  width: 33px;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
+}
+
+.ratings-footer {
+  align-items: center;
+  border-top: 1px solid #e7eaed;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.grade-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+
+  span {
+    border-left: 3px solid #202932;
+    padding-left: 0.55rem;
+  }
+
+  small,
+  strong {
+    display: block;
+  }
+
+  small {
+    color: #76808a;
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    font-size: 0.9rem;
+    margin-top: 0.12rem;
+  }
+}
+
+.changes-count {
+  background: #fff;
+  border-radius: 50%;
+  color: #202932;
+  display: inline-grid;
+  font-size: 0.68rem;
+  height: 17px;
+  margin-left: 0.25rem;
+  place-items: center;
+  width: 17px;
+}
+
+// Responsive
+@media (max-width: 900px) {
+  .modal-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .subjects-sidebar {
+    align-items: center;
+    border-bottom: 1px solid #e8ebed;
+    border-right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .subjects-sidebar > p {
+    width: 100%;
+  }
+
+  .subjects-sidebar button {
+    width: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .ratings-header,
+  .ratings-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .students-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .groups-grid {
+    padding: 1rem;
+  }
+
+  .task-modal {
+    border-radius: 0;
+    height: 100vh;
+    width: 100%;
+  }
+
+  .modal-content-custom {
+    padding: 1rem;
+  }
 }

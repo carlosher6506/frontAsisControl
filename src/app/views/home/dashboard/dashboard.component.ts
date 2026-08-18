@@ -30,7 +30,7 @@ export class DashboardComponent {
         { label: 'Calificaciones',     icon: 'star-fill',           route: '/dashboard/ratings',         roles: ['admin', 'maestro'] }
       ]
     },
-    { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin', 'maestro'],   open: false,
+    { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin'],   open: false,
       children:[
         { label: 'Ciclo Escolar',      icon: 'calendar-fill',      route: '/dashboard/schoolYear',     roles: ['admin'] },
         { label: 'Ajustes Niveles',    icon: 'bar-chart-fill',     route: '/dashboard/levels',         roles: ['admin'] },
