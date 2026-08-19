@@ -26,7 +26,6 @@ import { forkJoin, switchMap, throwError } from 'rxjs';
 })
 export class GroupsComponent implements OnInit {
 
-  // ── Datos ──────────────────────────────────────────────────────────────────
   grupos: Grupo[] = [];
   ciclos: CicloEscolar[] = [];
   nivelesEducativos: NivelEducativo[] = [];
@@ -36,34 +35,28 @@ export class GroupsComponent implements OnInit {
   alumnosDisponibles: Alumno[] = [];
   usuario: any = null;
 
-  // ── Estado UI ──────────────────────────────────────────────────────────────
   isLoading = true;
   isSubmitting = false;
   cargandoAlumnos = false;
   asignandoAlumno = false;
   modoEdicion = false;
 
-  // ── Selección ──────────────────────────────────────────────────────────────
   grupoSeleccionado: Grupo | null = null;
   grupoViendoAlumnos: Grupo | null = null;
   alumnosSeleccionadosIds: number[] = [];
   mostrandoSelectorAlumnos = false;
   textoBusquedaAlumnos = '';
 
-  // ── Filtros ────────────────────────────────────────────────────────────────
   textoBusqueda = '';
   tabActivo = 'todos';
 
-  // ── Paginación ─────────────────────────────────────────────────────────────
   readonly pageSize = 6;
   paginaActual = 1;
 
-  // ── Formulario ─────────────────────────────────────────────────────────────
   form: FormGroup;
   nivelEducativoSeleccionado: number | null = null;
   nivelAcademicoSeleccionado: number | null = null;
 
-  // ──────────────────────────────────────────────────────────────────────────
   constructor(
     private readonly groupsService: GroupsService,
     private readonly schoolYearService: SchoolYearService,
@@ -92,7 +85,6 @@ export class GroupsComponent implements OnInit {
     this.cargarDatos();
   }
 
-  // ── Getters form ───────────────────────────────────────────────────────────
   get nombre()             { return this.form.get('nombre')!; }
   get ciclo_escolar_id()   { return this.form.get('ciclo_escolar_id')!; }
   get maestro_id()         { return this.form.get('maestro_id')!; }
@@ -109,7 +101,7 @@ export class GroupsComponent implements OnInit {
     );
   }
 
-  // ── Tabs por nivel educativo ───────────────────────────────────────────────
+  // Tabs por nivel educativo
   get nivelesDisponibles(): string[] {
     const niveles = new Set(this.grupos.map(g => g.nivel_educativo || 'Sin nivel'));
     return ['todos', ...Array.from(niveles)];
@@ -120,7 +112,6 @@ export class GroupsComponent implements OnInit {
     this.paginaActual = 1;
   }
 
-  // ── Filtrado + paginación ──────────────────────────────────────────────────
   get gruposFiltradosPorTab(): Grupo[] {
     let lista = this.grupos;
 
@@ -169,7 +160,7 @@ export class GroupsComponent implements OnInit {
     this.paginaActual = 1;
   }
 
-  // ── Helpers nombres ────────────────────────────────────────────────────────
+  // Helpers nombres
   getNombreNivel(nivel_academico_id: number): string {
     const nivel = this.nivelesAcademicos.find(n => n.id === nivel_academico_id);
     return nivel ? `${nivel.nivel_educativo} - ${nivel.nombre}` : `Nivel ${nivel_academico_id}`;
@@ -187,7 +178,6 @@ export class GroupsComponent implements OnInit {
     return `Maestro ${maestro_id}`;
   }
 
-  // ── Carga de datos ─────────────────────────────────────────────────────────
   cargarDatos(): void {
     this.isLoading = true;
     this.groupsService.obtenerGrupos().subscribe({
@@ -207,21 +197,18 @@ export class GroupsComponent implements OnInit {
     }
   }
 
-  // ── Modal crear ────────────────────────────────────────────────────────────
   abrirModalCrear(): void {
     this.modoEdicion = false;
     this.grupoSeleccionado = null;
     this.nivelEducativoSeleccionado = null;
     this.nivelAcademicoSeleccionado = null;
     this.form.reset();
-    // En edición el ciclo y nivel no son requeridos
     this.form.get('ciclo_escolar_id')!.setValidators(Validators.required);
     this.form.get('nivel_academico_id')!.setValidators(Validators.required);
     this.form.get('ciclo_escolar_id')!.updateValueAndValidity();
     this.form.get('nivel_academico_id')!.updateValueAndValidity();
   }
 
-  // ── Modal editar ───────────────────────────────────────────────────────────
   abrirModalEditar(grupo: Grupo): void {
     this.modoEdicion = true;
     this.grupoSeleccionado = grupo;
@@ -243,7 +230,6 @@ export class GroupsComponent implements OnInit {
     this.form.get('nivel_academico_id')!.setValue('');
   }
 
-  // ── Guardar ────────────────────────────────────────────────────────────────
   guardar(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.isSubmitting = true;
@@ -289,7 +275,6 @@ export class GroupsComponent implements OnInit {
     }
   }
 
-  // ── Eliminar grupo (desasigna alumnos) ─────────────────────────────────────
   async eliminar(grupo: Grupo): Promise<void> {
     const result = await this.sweetAlert.confirmDelete(
       `¿Eliminar el grupo ${grupo.nombre}?`,
@@ -306,7 +291,6 @@ export class GroupsComponent implements OnInit {
     });
   }
 
-  // ── Ver alumnos del grupo ──────────────────────────────────────────────────
   verAlumnos(grupo: Grupo): void {
     this.grupoViendoAlumnos = grupo;
     this.alumnosDelGrupo = [];
@@ -424,7 +408,6 @@ export class GroupsComponent implements OnInit {
     });
   }
 
-  // ── Eliminar alumno del grupo ──────────────────────────────────────────────
   async eliminarAlumnoDelGrupo(alumno: Alumno): Promise<void> {
     if (!this.grupoViendoAlumnos) return;
     const result = await this.sweetAlert.confirmDelete(
@@ -444,12 +427,10 @@ export class GroupsComponent implements OnInit {
     });
   }
 
-  // ── Pase de lista (solo botón por ahora) ──────────────────────────────────
   pasarLista(grupo: Grupo): void {
     // Funcionalidad pendiente
   }
 
-  // ── Cerrar modal ───────────────────────────────────────────────────────────
   cerrarModal(): void {
     this.form.reset();
     this.modoEdicion = false;
