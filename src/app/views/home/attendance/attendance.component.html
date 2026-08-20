@@ -1,0 +1,204 @@
+<section class="tasks-page report-page">
+  <header class="page-heading">
+    <div>
+      <h4>Reportes de asistencia</h4>
+      <p>Selecciona un grupo para consultar asistencia por alumno.</p>
+    </div>
+  </header>
+
+  <section class="groups-panel" aria-label="Grupos disponibles">
+    <nav class="education-tabs" aria-label="Nivel educativo">
+      @for (nivel of nivelesEducativos; track nivel) {
+        <button type="button" [class.active]="nivelActivo === nivel" (click)="seleccionarNivel(nivel)">
+          {{ nivel }}
+        </button>
+      }
+    </nav>
+
+    @if (isLoadingGrupos) {
+      <div class="empty-state">
+        <span class="spinner-border"></span>
+      </div>
+    } @else if (!nivelesEducativos.length) {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos disponibles</h6>
+        <p>No tienes grupos asignados.</p>
+      </div>
+    } @else if (gruposPorNivel.length) {
+      <div class="groups-grid">
+        @for (grupo of gruposPorNivel; track grupo.id) {
+          <button
+            type="button"
+            class="group-card"
+            (click)="seleccionarGrupo(grupo)"
+            [attr.aria-label]="'Ver reporte de ' + obtenerNombreGrupo(grupo)"
+          >
+            <span class="group-card-heading">
+              <span class="card-top">{{ grupo.nivel_educativo || 'Nivel educativo' }}</span>
+              <strong>{{ obtenerNombreGrupo(grupo) }}</strong>
+            </span>
+            <span class="group-card-body">
+              <span class="group-details">
+                <span><i class="bi bi-book"></i>{{ materiasDelGrupo(grupo.id).length }} materia(s)</span>
+              </span>
+              <span class="create-task-action">
+                <i class="bi bi-bar-chart-line-fill"></i>Ver reporte
+              </span>
+            </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos en este nivel</h6>
+        <p>Selecciona otro nivel educativo.</p>
+      </div>
+    }
+  </section>
+</section>
+
+@if (modalAbierto && grupoActivo) {
+  <div class="task-modal-backdrop" (click)="cerrarModal()"></div>
+  <section
+    class="task-modal report-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="report-modal-title"
+  >
+    <header class="modal-header-custom">
+      <div>
+        <h5 id="report-modal-title">{{ obtenerNombreGrupo(grupoActivo) }}</h5>
+      </div>
+      <button type="button" class="close-button" (click)="cerrarModal()" aria-label="Cerrar reporte">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <div class="modal-content-custom">
+      <div class="modal-workspace">
+        <aside class="subjects-sidebar">
+          <p>Selecciona una materia</p>
+          @for (materia of materiasDelGrupoActivo; track materia.id) {
+            <button
+              type="button"
+              [class.active]="materiaSeleccionada?.id === materia.id"
+              (click)="seleccionarMateria(materia)"
+            >
+              <strong>{{ materia.materia_nombre }}</strong>
+            </button>
+          }
+          @if (!materiasDelGrupoActivo.length) {
+            <div class="sidebar-empty">No tienes materias asignadas en este grupo.</div>
+          }
+        </aside>
+
+        <main class="tasks-workspace report-workspace">
+          @if (!materiaSeleccionada) {
+            <div class="empty-state compact">
+              <i class="bi bi-arrow-left"></i>
+              <p>Selecciona una materia para ver su reporte.</p>
+            </div>
+          } @else {
+
+            <div class="report-header">
+              <div>
+                <h6>{{ materiaSeleccionada.materia_nombre }}</h6>
+                <p>Reporte por rango de fechas</p>
+              </div>
+
+              <div class="filtros-fecha">
+                <div class="fecha-field">
+                  <label>Desde</label>
+                  <input type="date" class="form-control form-control-sm" [(ngModel)]="fechaInicio" />
+                </div>
+                <div class="fecha-field">
+                  <label>Hasta</label>
+                  <input type="date" class="form-control form-control-sm" [(ngModel)]="fechaFin" />
+                </div>
+                <button type="button" class="btn btn-dark btn-sm" [disabled]="isLoadingReporte" (click)="generarReporte()">
+                  @if (isLoadingReporte) {
+                    <span class="spinner-border spinner-border-sm"></span>
+                  } @else {
+                    <i class="bi bi-arrow-repeat me-1"></i>Generar
+                  }
+                </button>
+              </div>
+            </div>
+
+            @if (isLoadingReporte) {
+              <div class="empty-state compact">
+                <span class="spinner-border"></span>
+              </div>
+            } @else if (!reporte.length) {
+              <div class="empty-state compact">
+                <i class="bi bi-bar-chart-line"></i>
+                <p>No hay sesiones de asistencia en este rango de fechas.</p>
+              </div>
+            } @else {
+
+              <div class="resumen-bar">
+                <span class="resumen-chip">
+                  <small>Promedio del grupo</small>
+                  <strong>{{ promedioAsistencia }}%</strong>
+                </span>
+                <span class="resumen-chip" [class.chip-alerta]="alumnosEnRiesgo > 0">
+                  <small>Alumnos en riesgo (&lt;75%)</small>
+                  <strong>{{ alumnosEnRiesgo }}</strong>
+                </span>
+                <span class="resumen-chip">
+                  <small>Total sesiones</small>
+                  <strong>{{ reporte[0].total_sesiones }}</strong>
+                </span>
+
+                <div class="ms-auto d-flex gap-2">
+                  <div class="search-box mb-0">
+                    <span class="search-icon"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control search-input" placeholder="Buscar alumno..." [(ngModel)]="textoBusquedaAlumno" />
+                  </div>
+                  <button type="button" class="btn btn-outline-dark btn-sm" [disabled]="isExportando" (click)="exportarReporte()">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+                  </button>
+                </div>
+              </div>
+
+              <div class="report-table-wrapper">
+                <table class="report-table">
+                  <thead>
+                    <tr>
+                      <th>Alumno</th>
+                      <th>Matrícula</th>
+                      <th class="numeric">Presentes</th>
+                      <th class="numeric">Retardos</th>
+                      <th class="numeric">Justificados</th>
+                      <th class="numeric">Ausentes</th>
+                      <th class="numeric">% Asistencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (fila of reporteFiltrado; track fila.alumno_id) {
+                      <tr>
+                        <td class="fw-semibold">{{ fila.alumno_nombre }}</td>
+                        <td class="font-monospace">{{ fila.matricula }}</td>
+                        <td class="numeric">{{ fila.presentes }}</td>
+                        <td class="numeric">{{ fila.retardos }}</td>
+                        <td class="numeric">{{ fila.justificados }}</td>
+                        <td class="numeric">{{ fila.ausentes }}</td>
+                        <td class="numeric">
+                          <span class="badge-porcentaje" [ngClass]="obtenerClaseAsistencia(fila.porcentaje_asistencia)">
+                            {{ fila.porcentaje_asistencia }}%
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </main>
+      </div>
+    </div>
+  </section>
+}

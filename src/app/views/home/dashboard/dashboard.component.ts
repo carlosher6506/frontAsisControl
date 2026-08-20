@@ -30,6 +30,12 @@ export class DashboardComponent {
         { label: 'Calificaciones',     icon: 'star-fill',           route: '/dashboard/ratings',         roles: ['admin', 'maestro'] }
       ]
     },
+    { label: 'Asistencia',      icon: 'person-check',       route: '',                          roles: ['admin', 'maestro'],   open: false,
+      children: [
+        { label: 'Pasar lista',        icon: 'check2-circle',       route: '/dashboard/roll-call',         roles: ['admin', 'maestro'] },
+        { label: 'Reportes',           icon: 'bar-chart-line-fill', route: '/dashboard/attendance/report', roles: ['admin', 'maestro'] }
+      ]
+    },
     { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin'],   open: false,
       children:[
         { label: 'Ciclo Escolar',      icon: 'calendar-fill',      route: '/dashboard/schoolYear',     roles: ['admin'] },

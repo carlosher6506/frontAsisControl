@@ -58,6 +58,21 @@ export const routes: Routes = [
           import('./views/home/groups/groups.component').then(m => m.GroupsComponent)
       },
       {
+        path: 'roll-call',
+        loadComponent: () =>
+          import('./views/home/roll-call/roll-call.component').then(m => m.RollCallComponent)
+      },
+      {
+        path: 'roll-call/:grupoId',
+        loadComponent: () =>
+          import('./views/home/roll-call/roll-call.component').then(m => m.RollCallComponent)
+      },
+      {
+        path: 'attendance/report',
+        loadComponent: () =>
+          import('./views/home/attendance/attendance.component').then(m => m.AttendanceReportComponent)
+      },
+      {
         path: 'schoolYear',
         loadComponent: () =>
           import('./views/home/school-year/school-year.component').then(m => m.SchoolYearComponent)

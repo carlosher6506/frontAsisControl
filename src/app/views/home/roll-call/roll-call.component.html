@@ -1,1 +1,342 @@
-<p>roll-call works!</p>
+<section class="tasks-page roll-call-page">
+  <header class="page-heading">
+    <div>
+      <h4>Pase de lista</h4>
+      <p>Selecciona un grupo para pasar lista de asistencia.</p>
+    </div>
+  </header>
+
+  <section class="groups-panel" aria-label="Grupos disponibles">
+    <nav class="education-tabs" aria-label="Nivel educativo">
+      @for (nivel of nivelesEducativos; track nivel) {
+        <button type="button" [class.active]="nivelActivo === nivel" (click)="seleccionarNivel(nivel)">
+          {{ nivel }}
+        </button>
+      }
+    </nav>
+
+    @if (isLoadingGrupos) {
+      <div class="empty-state">
+        <span class="spinner-border"></span>
+      </div>
+    } @else if (!nivelesEducativos.length) {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos disponibles</h6>
+        <p>No tienes grupos asignados para pasar lista.</p>
+      </div>
+    } @else if (gruposPorNivel.length) {
+      <div class="groups-grid">
+        @for (grupo of gruposPorNivel; track grupo.id) {
+          <button
+            type="button"
+            class="group-card"
+            (click)="seleccionarGrupo(grupo)"
+            [attr.aria-label]="'Pasar lista de ' + obtenerNombreGrupo(grupo)"
+          >
+            <span class="group-card-heading">
+              <span class="card-top">{{ grupo.nivel_educativo || 'Nivel educativo' }}</span>
+              <strong>{{ obtenerNombreGrupo(grupo) }}</strong>
+            </span>
+            <span class="group-card-body">
+              <span class="group-details">
+                <span><i class="bi bi-book"></i>{{ materiasDelGrupo(grupo.id).length }} materia(s)</span>
+              </span>
+              <span class="create-task-action">
+                <i class="bi bi-check2-circle"></i>Pasar lista
+              </span>
+            </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <h6>No hay grupos en este nivel</h6>
+        <p>Selecciona otro nivel educativo.</p>
+      </div>
+    }
+  </section>
+</section>
+
+@if (modalAbierto && grupoActivo) {
+  <div class="task-modal-backdrop" (click)="cerrarModal()"></div>
+  <section
+    class="task-modal roll-call-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="roll-call-modal-title"
+  >
+    <header class="modal-header-custom">
+      <div>
+        <h5 id="roll-call-modal-title">{{ obtenerNombreGrupo(grupoActivo) }}</h5>
+      </div>
+      <button type="button" class="close-button" (click)="cerrarModal()" aria-label="Cerrar pase de lista">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <div class="modal-content-custom">
+      <div class="modal-workspace">
+        <aside class="subjects-sidebar">
+          <p>Selecciona una materia</p>
+          @for (materia of materiasDelGrupoActivo; track materia.id) {
+            <button
+              type="button"
+              [class.active]="materiaSeleccionada?.id === materia.id"
+              (click)="seleccionarMateria(materia)"
+            >
+              <strong>{{ materia.materia_nombre }}</strong>
+            </button>
+          }
+          @if (!materiasDelGrupoActivo.length) {
+            <div class="sidebar-empty">No tienes materias asignadas en este grupo.</div>
+          }
+        </aside>
+
+        <main class="tasks-workspace attendance-workspace">
+          @if (!materiaSeleccionada) {
+            <div class="empty-state compact">
+              <i class="bi bi-arrow-left"></i>
+              <p>Selecciona una materia para pasar lista.</p>
+            </div>
+          } @else if (isLoadingLista) {
+            <div class="empty-state compact">
+              <span class="spinner-border"></span>
+            </div>
+          } @else {
+
+            <div class="attendance-header">
+              <div>
+                <h6>{{ materiaSeleccionada.materia_nombre }}</h6>
+                <p>
+                  {{ sesion?.fecha }}
+                  @if (sesionCerrada) {
+                    <span class="badge bg-secondary ms-1">Cerrada</span>
+                  }
+                </p>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <div class="metodo-toggle">
+                  <button type="button" class="metodo-btn" [class.active]="metodoActivo === 'manual'" (click)="cambiarMetodo('manual')">
+                    <i class="bi bi-list-check me-1"></i>Manual
+                  </button>
+                  <button type="button" class="metodo-btn" [class.active]="metodoActivo === 'qr'" (click)="cambiarMetodo('qr')">
+                    <i class="bi bi-qr-code-scan me-1"></i>QR
+                  </button>
+                </div>
+
+                @if (metodoActivo === 'qr' && !sesionCerrada) {
+                  <button type="button" class="btn btn-dark btn-sm" (click)="abrirModalQr()">
+                    <i class="bi bi-camera-fill me-1"></i>Escanear
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="resumen-bar">
+              <span class="resumen-chip estado-presente"><i class="bi bi-check-circle-fill"></i>{{ resumen.presente }}</span>
+              <span class="resumen-chip estado-retardo"><i class="bi bi-clock-fill"></i>{{ resumen.retardo }}</span>
+              <span class="resumen-chip estado-justificado"><i class="bi bi-file-earmark-check-fill"></i>{{ resumen.justificado }}</span>
+              <span class="resumen-chip estado-ausente"><i class="bi bi-x-circle-fill"></i>{{ resumen.ausente }}</span>
+              <span class="resumen-chip resumen-pendiente"><i class="bi bi-dash-circle"></i>{{ resumen.sinMarcar }} sin marcar</span>
+
+              <div class="ms-auto d-flex gap-2">
+                @if (metodoActivo === 'manual' && !sesionCerrada) {
+                  <button type="button" class="btn btn-outline-dark btn-sm" (click)="marcarTodosPresentes()">
+                    <i class="bi bi-check-all me-1"></i>Marcar pendientes presentes
+                  </button>
+                }
+                @if (!sesionCerrada) {
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="cerrarSesion()">
+                    <i class="bi bi-lock-fill me-1"></i>Cerrar pase de lista
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="search-box">
+              <span class="search-icon"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control search-input" placeholder="Buscar alumno..." [(ngModel)]="textoBusquedaAlumno" />
+            </div>
+
+            @if (alumnosFiltrados.length === 0) {
+              <div class="empty-state compact">
+                <i class="bi bi-person-x"></i>
+                <p>No hay alumnos para mostrar</p>
+              </div>
+            } @else {
+              <div class="attendance-list">
+                @for (alumno of alumnosFiltrados; track alumno.alumno_id) {
+                  <div class="attendance-row" [class.is-saving]="guardandoAlumnoId === alumno.alumno_id">
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">{{ alumno.alumno_nombre }}</div>
+                      <div class="small text-muted font-monospace">{{ alumno.matricula }}</div>
+                    </div>
+
+                    @if (alumno.metodo === 'qr' && alumno.estado) {
+                      <span class="badge bg-info-subtle text-info-emphasis me-2">
+                        <i class="bi bi-qr-code-scan me-1"></i>QR
+                      </span>
+                    }
+
+                    <button
+                      type="button"
+                      class="btn-credencial"
+                      title="Ver credencial QR"
+                      (click)="verCredencial(alumno)"
+                    >
+                      <i class="bi bi-qr-code"></i>
+                    </button>
+
+                    <div class="estado-buttons">
+                      @for (opcion of estadosAsistencia; track opcion.value) {
+                        <button
+                          type="button"
+                          class="estado-btn"
+                          [ngClass]="opcion.colorClass"
+                          [class.active]="alumno.estado === opcion.value"
+                          [disabled]="sesionCerrada || guardandoAlumnoId === alumno.alumno_id"
+                          [title]="opcion.label"
+                          (click)="marcarEstado(alumno, opcion.value)"
+                        >
+                          <i class="bi" [ngClass]="opcion.icon"></i>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </main>
+      </div>
+    </div>
+  </section>
+}
+
+<!-- MODAL QR  -->
+@if (mostrarModalQr) {
+  <div class="task-modal-backdrop qr-backdrop" (click)="cerrarModalQr()"></div>
+  <section class="task-modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+    <header class="modal-header-custom">
+      <h5 id="qr-modal-title"><i class="bi bi-qr-code-scan me-2"></i>Escanear credencial</h5>
+      <button type="button" class="close-button" (click)="cerrarModalQr()" aria-label="Cerrar escáner">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <div class="modal-content-custom">
+      <div class="qr-camera-wrapper mb-3">
+        <zxing-scanner
+          [enable]="escaneoActivo"
+          [formats]="formatosQr"
+          (scanSuccess)="onScanSuccess($event)"
+          (camerasNotFound)="onCamerasNotFound()"
+          (permissionResponse)="onPermissionResponse($event)">
+        </zxing-scanner>
+      </div>
+
+      @if (scannerError) {
+        <div class="qr-camera-error mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ scannerError }}
+        </div>
+      }
+
+      @if (isGuardandoQr) {
+        <div class="text-center text-muted small mb-2">
+          <span class="spinner-border spinner-border-sm me-1"></span>Registrando...
+        </div>
+      }
+
+      <div class="input-group">
+        <span class="input-group-text bg-white"><i class="bi bi-keyboard"></i></span>
+        <input type="text" class="form-control" placeholder="O ingresa el token manualmente"
+               [(ngModel)]="tokenManualQr"
+               (keyup.enter)="registrarTokenManual()" />
+        <button class="btn btn-dark" [disabled]="isGuardandoQr || !tokenManualQr.trim()" (click)="registrarTokenManual()">
+          @if (isGuardandoQr) {
+            <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+            <i class="bi bi-check-lg"></i>
+          }
+        </button>
+      </div>
+    </div>
+  </section>
+}
+
+<!-- MODAL CREDENCIAL -->
+@if (mostrarModalCredencial && alumnoCredencial) {
+  <div class="task-modal-backdrop credencial-backdrop" (click)="cerrarModalCredencial()"></div>
+  <section class="task-modal credencial-modal" role="dialog" aria-modal="true" aria-labelledby="credencial-modal-title">
+    <header class="modal-header-custom">
+      <h5 id="credencial-modal-title"><i class="bi bi-qr-code me-2"></i>Credencial de asistencia</h5>
+      <button type="button" class="close-button" (click)="cerrarModalCredencial()" aria-label="Cerrar credencial">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <div class="modal-content-custom">
+      @if (isLoadingCredencial) {
+        <div class="empty-state compact">
+          <span class="spinner-border"></span>
+        </div>
+      } @else if (credencialQr) {
+        <div class="credencial-print">
+          <div class="credencial-nombre">{{ alumnoCredencial.alumno_nombre }}</div>
+          <div class="credencial-matricula">{{ alumnoCredencial.matricula }}</div>
+
+          <div class="credencial-qr-wrapper">
+            <qrcode
+              #qrcodeEl
+              [qrdata]="credencialQr.token"
+              [width]="220"
+              [errorCorrectionLevel]="'M'"
+              [elementType]="'canvas'"
+              [margin]="1">
+            </qrcode>
+          </div>
+
+          <p class="credencial-hint">Si el escáner no lee el código, usa este respaldo:</p>
+          <div class="credencial-token-box">
+            <code class="credencial-token">{{ credencialQr.token }}</code>
+            <button type="button" class="btn-copy-token" title="Copiar código" (click)="copiarToken()">
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
+
+          @if (!credencialQr.activo) {
+            <div class="credencial-inactiva">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>Esta credencial está inactiva
+            </div>
+          }
+        </div>
+
+        <div class="credencial-actions">
+          <button type="button" class="btn btn-outline-dark btn-sm" [disabled]="isExportandoCredencial" (click)="exportarCredencialPdf()">
+            @if (isExportandoCredencial) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            } @else {
+              <i class="bi bi-file-earmark-pdf-fill me-1"></i>
+            }
+            Exportar PDF
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" [disabled]="isRegenerandoCredencial" (click)="regenerarCredencial()">
+            @if (isRegenerandoCredencial) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            } @else {
+              <i class="bi bi-arrow-repeat me-1"></i>
+            }
+            Regenerar credencial
+          </button>
+        </div>
+      } @else {
+        <div class="empty-state compact">
+          <p>No se pudo cargar la credencial.</p>
+        </div>
+      }
+    </div>
+  </section>
+}

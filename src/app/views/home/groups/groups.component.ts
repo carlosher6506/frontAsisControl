@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { GroupsService } from '../../../core/services/groups.service';
+import { Router } from '@angular/router';
 import { SchoolYearService } from '../../../core/services/school-year.service';
 import { AcademicLevelsService } from '../../../core/services/academic-levels.service';
 import { EducationLevelsService } from '../../../core/services/education-levels.service';
@@ -67,6 +68,7 @@ export class GroupsComponent implements OnInit {
     private readonly sweetAlert: SweetAlertService,
     private readonly studentsService: StudentsService,
     private readonly fb: FormBuilder,
+    private readonly router: Router
   ) {
     this.usuario = this.authService.getUsuario();
     this.form = this.fb.group({
@@ -212,8 +214,6 @@ export class GroupsComponent implements OnInit {
   abrirModalEditar(grupo: Grupo): void {
     this.modoEdicion = true;
     this.grupoSeleccionado = grupo;
-
-    // En edición solo se puede cambiar nombre y maestro
     this.form.get('ciclo_escolar_id')!.clearValidators();
     this.form.get('nivel_academico_id')!.clearValidators();
     this.form.get('ciclo_escolar_id')!.updateValueAndValidity();
@@ -428,7 +428,7 @@ export class GroupsComponent implements OnInit {
   }
 
   pasarLista(grupo: Grupo): void {
-    // Funcionalidad pendiente
+    this.router.navigate(['/dashboard/roll-call', grupo.id]);
   }
 
   cerrarModal(): void {

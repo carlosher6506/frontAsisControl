@@ -55,7 +55,6 @@ export class UsersComponent implements OnInit {
   this.cargarUsuarios();
 }
 
-  // ------ Gatters ------
   get nombre() {return this.form.get('nombre')!}
   get email() { return this.form.get('email')!; }
   get password() { return this.form.get('password')!; }
@@ -108,8 +107,6 @@ export class UsersComponent implements OnInit {
     return Math.min(this.paginaActual * this.pageSize, this.usuariosFiltrados.length);
   }
 
-
-  // ------ Cargar ------
   cargarUsuarios(): void {
     this.isLoading = true;
     this.usersService.obtenerUsuarios().subscribe({
@@ -125,22 +122,18 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  // ------ Abrir modal para crear ------
   abrirModalCrear(): void {
     this.modoEdicion = false;
     this.usuarioSeleccionado = null;
     this.form.reset();
-    // Password requerido al crear.
     this.password.enable();
     this.password.setValidators([Validators.required, Validators.minLength(6)]);
     this.password.updateValueAndValidity();
   }
 
-  // ------ Abrir modal para editar ------
   abrirModalEditar(usuario: Usuario): void {
     this.modoEdicion = true;
     this.usuarioSeleccionado = usuario;
-    // La contraseña se administra fuera de esta edición.
     this.password.reset();
     this.password.clearValidators();
     this.password.disable();
@@ -152,7 +145,6 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  // ------ Guardar (crear o editar) ------
   guardar(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -199,7 +191,6 @@ export class UsersComponent implements OnInit {
     }
   }
 
-  // ------ Eliminar ------
   async eliminar(usuario: Usuario): Promise<void> {
     const result = await this.sweetAlert.confirmDelete(
       `¿Eliminar a ${usuario.nombre}?`,
@@ -219,7 +210,6 @@ export class UsersComponent implements OnInit {
     }
   }
 
-  // ------ Cerrar modal ------
   cerrarModal(): void {
     this.form.reset();
     this.modoEdicion = false;
