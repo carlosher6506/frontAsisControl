@@ -1,5 +1,6 @@
 export const ENV_ASIS = {
-  apiUrl2 : 'http://localhost:3000/api',
+  apiUrl3 : 'http://localhost:3000/api',
+  apiUrl2 : 'https://backasiscontrol.onrender.com',
   apiUrl : 'https://backasiscontrol4.onrender.com'
 };
 
