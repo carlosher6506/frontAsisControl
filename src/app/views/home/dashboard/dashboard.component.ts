@@ -36,10 +36,11 @@ export class DashboardComponent {
         { label: 'Reportes',           icon: 'bar-chart-line-fill', route: '/dashboard/attendance/report', roles: ['admin', 'maestro'] }
       ]
     },
-    { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin'],   open: false,
+    { label: 'Ajuste Escolar',  icon: 'gear-fill',          route: '',                          roles: ['admin', 'maestro'],   open: false,
       children:[
         { label: 'Ciclo Escolar',      icon: 'calendar-fill',      route: '/dashboard/schoolYear',     roles: ['admin'] },
         { label: 'Ajustes Niveles',    icon: 'bar-chart-fill',     route: '/dashboard/levels',         roles: ['admin'] },
+        { label: 'Horario de clases',   icon: 'calendar-fill',       route: '',                        roles: ['admin', 'maestro'] }
       ]
     },
     { label: 'Mi perfil',       icon: 'person-circle',      route: '/dashboard/profile',        roles: ['admin', 'maestro'] },

@@ -127,9 +127,14 @@
                   </button>
                 </div>
 
-                @if (metodoActivo === 'qr' && !sesionCerrada) {
+                @if (metodoActivo === 'qr' && puedeEditarSesion) {
                   <button type="button" class="btn btn-dark btn-sm" (click)="abrirModalQr()">
                     <i class="bi bi-camera-fill me-1"></i>Escanear
+                  </button>
+                }
+                @if (esAdmin) {
+                  <button type="button" class="btn btn-outline-dark btn-sm" (click)="abrirHistorial()">
+                    <i class="bi bi-clock-history me-1"></i>Historial
                   </button>
                 }
               </div>
@@ -143,7 +148,7 @@
               <span class="resumen-chip resumen-pendiente"><i class="bi bi-dash-circle"></i>{{ resumen.sinMarcar }} sin marcar</span>
 
               <div class="ms-auto d-flex gap-2">
-                @if (metodoActivo === 'manual' && !sesionCerrada) {
+                @if (metodoActivo === 'manual' && puedeEditarSesion) {
                   <button type="button" class="btn btn-outline-dark btn-sm" (click)="marcarTodosPresentes()">
                     <i class="bi bi-check-all me-1"></i>Marcar pendientes presentes
                   </button>
@@ -197,7 +202,7 @@
                           class="estado-btn"
                           [ngClass]="opcion.colorClass"
                           [class.active]="alumno.estado === opcion.value"
-                          [disabled]="sesionCerrada || guardandoAlumnoId === alumno.alumno_id"
+                          [disabled]="!puedeEditarSesion || guardandoAlumnoId === alumno.alumno_id"
                           [title]="opcion.label"
                           (click)="marcarEstado(alumno, opcion.value)"
                         >
@@ -216,6 +221,48 @@
   </section>
 }
 
+@if (mostrarHistorial && materiaSeleccionada) {
+  <div class="task-modal-backdrop qr-backdrop" (click)="cerrarHistorial()"></div>
+  <section class="task-modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+    <header class="modal-header-custom">
+      <div>
+        <h5 id="history-modal-title"><i class="bi bi-clock-history me-2"></i>Historial de asistencia</h5>
+        <small>{{ materiaSeleccionada.materia_nombre }}</small>
+      </div>
+      <button type="button" class="close-button" (click)="cerrarHistorial()" aria-label="Cerrar historial">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+    <div class="modal-content-custom">
+      @if (cargandoHistorial) {
+        <div class="empty-state compact"><span class="spinner-border"></span></div>
+      } @else if (!sesionesHistoricas.length) {
+        <div class="empty-state compact">
+          <i class="bi bi-calendar-x"></i>
+          <p>No hay pases de lista registrados para esta materia.</p>
+        </div>
+      } @else {
+        <div class="history-list">
+          @for (sesionHistorica of sesionesHistoricas; track sesionHistorica.id) {
+            <button type="button" class="history-row" (click)="abrirSesionHistorica(sesionHistorica)">
+              <span>
+                <strong>{{ sesionHistorica.fecha }}</strong>
+                <small>Sesión #{{ sesionHistorica.id }} · {{ sesionHistorica.metodo_default | uppercase }}</small>
+              </span>
+              <span class="d-flex align-items-center gap-2">
+                <span class="badge" [class.bg-secondary]="sesionHistorica.cerrada" [class.bg-success]="!sesionHistorica.cerrada">
+                  {{ sesionHistorica.cerrada ? 'Cerrada' : 'Abierta' }}
+                </span>
+                <i class="bi bi-chevron-right"></i>
+              </span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </section>
+}
+
 <!-- MODAL QR  -->
 @if (mostrarModalQr) {
   <div class="task-modal-backdrop qr-backdrop" (click)="cerrarModalQr()"></div>
@@ -229,18 +276,30 @@
 
     <div class="modal-content-custom">
       <div class="qr-camera-wrapper mb-3">
-        <zxing-scanner
-          [enable]="escaneoActivo"
-          [formats]="formatosQr"
-          (scanSuccess)="onScanSuccess($event)"
-          (camerasNotFound)="onCamerasNotFound()"
-          (permissionResponse)="onPermissionResponse($event)">
-        </zxing-scanner>
+        @if (solicitandoPermisoCamara) {
+          <div class="d-flex h-100 align-items-center justify-content-center text-muted">
+            <span class="spinner-border spinner-border-sm me-2"></span>Solicitando acceso a la cámara...
+          </div>
+        } @else {
+          <zxing-scanner
+            [enable]="escaneoActivo"
+            [device]="camaraSeleccionada"
+            [formats]="formatosQr"
+            (scanSuccess)="onScanSuccess($event)"
+            (scanError)="onScanError($event)"
+            (camerasFound)="onCamerasFound($event)"
+            (camerasNotFound)="onCamerasNotFound()"
+            (permissionResponse)="onPermissionResponse($event)">
+          </zxing-scanner>
+        }
       </div>
 
       @if (scannerError) {
         <div class="qr-camera-error mb-3">
           <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ scannerError }}
+          <button type="button" class="btn btn-sm btn-outline-dark ms-2" (click)="solicitarPermisoCamara()">
+            <i class="bi bi-camera-fill me-1"></i>Reintentar
+          </button>
         </div>
       }
 

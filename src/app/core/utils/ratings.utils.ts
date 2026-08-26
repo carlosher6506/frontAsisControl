@@ -71,8 +71,9 @@ export function calculatePeriodGrade(
     return maximumPoints ? (earnedPoints / maximumPoints) * 10 : 0;
   }
 
-  // Evaluación por promedio (incluye primaria): la calificación ya se
-  // captura en escala 0-10, se promedia tal cual, sin dividir entre 10.
+  // En evaluaciones por promedio, la API ya entrega las calificaciones en
+  // escala 0-10 (también para primaria), por lo que no deben convertirse
+  // nuevamente al calcular el promedio del periodo.
   const grades = ratings
     .filter((rating) => rating.calificacion !== null)
     .map((rating) => Number(rating.calificacion));

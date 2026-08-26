@@ -18,7 +18,7 @@ import { Grupo } from '../../../core/models/group.model';
 import { Alumno } from '../../../core/models/student.model';
 import { ConfiguracionEvaluacion } from '../../../core/models/evaluation.model';
 import { Usuario } from '../../../core/models/user.model';
-import { calculatePeriodGrade, createRatingSnapshot, equivalenteEscalaDiez, formatTwoDecimals, hasRatingChanged,
+import { calculatePeriodGrade, createRatingSnapshot, formatTwoDecimals, hasRatingChanged,
   normalizeNullableNumber, RatingSnapshot, roundFinalGrade, roundTo, sanitizeFileName, sanitizeSheetName,
 } from '../../../core/utils/ratings.utils';
 import { buildRatingReportFragment } from '../../../core/utils/rating-report.template';
@@ -95,7 +95,9 @@ export class RatingsComponent implements OnInit {
   }
 
   get usaEscalaCien(): boolean {
-    return this.esPorPuntos;
+    // En primaria las calificaciones se capturan y almacenan sobre 100,
+    // aun cuando la configuración de evaluación sea por promedio.
+    return this.esPorPuntos || this.esPrimaria;
   }
 
   get limiteCalificacion(): number {
@@ -370,10 +372,6 @@ export class RatingsComponent implements OnInit {
     return formatTwoDecimals(valor);
   }
 
-  equivalenteDiez(valor: number | null | undefined): string | null {
-    return equivalenteEscalaDiez(valor, this.usaEscalaCien);
-  }
-
   async exportarBoletaPdf(): Promise<void> {
     if (!this.alumnoSeleccionado || this.isLoadingBoleta) return;
     this.isLoadingBoleta = true;
@@ -488,10 +486,15 @@ export class RatingsComponent implements OnInit {
       calificacion: this.normalizarNumeroNulo(cal.calificacion),
       puntos_obtenidos: this.esPorPuntos ? this.normalizarNumeroNulo(cal.puntos_obtenidos) : null,
     };
-    await firstValueFrom(this.ratingsService.calificar(request));
+    // El servidor normaliza la escala de primaria. Conservamos su respuesta
+    // para que el total en pantalla use el mismo valor sin requerir recargar
+    // o salir del alumno.
+    const calificacionGuardada = await firstValueFrom(this.ratingsService.calificar(request));
+    cal.calificacion = this.normalizarNumeroNulo(calificacionGuardada.calificacion);
+    cal.puntos_obtenidos = this.normalizarNumeroNulo(calificacionGuardada.puntos_obtenidos);
     this.estadoInicial.set(cal.tarea_id, {
-      calificacion: request.calificacion,
-      puntosObtenidos: request.puntos_obtenidos ?? null,
+      calificacion: cal.calificacion,
+      puntosObtenidos: cal.puntos_obtenidos,
     });
   }
 
@@ -535,7 +538,23 @@ export class RatingsComponent implements OnInit {
   }
 
   private calcularPeriodo(calificaciones: Calificacion[]): number {
-    return calculatePeriodGrade(calificaciones, this.esPorPuntos);
+    if (!this.esPrimaria || this.esPorPuntos) {
+      return calculatePeriodGrade(calificaciones, this.esPorPuntos);
+    }
+
+    // En primaria se captura sobre 100, mientras que las calificaciones que
+    // ya regresan del servidor están normalizadas sobre 10. Solo las notas
+    // modificadas localmente necesitan convertirse para la vista previa.
+    const calificacionesParaPromedio = calificaciones.map((calificacion) => ({
+      ...calificacion,
+      calificacion:
+        calificacion.calificacion === null
+          ? null
+          : this.estaModificada(calificacion)
+            ? Number(calificacion.calificacion) / 10
+            : calificacion.calificacion,
+    }));
+    return calculatePeriodGrade(calificacionesParaPromedio, false);
   }
 
   private obtenerTareasOrdenadas(calificaciones: Calificacion[]): Calificacion[] {

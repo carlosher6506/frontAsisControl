@@ -204,6 +204,14 @@ export class AttendanceReportComponent implements OnInit {
     return this.reporte.filter(r => Number(r.porcentaje_asistencia) < 75).length;
   }
 
+  get totalAsistencias(): number {
+    return this.reporte.reduce((total, fila) => total + Number(fila.presentes || 0), 0);
+  }
+
+  get totalFaltas(): number {
+    return this.reporte.reduce((total, fila) => total + Number(fila.ausentes || 0), 0);
+  }
+
   exportarReporte(): void {
     if (!this.reporte.length || !this.materiaSeleccionada || this.isExportando) return;
     this.isExportando = true;

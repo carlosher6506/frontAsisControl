@@ -196,8 +196,6 @@
                   <p>Aún no hay tareas en este periodo.</p>
                 </div>
               } @else {
-                @if (usaEscalaCien) {
-                }
                 <div class="ratings-table-wrapper">
                   <table class="ratings-table">
                     <thead>
@@ -257,11 +255,6 @@
                                 step="0.5"
                                 [placeholder]="placeholderCalificacion"
                               />
-                              @if (usaEscalaCien && calificacion.calificacion !== null) {
-                                <small class="scale-hint"
-                                  >= {{ equivalenteDiez(calificacion.calificacion) }}/10</small
-                                >
-                              }
                             </td>
                           }
                           <td>

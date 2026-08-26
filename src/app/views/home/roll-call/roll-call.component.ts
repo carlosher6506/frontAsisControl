@@ -49,6 +49,9 @@ export class RollCallComponent implements OnInit {
   sesion: SesionAsistencia | null = null;
   alumnos: AlumnoListaAsistencia[] = [];
   metodoActivo: MetodoAsistencia = 'manual';
+  mostrarHistorial = false;
+  cargandoHistorial = false;
+  sesionesHistoricas: SesionAsistencia[] = [];
 
   isLoadingLista = false;
   guardandoAlumnoId: number | null = null;
@@ -57,7 +60,9 @@ export class RollCallComponent implements OnInit {
   mostrarModalQr = false;
   isGuardandoQr = false;
   escaneoActivo = false;
+  solicitandoPermisoCamara = false;
   scannerError: string | null = null;
+  camaraSeleccionada: MediaDeviceInfo | undefined;
   tokenManualQr = '';
   private ultimoTokenEscaneado: string | null = null;
   private ultimoEscaneoTimestamp = 0;
@@ -192,6 +197,8 @@ export class RollCallComponent implements OnInit {
     this.materiaSeleccionada = null;
     this.sesion = null;
     this.alumnos = [];
+    this.mostrarHistorial = false;
+    this.sesionesHistoricas = [];
     this.textoBusquedaAlumno = '';
     this.modalAbierto = true;
   }
@@ -237,6 +244,32 @@ export class RollCallComponent implements OnInit {
     });
   }
 
+  abrirHistorial(): void {
+    if (!this.esAdmin || !this.materiaSeleccionada || this.cargandoHistorial) return;
+    this.mostrarHistorial = true;
+    this.cargandoHistorial = true;
+    this.attendanceService.obtenerSesiones(this.materiaSeleccionada.id).subscribe({
+      next: (sesiones) => {
+        this.sesionesHistoricas = sesiones;
+        this.cargandoHistorial = false;
+      },
+      error: () => {
+        this.cargandoHistorial = false;
+        this.sweetAlert.error('Error', 'No se pudo cargar el historial de pases de lista');
+      },
+    });
+  }
+
+  cerrarHistorial(): void {
+    this.mostrarHistorial = false;
+  }
+
+  abrirSesionHistorica(sesion: SesionAsistencia): void {
+    this.cerrarHistorial();
+    this.isLoadingLista = true;
+    this.cargarListaSesion(sesion.id);
+  }
+
   get alumnosFiltrados(): AlumnoListaAsistencia[] {
     const texto = this.textoBusquedaAlumno.trim().toLowerCase();
     if (!texto) return this.alumnos;
@@ -254,12 +287,17 @@ export class RollCallComponent implements OnInit {
     return this.sesion?.cerrada ?? false;
   }
 
+  /** Los administradores pueden corregir una sesión incluso después del cierre. */
+  get puedeEditarSesion(): boolean {
+    return !this.sesionCerrada || this.esAdmin;
+  }
+
   cambiarMetodo(metodo: MetodoAsistencia): void {
     this.metodoActivo = metodo;
   }
 
   marcarEstado(alumno: AlumnoListaAsistencia, estado: EstadoAsistencia): void {
-    if (!this.sesion || this.sesionCerrada || this.guardandoAlumnoId) return;
+    if (!this.sesion || !this.puedeEditarSesion || this.guardandoAlumnoId) return;
 
     const estadoAnterior = alumno.estado;
     alumno.estado = estado;
@@ -280,7 +318,7 @@ export class RollCallComponent implements OnInit {
   }
 
   marcarTodosPresentes(): void {
-    if (!this.sesion || this.sesionCerrada) return;
+    if (!this.sesion || !this.puedeEditarSesion) return;
     this.alumnos.filter(a => a.estado === null).forEach(alumno => this.marcarEstado(alumno, 'presente'));
   }
 
@@ -290,12 +328,48 @@ export class RollCallComponent implements OnInit {
     this.scannerError = null;
     this.ultimoTokenEscaneado = null;
     this.mostrarModalQr = true;
-    this.escaneoActivo = true;
+    this.solicitarPermisoCamara();
   }
 
   cerrarModalQr(): void {
     this.mostrarModalQr = false;
     this.escaneoActivo = false;
+    this.solicitandoPermisoCamara = false;
+  }
+
+  /**
+   * Pide el permiso desde la acción explícita del usuario. Así el navegador
+   * muestra su diálogo antes de que ZXing inicialice el escáner.
+   */
+  async solicitarPermisoCamara(): Promise<void> {
+    if (this.solicitandoPermisoCamara) return;
+
+    this.scannerError = null;
+    this.escaneoActivo = false;
+    this.solicitandoPermisoCamara = true;
+
+    try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        this.scannerError =
+          'La cámara requiere una conexión segura. En la laptop abre la plataforma mediante HTTPS o usa exactamente localhost (no una dirección IP).';
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      });
+      const dispositivos = await navigator.mediaDevices.enumerateDevices();
+      const camaras = dispositivos.filter((dispositivo) => dispositivo.kind === 'videoinput');
+      this.camaraSeleccionada =
+        camaras.find((camara) => /back|rear|environment/i.test(camara.label)) ?? camaras[0];
+      stream.getTracks().forEach((track) => track.stop());
+      this.escaneoActivo = true;
+    } catch (error: unknown) {
+      this.scannerError = this.obtenerMensajeErrorCamara(error);
+    } finally {
+      this.solicitandoPermisoCamara = false;
+    }
   }
 
   onScanSuccess(resultado: string): void {
@@ -315,14 +389,37 @@ export class RollCallComponent implements OnInit {
     this.scannerError = 'No se encontró ninguna cámara disponible en este dispositivo.';
   }
 
+  onCamerasFound(camaras: MediaDeviceInfo[]): void {
+    this.camaraSeleccionada ??=
+      camaras.find((camara) => /back|rear|environment/i.test(camara.label)) ?? camaras[0];
+  }
+
+  onScanError(error: Error): void {
+    this.scannerError = this.obtenerMensajeErrorCamara(error);
+  }
+
   onPermissionResponse(permitido: boolean): void {
     this.scannerError = permitido
       ? null
-      : 'No se otorgó permiso de cámara. Puedes ingresar el token manualmente.';
+      : 'El permiso de cámara está bloqueado. Actívalo en el icono de controles del sitio, junto a la dirección, y vuelve a intentar.';
+  }
+
+  private obtenerMensajeErrorCamara(error: unknown): string {
+    const nombre = error instanceof DOMException || error instanceof Error ? error.name : '';
+    if (nombre === 'NotAllowedError' || nombre === 'SecurityError') {
+      return 'El navegador o Windows bloqueó la cámara. Confirma que la cámara esté permitida tanto en los controles del sitio como en Configuración de Windows > Privacidad y seguridad > Cámara.';
+    }
+    if (nombre === 'NotReadableError' || nombre === 'TrackStartError') {
+      return 'La cámara está siendo utilizada por otra aplicación. Cierra Zoom, Teams, la app Cámara u otra pestaña que la esté usando y reintenta.';
+    }
+    if (nombre === 'NotFoundError' || nombre === 'OverconstrainedError') {
+      return 'No se encontró una cámara compatible. Verifica que esté conectada y habilitada en Windows.';
+    }
+    return 'No se pudo acceder a la cámara. Verifica que haya una cámara disponible y que ninguna otra aplicación la esté usando.';
   }
 
   procesarTokenEscaneado(token: string): void {
-    if (!this.sesion || this.sesionCerrada || !token.trim() || this.isGuardandoQr) return;
+    if (!this.sesion || !this.puedeEditarSesion || !token.trim() || this.isGuardandoQr) return;
 
     this.isGuardandoQr = true;
     this.attendanceService.registrarQr({ sesion_id: this.sesion.id, token: token.trim() }).subscribe({

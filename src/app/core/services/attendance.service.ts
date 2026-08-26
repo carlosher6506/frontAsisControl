@@ -24,6 +24,11 @@ export class AttendanceService {
     return this.http.get<ListaAsistenciaResponse>(`${this.apiUrl}/session/${sesionId}/list`);
   }
 
+  obtenerSesiones(grupoMateriaId: number): Observable<SesionAsistencia[]> {
+    const params = new HttpParams().set('grupo_materia_id', grupoMateriaId);
+    return this.http.get<SesionAsistencia[]>(`${this.apiUrl}/sessions`, { params });
+  }
+
   registrarManual(data: RegistrarAsistenciaManual): Observable<{ registro_id: number; estado: string }> {
     return this.http.patch<{ registro_id: number; estado: string }>(`${this.apiUrl}/register`, data);
   }
