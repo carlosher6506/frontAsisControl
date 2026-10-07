@@ -14,85 +14,126 @@ function escapeHtml(value: string): string {
   );
 }
 
-/**
- * Builds the "boleta" markup as a standalone fragment: a <style> tag plus a
- * `.sheet` element, meant to be injected into an off-screen container and
- * rasterized with html2canvas for PDF export (see ratings.component.ts ->
- * generarPdfBoleta). It intentionally has no <html>/<body> wrapper and no
- * window.print() script — it is not opened in a separate window anymore.
- */
-export function buildRatingReportFragment(
+function chunks<T>(items: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, (index + 1) * size),
+  );
+}
+
+export interface RatingReportContext {
+  grupoNombre?: string;
+  nivelAcademico?: string;
+  nivelEducativo?: string;
+  cicloEscolar?: string;
+  tipoPeriodo?: 'parcial' | 'trimestre';
+  numeroPeriodos?: number;
+  logoSrc?: string;
+}
+
+const REPORT_STYLES = `
+<style>
+  .rating-sheet, .rating-sheet * { box-sizing: border-box; }
+  .rating-sheet { display: flex; flex-direction: column; width: 1120px; min-height: 760px; padding: 32px; background: white; color: #252525; font: 13px Arial, sans-serif; }
+  .rating-sheet .report-heading { display: grid; grid-template-columns: 104px 1fr 104px; align-items: center; gap: 20px; margin-bottom: 18px; }
+  .rating-sheet .report-logo { width: 104px; height: 104px; object-fit: contain; }
+  .rating-sheet h1 { margin: 0; text-align: center; font-size: 20px; font-weight: 400; }
+  .rating-sheet .report-details { display: grid; grid-template-columns: 2fr 1fr; gap: 15px 28px; margin-bottom: 25px; }
+  .rating-sheet .report-field { min-height: 36px; padding-bottom: 5px; }
+  .rating-sheet .report-field span { display: block; font-size: 12px; margin-bottom: 5px; color: #515151; }
+  .rating-sheet .report-field strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .rating-sheet .report-body { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 1fr); gap: 25px; align-items: start; }
+  .rating-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+  .rating-sheet th, .rating-sheet td { border: 1px solid #595959; padding: 9px 6px; text-align: center; }
+  .rating-sheet th { background: #c9bd98; font-size: 12px; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+  .rating-sheet .section-heading { padding: 6px; }
+  .rating-sheet .period-heading { width: 100px; }
+  .rating-sheet .period-name { font-size: 11px; font-weight: 500; }
+  .rating-sheet .subject-name { height: 70px; }
+  .rating-sheet .grade { height: 40px; font-weight: 600; font-size: 15px; }
+  .rating-sheet .final-row td { background: #f5f2e8; height: 44px; }
+  .rating-sheet .summary-box { margin-bottom: 24px; border: 1px solid #595959; text-align: center; }
+  .rating-sheet .summary-box h2 { margin: 0; padding: 10px 8px; background: #c9bd98; font-size: 12px; font-weight: 400; }
+  .rating-sheet .summary-box p { margin: 0; padding: 16px 8px; font-size: 13px; overflow-wrap: anywhere; }
+  .rating-sheet .summary-box .overall-grade { font-size: 25px; font-weight: 600; padding: 18px 8px; }
+  .rating-sheet .report-footer { margin-top: auto; padding-top: 22px; font-size: 12px; color: #555; display: flex; justify-content: space-between; }
+</style>`;
+
+/** Una hoja por alumno; materias y periodos adicionales continúan en hojas completas, sin cortar tablas. */
+export function buildRatingReportPages(
   report: Boleta,
   getFinalGrade: (item: BoletaMateria) => number,
-): string {
-  const subjects = [...new Set(report.calificaciones.map((item) => item.materia_nombre))];
-  const subjectSections = subjects
-    .map((subject) => {
-      const items = report.calificaciones.filter((item) => item.materia_nombre === subject);
-      const grades = items.map(getFinalGrade);
-      const finalAverage = grades.length
-        ? Math.round(grades.reduce((total, grade) => total + grade, 0) / grades.length)
-        : 0;
-      const minimumGrade = items[0]?.calificacion_minima_aprobatoria || 6;
-      const rows = items
-        .map((item) => {
-          const grade = getFinalGrade(item);
-          const periodName = item.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial';
-          const status = grade >= item.calificacion_minima_aprobatoria ? 'Aprobado' : 'Reprobado';
-          return `<tr><td>${periodName} ${item.periodo}</td><td class="grade">${grade}</td><td>${status}</td></tr>`;
-        })
+  context: RatingReportContext = {},
+): string[] {
+  const { alumno, calificaciones } = report;
+  const subjects = [...new Set(calificaciones.map((item) => item.materia_nombre))];
+  const count = Math.max(
+    1,
+    context.numeroPeriodos || 1,
+    ...calificaciones.map((item) =>
+      Math.max(Number(item.num_periodos) || 1, Number(item.periodo) || 1),
+    ),
+  );
+  const periods = Array.from({ length: count }, (_, i) => i + 1);
+  const periodName =
+    (context.tipoPeriodo ?? calificaciones[0]?.tipo_periodo) === 'trimestre'
+      ? 'Trimestre'
+      : 'Parcial';
+  const subjectBatches = subjects.length ? chunks(subjects, 6) : [[]];
+  const periodBatches = chunks(periods, 8);
+  const subjectAverage = (subject: string): number | null => {
+    const items = calificaciones.filter((item) => item.materia_nombre === subject);
+    return items.length
+      ? Math.round(items.reduce((sum, item) => sum + getFinalGrade(item), 0) / items.length)
+      : null;
+  };
+  const averages = subjects.map(subjectAverage).filter((value): value is number => value !== null);
+  const overall = averages.length
+    ? Math.round(averages.reduce((sum, value) => sum + value, 0) / averages.length)
+    : null;
+  const group =
+    [context.nivelAcademico ?? alumno.nivel_academico, context.grupoNombre ?? alumno.grupo_nombre]
+      .filter(Boolean)
+      .join(' ') || '—';
+  const pages: string[] = [];
+  const pageCount = subjectBatches.length * periodBatches.length;
+  for (const batch of subjectBatches) {
+    for (const periodBatch of periodBatches) {
+      const rows = periodBatch
+        .map(
+          (period) =>
+            `<tr><td class="period-name">${periodName} ${period}</td>${batch
+              .map((subject) => {
+                const item = calificaciones.find(
+                  (cal) => cal.materia_nombre === subject && Number(cal.periodo) === period,
+                );
+                return `<td class="grade">${item ? getFinalGrade(item) : '—'}</td>`;
+              })
+              .join('')}${batch.length ? '' : '<td class="grade">—</td>'}</tr>`,
+        )
         .join('');
-
-      return `<section class="subject">
-      <h2>${escapeHtml(subject)}</h2>
-      <table>
-        <thead><tr><th>Periodo</th><th>Calificación</th><th>Estado</th></tr></thead>
-        <tbody>
-          ${rows}
-          <tr class="final"><td>Promedio final</td><td class="grade">${finalAverage}</td><td>${finalAverage >= minimumGrade ? 'Aprobado' : 'Reprobado'}</td></tr>
-        </tbody>
-      </table>
-    </section>`;
-    })
-    .join('');
-
-  const { alumno } = report;
-  const gradeAndGroup =
-    `${alumno.nivel_academico || ''} ${alumno.grupo_nombre || ''}`.trim() || '—';
-
-  return `
-    <style>
-      * { box-sizing: border-box; }
-      .sheet { background: #fff; color: #17202a; font-family: Arial, sans-serif; padding: 25px 35px; width: 800px; }
-      .masthead { border-bottom: 4px solid #202932; display: flex; gap: 20px; justify-content: space-between; padding-bottom: 18px; }
-      .brand { color: #59646e; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
-      .title { font-size: 25px; font-weight: 800; margin: 7px 0; }
-      .cycle { color: #64707a; font-size: 13px; }
-      .seal { border: 2px solid #202932; border-radius: 50%; display: grid; font-size: 10px; font-weight: 800; height: 65px; place-items: center; text-align: center; width: 65px; }
-      .student { display: grid; gap: 10px 36px; grid-template-columns: 1fr 1fr; margin: 26px 0; }
-      .field label { color: #6a737c; display: block; font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
-      .field strong { border-bottom: 1px solid #d9dde1; display: block; font-size: 14px; padding: 5px 0; }
-      .subject { break-inside: avoid; margin-top: 22px; }
-      .subject h2 { background: #202932; border-radius: 5px 5px 0 0; color: #fff; font-size: 14px; margin: 0; padding: 9px 12px; }
-      table { border-collapse: collapse; font-size: 12px; width: 100%; }
-      th { background: #f1f3f5; color: #4b5560; font-size: 10px; letter-spacing: .7px; text-align: left; text-transform: uppercase; }
-      th, td { border: 1px solid #dfe3e6; padding: 8px 10px; }
-      .grade { font-weight: 800; text-align: center; }
-      .final td { background: #eef0f2; font-weight: 800; }
-      .footer { border-top: 1px solid #dfe3e6; color: #6b7280; font-size: 10px; margin-top: 35px; padding-top: 14px; text-align: center; }
-    </style>
-    <div class="sheet">
-      <header class="masthead">
-        <div><div class="brand">Control académico</div><h1 class="title">Boleta de calificaciones</h1><div class="cycle">Ciclo escolar ${escapeHtml(alumno.ciclo_escolar || '—')}</div></div>
-        <div class="seal">CONTROL<br>ACADÉMICO</div>
-      </header>
-      <section class="student">
-        <div class="field"><label>Alumno(a)</label><strong>${escapeHtml(alumno.nombre)}</strong></div>
-        <div class="field"><label>Matrícula</label><strong>${escapeHtml(alumno.matricula || '—')}</strong></div>
-        <div class="field"><label>Nivel educativo</label><strong>${escapeHtml(alumno.nivel_educativo || '—')}</strong></div>
-        <div class="field"><label>Grado y grupo</label><strong>${escapeHtml(gradeAndGroup)}</strong></div>
-      </section>
-      ${subjectSections}
-      <footer class="footer">Documento generado por Control Académico · ${new Date().toLocaleDateString('es-MX')}</footer>
-    </div>`;
+      pages.push(`${REPORT_STYLES}<div class="sheet rating-sheet">
+        <header class="report-heading"><img class="report-logo" src="${escapeHtml(context.logoSrc ?? 'images/Logo_5.png')}" alt="AsisControlGo"><h1>Boleta de calificaciones</h1></header>
+        <div class="report-details">
+          <div class="report-field"><span>Nombre y apellidos del alumno(a)</span><strong>${escapeHtml(alumno.nombre)}</strong></div>
+          <div class="report-field"><span>Matrícula</span><strong>${escapeHtml(alumno.matricula || '—')}</strong></div>
+          <div class="report-field"><span>Nivel educativo</span><strong>${escapeHtml(context.nivelEducativo ?? alumno.nivel_educativo ?? '—')}</strong></div>
+          <div class="report-field"><span>Grado y grupo</span><strong>${escapeHtml(group)}</strong></div>
+        </div>
+        <div class="report-body">
+          <table>
+            <colgroup><col style="width:100px">${Array.from({ length: Math.max(1, batch.length) }, () => '<col>').join('')}</colgroup>
+            <thead><tr><th rowspan="2" class="period-heading">Periodo de evaluación</th><th colspan="${Math.max(1, batch.length)}" class="section-heading">Asignaturas</th></tr>
+            <tr>${batch.map((subject) => `<th class="subject-name">${escapeHtml(subject)}</th>`).join('') || '<th class="subject-name">Sin calificaciones</th>'}</tr></thead>
+            <tbody>${rows}<tr class="final-row"><td class="period-name">Promedio final</td>${batch.map((subject) => `<td class="grade">${subjectAverage(subject) ?? '—'}</td>`).join('') || '<td>—</td>'}</tr></tbody>
+          </table>
+          <aside>
+            <div class="summary-box"><h2>Ciclo escolar</h2><p>${escapeHtml(context.cicloEscolar ?? alumno.ciclo_escolar ?? '—')}</p></div>
+            <div class="summary-box"><h2>Promedio final de grado</h2><p class="overall-grade">${overall ?? '—'}</p></div>
+          </aside>
+        </div>
+        <footer class="report-footer"><span>AsisControlGo</span><span>Hoja ${pages.length + 1} de ${pageCount}</span></footer>
+      </div>`);
+    }
+  }
+  return pages;
 }

@@ -189,7 +189,7 @@
 
   // Ratings capture needs more breathing room than the base task modal.
   &.ratings-modal {
-    width: min(96vw, 1400px);
+    width: min(97vw, 1800px);
   }
 }
 
@@ -259,7 +259,7 @@
   border-radius: 0.9rem;
   box-shadow: 0 4px 14px rgba(32, 37, 42, 0.04);
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   min-height: 640px;
   overflow: hidden;
 }
@@ -321,296 +321,420 @@
   padding: 1rem 0.55rem;
 }
 
-// Right-hand capture area. This is a simple vertical stack:
-// header -> (student grid | period tabs + table) -> footer.
-// It must NOT be a grid — that was the bug causing the distorted layout.
+// Spreadsheet capture: a single scroll region keeps headers and names visible.
 .ratings-workspace {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 1.3rem;
+  padding: 1.2rem;
 }
-
 .ratings-header {
-  align-items: flex-start;
   display: flex;
-  gap: 1rem;
+  align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
-
   h6 {
+    font-size: 1rem;
     font-weight: 750;
-    margin: 0.35rem 0;
+    margin: 0 0 0.3rem;
   }
-
   p {
-    color: #717b84;
+    color: #64717c;
     font-size: 0.8rem;
     margin: 0;
   }
 }
-
-.back-button {
-  background: transparent;
-  border: 0;
-  color: #56616b;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0;
-}
-
-// Full roster shown right after picking a subject.
-.students-grid {
-  display: grid;
-  gap: 0.65rem;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-}
-
-.student-card {
-  align-items: center;
-  background: #fff;
-  border: 1px solid #e0e4e7;
-  border-radius: 0.65rem;
-  color: #202932;
+.ratings-export-actions {
   display: flex;
-  gap: 0.7rem;
-  padding: 0.75rem;
-  text-align: left;
-  transition: 0.15s;
-  width: 100%;
-
-  &:hover {
-    border-color: #202932;
-    box-shadow: 0 4px 12px rgba(32, 37, 42, 0.1);
-  }
-
-  > span:nth-child(2) {
-    flex: 1;
-  }
-
-  strong,
-  small {
-    display: block;
-  }
-
-  strong {
-    font-size: 0.83rem;
-  }
-
-  small {
-    color: #77818a;
-    font-size: 0.72rem;
-    margin-top: 0.1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.matrix-hint {
+  color: #667680;
+  background: #f1f4f6;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  white-space: nowrap;
+  i {
+    margin-right: 0.35rem;
   }
 }
-
-.student-initial {
-  align-items: center;
-  background: #202932;
-  border-radius: 50%;
-  color: #fff;
-  display: inline-flex;
-  flex: 0 0 34px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  height: 34px;
-  justify-content: center;
+.modal-header-custom small {
+  color: #cfd4d9;
+  font-size: 0.75rem;
 }
-
-// Single definition — a plain horizontal row of tabs, not a grid/columns.
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .period-tabs {
-  border-bottom: 1px solid #e7eaed;
   display: flex;
   flex: 0 0 auto;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
   overflow-x: auto;
-
+  border-bottom: 1px solid #e3e8ec;
+  margin-bottom: 1rem;
+  gap: 0.25rem;
   button {
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
-    color: #69737c;
-    flex: 0 0 auto;
-    font-size: 0.8rem;
+    color: #687681;
+    font-size: 0.82rem;
     font-weight: 700;
-    padding: 0.6rem 0.8rem;
+    padding: 0.65rem 0.85rem;
     white-space: nowrap;
-
     &.active {
-      border-color: #202932;
       color: #202932;
+      border-color: #202932;
     }
   }
 }
-
-.ratings-table-wrapper {
-  overflow-x: auto;
+.matrix-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
 }
-
+.student-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid #d8e0e6;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  flex: 1 1 220px;
+  max-width: 380px;
+  color: #6e7d88;
+  &:focus-within {
+    outline: 2px solid #527f9a;
+    outline-offset: 1px;
+  }
+  input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    font-size: 0.82rem;
+    background: transparent;
+  }
+}
+.label-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  color: #64717c;
+  select {
+    width: auto;
+    max-width: 270px;
+  }
+}
+.ratings-table-wrapper {
+  overflow: auto;
+  max-height: min(53vh, 580px);
+  border: 1px solid #dee2e6;
+  border-radius: 0.8rem;
+  box-shadow: 0 2px 8px rgba(32, 49, 66, 0.035);
+  isolation: isolate;
+  &:focus-visible {
+    outline: 2px solid #527f9a;
+    outline-offset: 2px;
+  }
+}
 .ratings-table {
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.82rem;
-  min-width: 680px;
   width: 100%;
-
-  th {
-    background: #202932;
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 750;
-    letter-spacing: 0.04em;
-    padding: 0.68rem 0.7rem;
-    text-align: left;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  th:first-child {
-    border-radius: 0.45rem 0 0 0.45rem;
-  }
-
-  th:last-child {
-    border-radius: 0 0.45rem 0.45rem 0;
-  }
-
+  font-size: 0.8rem;
+  th,
   td {
-    border-bottom: 1px solid #edf0f2;
-    padding: 0.65rem 0.7rem;
+    padding: 0.6rem 0.65rem;
+    border-right: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
     vertical-align: middle;
+    &:last-child {
+      border-right: 0;
+    }
   }
-
-  tr.modified td {
-    background: #fff9e6;
+  thead {
+    th {
+      position: sticky;
+      background: #f1f3f5;
+      color: #212529;
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 400;
+      z-index: 2;
+    }
+    small {
+      display: block;
+      color: #6c757d;
+      font-size: 0.65rem;
+      font-weight: 400;
+      margin-top: 0.2rem;
+    }
+    .label-header th {
+      top: 0;
+      background: #212529;
+      color: #fff;
+      height: 40px;
+      padding: 0.4rem 0.65rem;
+      border-bottom-color: #373b3e;
+      small {
+        color: #ced4da;
+      }
+    }
+    .task-header th {
+      top: 40px;
+      padding-top: 0.6rem;
+      padding-bottom: 0.6rem;
+    }
+    .student-column {
+      z-index: 4;
+      text-align: left;
+    }
+    .label-heading {
+      white-space: nowrap;
+    }
   }
-
-  input {
-    max-width: 115px;
+  .student-column {
+    position: sticky;
+    left: 0;
+    min-width: 240px;
+    max-width: 280px;
+    width: 260px;
+    box-shadow: 1px 0 0 #dee2e6;
+    text-align: left;
+    z-index: 1;
+    background: #fff;
+    strong {
+      display: block;
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+    small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.68rem;
+      color: #6b7b87;
+      margin-top: 0.25rem;
+    }
+  }
+  .task-column {
+    width: 130px;
+    min-width: 120px;
+    max-width: 130px;
+    .task-name {
+      display: block;
+      max-width: 105px;
+      margin: 0 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      font-weight: 400;
+      line-height: 1.4;
+      cursor: help;
+    }
+  }
+  tbody tr:nth-child(even) {
+    td,
+    th {
+      background: #f8f9fa;
+    }
+  }
+  tbody tr:hover {
+    td,
+    th {
+      background: #e9ecef;
+    }
+  }
+  td.grade-cell.modified {
+    background: #fff6d9;
+  }
+  td.grade-cell.invalid {
+    background: #ffeded;
+  }
+  .grade-cell {
+    min-width: 120px;
+    text-align: center;
+    input {
+      width: 78px;
+      margin: 0 auto;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.85rem;
+      border-color: #ced4da;
+      border-radius: 0.5rem;
+      &:focus {
+        border-color: #527f9a;
+        box-shadow: 0 0 0 2px #527f9a30;
+      }
+      &[aria-invalid='true'] {
+        border-color: #c43d3d;
+      }
+    }
+  }
+  .summary-column {
+    min-width: 110px;
+    text-align: center;
+  }
+  .numeric {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    small {
+      display: block;
+      font-weight: 400;
+      font-size: 0.65rem;
+      color: #677783;
+      margin-top: 0.25rem;
+      white-space: nowrap;
+    }
+  }
+  .pdf-column {
+    min-width: 65px;
+    text-align: center;
+  }
+  .load-error .student-column {
+    color: #876218;
+  }
+  .no-results {
+    text-align: center;
+    padding: 2rem;
+    color: #677783;
   }
 }
-
-.numeric {
-  font-variant-numeric: tabular-nums;
-  font-weight: 750;
-  text-align: center;
+.cell-points,
+.validation-message {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.65rem;
+  color: #677783;
 }
-
+.validation-message {
+  color: #b02a37;
+}
 .icon-action {
-  background: transparent;
-  border: 1px solid #cfd5da;
-  border-radius: 0.4rem;
-  color: #202932;
-  height: 31px;
-  width: 33px;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.35;
-  }
-}
-
-.ratings-footer {
+  display: inline-flex;
   align-items: center;
-  border-top: 1px solid #e7eaed;
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-}
-
-.grade-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-
-  span {
-    border-left: 3px solid #202932;
-    padding-left: 0.55rem;
+  justify-content: center;
+  border: 1px solid #cfd8df;
+  background: #fff;
+  border-radius: 0.45rem;
+  color: #344853;
+  width: 32px;
+  height: 32px;
+  &:hover:not(:disabled) {
+    border-color: #202932;
+    background: #eef4f7;
   }
-
-  small,
-  strong {
+}
+.ratings-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding-top: 1rem;
+  margin-top: 0.8rem;
+  border-top: 1px solid #e3e8ec;
+}
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #677783;
+  font-size: 0.75rem;
+  small {
     display: block;
   }
-
-  small {
-    color: #76808a;
-    font-size: 0.68rem;
-    font-weight: 750;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  strong {
-    font-size: 0.9rem;
-    margin-top: 0.12rem;
-  }
 }
-
+.modified-key {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #e8cc77;
+  background: #fff6d9;
+  border-radius: 3px;
+}
 .changes-count {
   background: #fff;
-  border-radius: 50%;
   color: #202932;
-  display: inline-grid;
-  font-size: 0.68rem;
-  height: 17px;
-  margin-left: 0.25rem;
-  place-items: center;
-  width: 17px;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.4rem;
 }
-
-// Responsive
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .modal-workspace {
     grid-template-columns: 1fr;
   }
-
   .subjects-sidebar {
-    align-items: center;
-    border-bottom: 1px solid #e8ebed;
-    border-right: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-
-  .subjects-sidebar > p {
-    width: 100%;
-  }
-
-  .subjects-sidebar button {
-    width: auto;
+    gap: 0.4rem;
+    border-right: 0;
+    border-bottom: 1px solid #e3e8ec;
+    padding: 0.8rem;
+    > p {
+      width: 100%;
+      margin-bottom: 0.25rem;
+    }
+    button {
+      width: auto;
+      margin: 0;
+    }
   }
 }
-
-@media (max-width: 700px) {
-  .ratings-header,
+@media (max-width: 600px) {
+  .groups-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .task-modal.ratings-modal {
+    border-radius: 0;
+    height: 100dvh;
+    width: 100%;
+  }
+  .modal-content-custom {
+    padding: 0.6rem;
+  }
+  .modal-header-custom {
+    padding: 1rem;
+  }
+  .ratings-workspace {
+    padding: 0.75rem;
+  }
+  .ratings-header {
+    align-items: flex-start;
+  }
+  .matrix-hint {
+    display: none;
+  }
+  .matrix-toolbar {
+    align-items: stretch;
+  }
+  .student-search {
+    max-width: none;
+  }
+  .label-filter {
+    width: 100%;
+    select {
+      flex: 1;
+      max-width: none;
+    }
+  }
+  .ratings-table .student-column {
+    min-width: 160px;
+    max-width: 180px;
+    width: 180px;
+  }
   .ratings-footer {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .students-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 600px) {
-  .groups-grid {
-    padding: 1rem;
-  }
-
-  .task-modal {
-    border-radius: 0;
-    height: 100vh;
-    width: 100%;
-  }
-
-  .modal-content-custom {
-    padding: 1rem;
   }
 }

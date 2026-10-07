@@ -2,7 +2,6 @@
   <header class="page-heading">
     <div>
       <h4>Calificaciones</h4>
-      <p>Selecciona un grupo para capturar y consultar sus calificaciones.</p>
     </div>
   </header>
 
@@ -72,45 +71,22 @@
   >
     <header class="modal-header-custom">
       <div>
-        <h5 id="ratings-modal-title">
-          {{ grupoActivo ? obtenerNombreGrupo(grupoActivo) : '' }}
-        </h5>
+        <h5 id="ratings-modal-title">{{ grupoActivo ? obtenerNombreGrupo(grupoActivo) : '' }}</h5>
       </div>
       <button
         type="button"
         class="close-button"
         (click)="cerrarModal()"
+        [disabled]="isSaving"
         aria-label="Cerrar calificaciones"
       >
         <i class="bi bi-x-lg"></i>
       </button>
     </header>
-
     <div class="modal-content-custom">
       @if (!configEvaluacion) {
-        <div class="alert alert-warning mb-0">
-          <i class="bi bi-exclamation-triangle me-2"></i>
-          Este grupo no tiene configuración de evaluación.
-        </div>
+        <div class="alert alert-warning mb-0">Este grupo no tiene configuración de evaluación.</div>
       } @else {
-        <div class="configuration-summary">
-          <span>Configuración</span>
-          <span class="badge text-bg-dark">{{ configEvaluacion.tipo_evaluacion }}</span>
-          <span class="badge text-bg-secondary"
-            >{{ configEvaluacion.num_periodos }} {{ configEvaluacion.tipo_periodo }}s</span
-          >
-          @if (esPorPuntos) {
-            <span class="badge text-bg-warning">{{ configEvaluacion.tipo_calculo }}</span>
-          }
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-dark ms-auto"
-            (click)="exportarCalificaciones()"
-          >
-            <i class="bi bi-file-earmark-excel me-1"></i>Exportar concentrado
-          </button>
-        </div>
-
         <div class="modal-workspace">
           <aside class="subjects-sidebar">
             <p>Selecciona una materia</p>
@@ -118,6 +94,7 @@
               <button
                 type="button"
                 [class.active]="grupoMateriaSeleccionado?.id === materia.id"
+                [disabled]="isSaving || isLoadingAlumnos || errorCargaAlumnos"
                 (click)="seleccionarMateria(materia)"
               >
                 <strong>{{ materia.materia_nombre }}</strong>
@@ -128,192 +105,292 @@
               <div class="sidebar-empty">No hay materias asignadas.</div>
             }
           </aside>
-
-          <main class="tasks-workspace ratings-workspace">
-            @if (!grupoMateriaSeleccionado) {
+          <main class="ratings-workspace">
+            @if (isLoadingAlumnos) {
+              <div class="empty-state compact" role="status">
+                <span class="spinner-border spinner-border-sm"></span>
+                <p>Cargando alumnos...</p>
+              </div>
+            } @else if (errorCargaAlumnos) {
+              <div class="empty-state compact" role="alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                <p>No se pudo cargar la lista de alumnos.</p>
+                <button
+                  type="button"
+                  class="btn btn-outline-dark btn-sm mt-2"
+                  (click)="cargarAlumnos()"
+                >
+                  Reintentar
+                </button>
+              </div>
+            } @else if (!alumnos.length) {
+              <div class="empty-state compact">
+                <i class="bi bi-people"></i>
+                <p>No hay alumnos en este grupo.</p>
+              </div>
+            } @else if (!grupoMateriaSeleccionado) {
               <div class="empty-state compact">
                 <i class="bi bi-arrow-left"></i>
-                <p>Selecciona una materia para ver sus alumnos.</p>
-              </div>
-            } @else if (!alumnoSeleccionado) {
-              <div class="ratings-header">
-                <div>
-                  <h6>{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
-                  <p>Selecciona un alumno para capturar sus calificaciones.</p>
-                </div>
-              </div>
-              <div class="students-grid">
-                @for (alumno of alumnos; track alumno.id) {
-                  <button type="button" class="student-card" (click)="seleccionarAlumno(alumno)">
-                    <span class="student-initial">{{ alumno.nombre.charAt(0).toUpperCase() }}</span>
-                    <span
-                      ><strong>{{ alumno.nombre }}</strong
-                      ><small>{{ alumno.matricula || 'Sin matrícula' }}</small></span
-                    >
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                }
-                @if (!alumnos.length) {
-                  <p class="text-muted text-center py-4">No hay alumnos en este grupo.</p>
-                }
+                <p>Selecciona una materia para calificar al grupo.</p>
               </div>
             } @else {
               <div class="ratings-header">
                 <div>
-                  <button type="button" class="back-button" (click)="alumnoSeleccionado = null">
-                    <i class="bi bi-arrow-left"></i> Alumnos
-                  </button>
-                  <h6>{{ alumnoSeleccionado.nombre }}</h6>
+                  <h6>{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
                 </div>
-                <button
-                  type="button"
-                  class="btn btn-dark btn-sm"
-                  (click)="exportarBoletaPdf()"
-                  [disabled]="isLoadingBoleta"
-                >
-                  <i class="bi bi-file-earmark-pdf me-1"></i
-                  >{{ isLoadingBoleta ? 'Generando PDF...' : 'Descargar boleta (PDF)' }}
-                </button>
+                <div class="ratings-export-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-dark"
+                    (click)="exportarCalificaciones()"
+                    [disabled]="
+                      !grupoMateriaSeleccionado ||
+                      isExportando ||
+                      isExportandoBoletas ||
+                      isSaving ||
+                      isLoading ||
+                      isLoadingAlumnos ||
+                      !alumnos.length
+                    "
+                    title="Exporta las calificaciones guardadas"
+                  >
+                    <i class="bi bi-file-earmark-excel me-1"></i
+                    >{{ isExportando ? 'Exportando...' : 'Exportar concentrado' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-dark"
+                    (click)="exportarBoletasGrupo()"
+                    [disabled]="
+                      isExportandoBoletas ||
+                      isExportando ||
+                      isSaving ||
+                      isLoadingAlumnos ||
+                      !alumnos.length
+                    "
+                    title="Exporta las boletas guardadas de todos los alumnos del grupo"
+                  >
+                    <i class="bi bi-file-earmark-pdf me-1"></i
+                    >{{ isExportandoBoletas ? progresoBoletas : 'Exportar boletas del grupo' }}
+                  </button>
+                </div>
               </div>
-
-              <div class="period-tabs">
+              <nav class="period-tabs" aria-label="Periodo de evaluación">
                 @for (periodo of periodos; track periodo) {
                   <button
                     type="button"
                     [class.active]="periodoSeleccionado === periodo"
+                    [disabled]="isSaving"
                     (click)="seleccionarPeriodo(periodo)"
                   >
                     {{ nombrePeriodo }} {{ periodo }}
                   </button>
                 }
-              </div>
-
+              </nav>
               @if (isLoading) {
-                <div class="empty-state compact"><span class="spinner-border"></span></div>
-              } @else if (!calificacionesPeriodo.length) {
-                <div class="empty-state compact">
-                  <i class="bi bi-journal-x"></i>
-                  <p>Aún no hay tareas en este periodo.</p>
+                <div class="empty-state compact" role="status">
+                  <span class="spinner-border spinner-border-sm"></span>
+                  <p>Cargando calificaciones del grupo...</p>
                 </div>
               } @else {
-                <div class="ratings-table-wrapper">
-                  <table class="ratings-table">
-                    <thead>
-                      <tr>
-                        <th>Tarea</th>
-                        @if (esPorPuntos) {
-                          <th>Etiqueta</th>
-                          <th>Calificación</th>
-                          <th>Puntos</th>
-                          <th>Máximo</th>
-                        } @else {
-                          <th>Calificación</th>
-                        }
-                        <th>Fecha</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (calificacion of calificacionesPeriodo; track calificacion.tarea_id) {
-                        <tr [class.modified]="estaModificada(calificacion)">
-                          <td>
-                            <strong>{{ calificacion.tarea_nombre }}</strong>
-                          </td>
-                          @if (esPorPuntos) {
-                            <td>
-                              <strong class="badge text-bg-light">{{
-                                calificacion.etiqueta_nombre || 'Sin etiqueta'
-                              }}</strong>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                class="form-control form-control-sm"
-                                [(ngModel)]="calificacion.calificacion"
-                                (ngModelChange)="onCalificacionChange(calificacion)"
-                                min="0"
-                                [max]="limiteCalificacion"
-                                step="1"
-                                [placeholder]="placeholderCalificacion"
-                              />
-                            </td>
-                            <td class="numeric">
-                              {{ formatearDosDecimales(calificacion.puntos_obtenidos || 0) }}
-                            </td>
-                            <td class="numeric">
-                              {{ formatearDosDecimales(calificacion.valor_tarea || 0) }}
-                            </td>
-                          } @else {
-                            <td>
-                              <input
-                                type="number"
-                                class="form-control form-control-sm"
-                                [(ngModel)]="calificacion.calificacion"
-                                (ngModelChange)="onCalificacionChange(calificacion)"
-                                min="0"
-                                [max]="limiteCalificacion"
-                                step="0.5"
-                                [placeholder]="placeholderCalificacion"
-                              />
-                            </td>
-                          }
-                          <td>
-                            {{
-                              calificacion.fecha ? (calificacion.fecha | date: 'dd/MM/yyyy') : '—'
-                            }}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              class="icon-action"
-                              (click)="guardarCalificacion(calificacion)"
-                              [disabled]="!estaModificada(calificacion)"
-                              aria-label="Guardar calificación"
-                            >
-                              <i class="bi bi-check-lg"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
+                <div class="matrix-toolbar">
+                  <label class="student-search">
+                    <i class="bi bi-search"></i>
+                    <input
+                      type="search"
+                      [(ngModel)]="textoBusquedaAlumno"
+                      placeholder="Buscar alumno o matrícula"
+                      aria-label="Buscar alumno o matrícula"
+                    />
+                  </label>
                 </div>
-                <footer class="ratings-footer">
-                  <div class="grade-summary">
-                    @if (esPorPuntos) {
-                      <span
-                        ><small>Total</small
-                        ><strong
-                          >{{ formatearDosDecimales(getTotalPuntos()) }} /
-                          {{ formatearDosDecimales(getMaxPuntosPeriodo()) }} pts</strong
-                        ></span
-                      >
-                    } @else {
-                      <span
-                        ><small>Calificación total</small
-                        ><strong
-                          >{{ formatearDosDecimales(getCalificacionPeriodo()) }}/10</strong
-                        ></span
-                      >
+                @if (erroresCarga) {
+                  <div class="alert alert-warning py-2 small" role="alert">
+                    No se pudieron cargar {{ erroresCarga }} alumno(s). Sus calificaciones no se
+                    pueden editar hasta reintentar.
+                    @for (fila of filas; track fila.alumno.id) {
+                      @if (fila.errorCarga) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-dark ms-2 my-1"
+                          [disabled]="fila.cargando || isSaving"
+                          (click)="reintentarAlumno(fila)"
+                        >
+                          {{ fila.cargando ? 'Cargando...' : 'Reintentar: ' + fila.alumno.nombre }}
+                        </button>
+                      }
                     }
-                    <span
-                      ><small>Calificación redondeada</small
-                      ><strong>{{ getCalificacionRedondeada() }}/10</strong></span
-                    >
                   </div>
-                  <button
-                    type="button"
-                    class="btn btn-dark btn-sm"
-                    (click)="guardarTodo()"
-                    [disabled]="isSaving || !hayCambiosPeriodo"
+                }
+                @if (!tareasVisibles.length) {
+                  <div class="empty-state compact">
+                    <i class="bi bi-journal-x"></i>
+                    <p>
+                      {{
+                        erroresCarga === filas.length
+                          ? 'Reintenta la carga para ver las tareas.'
+                          : 'Aún no hay tareas en este periodo.'
+                      }}
+                    </p>
+                  </div>
+                } @else {
+                  <div
+                    class="ratings-table-wrapper"
+                    tabindex="0"
+                    role="region"
+                    aria-label="Tabla de calificaciones con desplazamiento horizontal y vertical"
                   >
-                    <i class="bi bi-save2 me-1"></i
-                    >{{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
-                    @if (hayCambiosPeriodo && !isSaving) {
-                      <span class="changes-count">{{ numeroCambiosPeriodo }}</span>
-                    }
-                  </button>
-                </footer>
+                    <table class="ratings-table">
+                      <caption class="visually-hidden">
+                        Calificaciones de
+                        {{
+                          grupoMateriaSeleccionado.materia_nombre
+                        }}: alumnos en filas y tareas agrupadas por etiqueta en columnas.
+                      </caption>
+                      <thead>
+                        <tr class="label-header">
+                          <th rowspan="2" scope="col" class="student-column">Alumnos</th>
+                          @for (grupo of gruposTareasVisibles; track grupo.clave) {
+                            <th
+                              scope="colgroup"
+                              [attr.colspan]="grupo.tareas.length"
+                              class="label-heading"
+                            >
+                              {{ grupo.nombre }}
+                            </th>
+                          }
+                          <th rowspan="2" scope="col" class="summary-column">Puntos totales</th>
+                          <th rowspan="2" scope="col" class="summary-column">Calificación</th>
+                        </tr>
+                        <tr class="task-header">
+                          @for (tarea of tareasVisibles; track tarea.tarea_id) {
+                            <th scope="col" class="task-column">
+                              <span class="task-name" [attr.title]="tarea.tarea_nombre || 'Tarea'">
+                                {{ tarea.tarea_nombre || 'Tarea' }}
+                              </span>
+                              <small>{{
+                                tarea.fecha ? (tarea.fecha | date: 'dd/MM/yyyy') : 'Sin fecha'
+                              }}</small>
+                            </th>
+                          }
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (fila of filasFiltradas; track fila.alumno.id) {
+                          <tr [class.load-error]="fila.errorCarga">
+                            <th scope="row" class="student-column">
+                              <strong>{{ fila.alumno.nombre }}</strong
+                              ><small>{{ fila.alumno.matricula || 'Sin matrícula' }}</small>
+                            </th>
+                            @for (tarea of tareasVisibles; track tarea.tarea_id) {
+                              @if (fila.celdas.get(tarea.tarea_id); as cal) {
+                                <td
+                                  class="grade-cell"
+                                  [class.modified]="estaModificada(fila, cal)"
+                                  [class.invalid]="esInvalida(cal)"
+                                >
+                                  <input
+                                    type="number"
+                                    class="form-control form-control-sm"
+                                    [(ngModel)]="cal.calificacion"
+                                    (ngModelChange)="onCalificacionChange(cal)"
+                                    min="0"
+                                    [max]="limiteCalificacion"
+                                    step="0.01"
+                                    placeholder="—"
+                                    [disabled]="isSaving || fila.errorCarga || fila.cargando"
+                                    [attr.aria-label]="
+                                      fila.alumno.nombre +
+                                      ', ' +
+                                      tarea.tarea_nombre +
+                                      ', de 0 a ' +
+                                      limiteCalificacion
+                                    "
+                                    [attr.aria-invalid]="esInvalida(cal)"
+                                  />
+                                  @if (esPorPuntos) {
+                                    <small class="cell-points"
+                                      >{{
+                                        cal.puntos_obtenidos === null
+                                          ? '—'
+                                          : formatearDosDecimales(cal.puntos_obtenidos)
+                                      }}
+                                      pts</small
+                                    >
+                                  }
+                                  @if (esInvalida(cal)) {
+                                    <small class="validation-message"
+                                      >0 a {{ limiteCalificacion }}</small
+                                    >
+                                  }
+                                </td>
+                              } @else {
+                                <td class="grade-cell">
+                                  <span class="text-muted" title="Calificaciones no disponibles"
+                                    >—</span
+                                  >
+                                </td>
+                              }
+                            }
+                            <td class="numeric summary-column">
+                              @if (!fila.errorCarga) {
+                                <strong>{{
+                                  formatearDosDecimales(getCalificacionPeriodo(fila))
+                                }}</strong>
+                                @if (esPorPuntos) {
+                                  <small
+                                    >{{ formatearDosDecimales(getTotalPuntos(fila)) }} /
+                                    {{ formatearDosDecimales(getMaxPuntosPeriodo()) }} pts</small
+                                  >
+                                }
+                              } @else {
+                                —
+                              }
+                            </td>
+                            <td class="numeric summary-column">
+                              {{
+                                fila.errorCarga
+                                  ? '—'
+                                  : getCalificacionRedondeada(getCalificacionPeriodo(fila))
+                              }}
+                            </td>
+                          </tr>
+                        } @empty {
+                          <tr>
+                            <td class="no-results" [attr.colspan]="tareasVisibles.length + 3">
+                              No hay alumnos que coincidan con la búsqueda.
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  <footer class="ratings-footer">
+                    <div class="save-status" aria-live="polite">
+                      <span class="modified-key"></span>
+                      <span
+                        >{{ numeroCambiosPeriodo }} cambio(s) pendiente(s) en este periodo.
+                        @if (totalCambios > numeroCambiosPeriodo) {
+                          <small
+                            >{{ totalCambios - numeroCambiosPeriodo }} en otros periodos.</small
+                          >
+                        }
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-dark btn-sm"
+                      (click)="guardarTodo()"
+                      [disabled]="isSaving || isExportandoBoletas || !numeroCambiosPeriodo"
+                    >
+                      <i class="bi bi-save2 me-1"></i
+                      >{{ isSaving ? 'Guardando...' : 'Guardar cambios del periodo' }}
+                      @if (numeroCambiosPeriodo && !isSaving) {
+                        <span class="changes-count">{{ numeroCambiosPeriodo }}</span>
+                      }
+                    </button>
+                  </footer>
+                }
               }
             }
           </main>

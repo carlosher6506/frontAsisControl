@@ -1,7 +1,6 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import { AttendanceService } from '../../../core/services/attendance.service';
 import { GroupsService } from '../../../core/services/groups.service';
 import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
@@ -14,7 +13,8 @@ import { Usuario } from '../../../core/models/user.model';
 import { ORDEN_NIVELES_EDUCATIVOS } from '../../../core/constants/task.constants';
 import { obtenerClaseAsistencia } from '../../../core/utils/attendance.utils';
 import { obtenerNombreGrupo } from '../../../core/utils/task.utils';
-import { sanitizeFileName, sanitizeSheetName } from '../../../core/utils/ratings.utils';
+import { sanitizeFileName } from '../../../core/utils/ratings.utils';
+import { buildAttendanceReport, downloadAttendanceReport } from '../../../core/utils/attendance-report.utils';
 
 @Component({
   selector: 'app-attendance-report',
@@ -217,28 +217,23 @@ export class AttendanceReportComponent implements OnInit {
     this.isExportando = true;
 
     try {
-      const filas = this.reporte.map(r => ({
-        'Alumno': r.alumno_nombre,
-        'Matrícula': r.matricula,
-        'Total sesiones': r.total_sesiones,
-        'Presentes': r.presentes,
-        'Retardos': r.retardos,
-        'Justificados': r.justificados,
-        'Ausentes': r.ausentes,
-        '% Asistencia': r.porcentaje_asistencia,
-      }));
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(filas);
-      ws['!cols'] = [
-        { wch: 32 }, { wch: 14 }, { wch: 15 }, { wch: 12 },
-        { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 13 },
-      ];
-      XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(this.materiaSeleccionada.materia_nombre || 'Reporte'));
+      const wb = buildAttendanceReport(this.reporte, {
+        grupo: this.grupoActivo ? obtenerNombreGrupo(this.grupoActivo) : 'Grupo',
+        materia: this.materiaSeleccionada.materia_nombre || 'Materia',
+        fechaInicio: this.fechaInicio,
+        fechaFin: this.fechaFin,
+        resumen: {
+          promedioAsistencia: this.promedioAsistencia,
+          alumnosEnRiesgo: this.alumnosEnRiesgo,
+          totalSesiones: this.reporte[0].total_sesiones,
+          totalAsistencias: this.totalAsistencias,
+          totalFaltas: this.totalFaltas,
+        },
+      });
 
       const nombreGrupo = this.grupoActivo?.nombre || 'Grupo';
       const nombreArchivo = `Asistencia_${nombreGrupo}_${this.materiaSeleccionada.materia_nombre}_${this.fechaInicio}_a_${this.fechaFin}.xlsx`;
-      XLSX.writeFile(wb, sanitizeFileName(nombreArchivo));
+      this.descargarArchivo(wb, sanitizeFileName(nombreArchivo));
 
       this.sweetAlert.toast('Reporte exportado correctamente', 'success');
     } catch {
@@ -246,6 +241,10 @@ export class AttendanceReportComponent implements OnInit {
     } finally {
       this.isExportando = false;
     }
+  }
+
+  private descargarArchivo(workbook: ReturnType<typeof buildAttendanceReport>, filename: string): void {
+    downloadAttendanceReport(workbook, filename);
   }
 
   private fechaHoy(): string {

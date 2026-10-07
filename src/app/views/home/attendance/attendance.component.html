@@ -138,28 +138,32 @@
               </div>
             } @else {
 
-              <div class="resumen-bar">
-                <span class="resumen-chip">
-                  <small>Promedio del grupo</small>
-                  <strong>{{ promedioAsistencia }}%</strong>
-                </span>
-                <span class="resumen-chip" [class.chip-alerta]="alumnosEnRiesgo > 0">
-                  <small>Alumnos en riesgo (&lt;75%)</small>
-                  <strong>{{ alumnosEnRiesgo }}</strong>
-                </span>
-                <span class="resumen-chip">
-                  <small>Total sesiones</small>
-                  <strong>{{ reporte[0].total_sesiones }}</strong>
-                </span>
-                <span class="resumen-chip estado-presente">
-                  <small>Total asistencias</small>
-                  <strong>{{ totalAsistencias }}</strong>
-                </span>
-                <span class="resumen-chip estado-ausente">
-                  <small>Total faltas</small>
-                  <strong>{{ totalFaltas }}</strong>
-                </span>
+              <section class="attendance-overview" aria-label="Resumen de asistencia del grupo">
+                <dl class="d-flex flex-wrap mb-0">
+                  <div>
+                    <dt>Promedio del grupo</dt>
+                    <dd>{{ promedioAsistencia }}<span class="overview-unit">%</span></dd>
+                  </div>
+                  <div>
+                    <dt>Alumnos en riesgo (&lt;75%)</dt>
+                    <dd [class.text-danger]="alumnosEnRiesgo > 0">{{ alumnosEnRiesgo }}</dd>
+                  </div>
+                  <div>
+                    <dt>Total sesiones</dt>
+                    <dd>{{ reporte[0].total_sesiones }}</dd>
+                  </div>
+                  <div>
+                    <dt>Total asistencias</dt>
+                    <dd>{{ totalAsistencias }}</dd>
+                  </div>
+                  <div>
+                    <dt>Total faltas</dt>
+                    <dd>{{ totalFaltas }}</dd>
+                  </div>
+                </dl>
+              </section>
 
+              <div class="resumen-bar">
                 <div class="ms-auto d-flex gap-2">
                   <div class="search-box mb-0">
                     <span class="search-icon"><i class="bi bi-search"></i></span>
