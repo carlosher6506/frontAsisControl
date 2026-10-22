@@ -11,7 +11,8 @@ export interface Calificacion {
   etiqueta_id?: number | null;
   etiqueta_nombre?: string;
   valor_total?: number;
-  valor_tarea?: number;        // ← valor calculado de esta tarea
+  valor_tarea?: number;
+  valor_propio?: number | null;
   tareas_por_etiqueta?: number;
 }
 
