@@ -1,27 +1,16 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  catchError,
-  firstValueFrom,
-  from,
-  map,
-  mergeMap,
-  of,
-  toArray,
-} from 'rxjs';
+import { catchError, firstValueFrom, from, map, mergeMap, of, toArray } from 'rxjs';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-
 import { RatingsService } from '../../../core/services/ratings.service';
 import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
 import { GroupsService } from '../../../core/services/groups.service';
 import { StudentsService } from '../../../core/services/students.service';
-import { TasksService } from '../../../core/services/tasks.service';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-
 import {
   Boleta,
   BoletaMateria,
@@ -33,7 +22,6 @@ import { Grupo } from '../../../core/models/group.model';
 import { Alumno } from '../../../core/models/student.model';
 import { ConfiguracionEvaluacion } from '../../../core/models/evaluation.model';
 import { Usuario } from '../../../core/models/user.model';
-
 import {
   calculatePeriodGrade,
   formatTwoDecimals,
@@ -43,27 +31,22 @@ import {
   roundTo,
   sanitizeFileName,
 } from '../../../core/utils/ratings.utils';
-
 import {
   completeRatingGridRow,
   createRatingGridRow,
   groupRatingTasks,
-  mergeRatingTaskMetadata,
   ratingForRequest,
   ratingFromApi,
   RatingGridRow,
   RatingTaskGroup,
   sortRatingTasks,
 } from '../../../core/utils/ratings-grid.utils';
-
 import {
   buildRatingReportPages,
   RatingReportContext,
 } from '../../../core/utils/rating-report.template';
-
 import { ORDEN_NIVELES_EDUCATIVOS } from '../../../core/constants/task.constants';
 import { obtenerNombreGrupo } from '../../../core/utils/task.utils';
-
 import {
   buildRatingConcentrado,
   downloadRatingConcentrado,
@@ -81,7 +64,6 @@ export class RatingsComponent implements OnInit {
   readonly obtenerNombreGrupo = obtenerNombreGrupo;
   readonly formatearDosDecimales = formatTwoDecimals;
   readonly getCalificacionRedondeada = roundFinalGrade;
-
   grupos: Grupo[] = [];
   grupoMaterias: GrupoMateria[] = [];
   alumnos: Alumno[] = [];
@@ -91,7 +73,6 @@ export class RatingsComponent implements OnInit {
   gruposTareas: RatingTaskGroup[] = [];
   gruposTareasVisibles: RatingTaskGroup[] = [];
   tareasVisibles: Calificacion[] = [];
-
   usuario: Usuario | null = null;
   isLoading = false;
   isLoadingAlumnos = false;
@@ -107,7 +88,6 @@ export class RatingsComponent implements OnInit {
   nivelActivo = '';
   textoBusquedaAlumno = '';
   etiquetaSeleccionada = '';
-
   private revisionCarga = 0;
 
   constructor(
@@ -115,7 +95,6 @@ export class RatingsComponent implements OnInit {
     private readonly grupoMateriasService: GrupoMateriasService,
     private readonly groupsService: GroupsService,
     private readonly studentsService: StudentsService,
-    private readonly tasksService: TasksService,
     private readonly evaluationsService: EvaluationsService,
     private readonly authService: AuthService,
     private readonly sweetAlert: SweetAlertService,
@@ -140,106 +119,71 @@ export class RatingsComponent implements OnInit {
   get esAdmin(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'admin';
   }
-
   get esPorPuntos(): boolean {
     return this.configEvaluacion?.tipo_evaluacion === 'puntos';
   }
-
   get esPrimaria(): boolean {
     return this.grupoActivo?.nivel_educativo?.trim().toLowerCase() === 'primaria';
   }
-
   get usaEscalaCien(): boolean {
     return this.esPorPuntos || this.esPrimaria;
   }
-
   get limiteCalificacion(): number {
     return this.usaEscalaCien ? 100 : 10;
   }
 
   get gruposFiltrados(): Grupo[] {
     if (this.esAdmin) return this.grupos;
-
     const ids = new Set(
       this.grupoMaterias
         .filter((gm) => gm.maestro_id === this.usuario?.id)
         .map((gm) => gm.grupo_id),
     );
-
     return this.grupos.filter((grupo) => ids.has(grupo.id));
   }
 
   get nivelesEducativos(): string[] {
     const niveles = [
-      ...new Set(
-        this.gruposFiltrados.map((grupo) => grupo.nivel_educativo).filter(Boolean),
-      ),
+      ...new Set(this.gruposFiltrados.map((grupo) => grupo.nivel_educativo).filter(Boolean)),
     ] as string[];
-
     return niveles.sort((a, b) => {
       const posA = ORDEN_NIVELES_EDUCATIVOS.indexOf(a as never);
       const posB = ORDEN_NIVELES_EDUCATIVOS.indexOf(b as never);
-
-      return (
-        (posA < 0 ? 99 : posA) -
-          (posB < 0 ? 99 : posB) ||
-        a.localeCompare(b)
-      );
+      return (posA < 0 ? 99 : posA) - (posB < 0 ? 99 : posB) || a.localeCompare(b);
     });
   }
 
   get gruposPorNivel(): Grupo[] {
-    return this.gruposFiltrados.filter(
-      (grupo) => grupo.nivel_educativo === this.nivelActivo,
-    );
+    return this.gruposFiltrados.filter((grupo) => grupo.nivel_educativo === this.nivelActivo);
   }
-
   get materiasFiltradas(): GrupoMateria[] {
-    return this.grupoSeleccionado
-      ? this.materiasDelGrupo(this.grupoSeleccionado)
-      : [];
+    return this.grupoSeleccionado ? this.materiasDelGrupo(this.grupoSeleccionado) : [];
   }
 
   materiasDelGrupo(grupoId: number): GrupoMateria[] {
     return this.grupoMaterias
       .filter((gm) => gm.grupo_id === grupoId)
-      .filter(
-        (gm) => this.esAdmin || gm.maestro_id === this.usuario?.id,
-      );
+      .filter((gm) => this.esAdmin || gm.maestro_id === this.usuario?.id);
   }
 
   get configEvaluacion(): ConfiguracionEvaluacion | null {
     return (
-      this.evaluaciones.find(
-        (evaluacion) => evaluacion.grupo_id === this.grupoSeleccionado,
-      ) ?? null
+      this.evaluaciones.find((evaluacion) => evaluacion.grupo_id === this.grupoSeleccionado) ?? null
     );
   }
 
   get grupoActivo(): Grupo | null {
-    return (
-      this.grupos.find((grupo) => grupo.id === this.grupoSeleccionado) ?? null
-    );
+    return this.grupos.find((grupo) => grupo.id === this.grupoSeleccionado) ?? null;
   }
-
   get periodos(): number[] {
-    return Array.from(
-      { length: this.configEvaluacion?.num_periodos ?? 1 },
-      (_, i) => i + 1,
-    );
+    return Array.from({ length: this.configEvaluacion?.num_periodos ?? 1 }, (_, i) => i + 1);
   }
-
   get nombrePeriodo(): string {
-    return this.configEvaluacion?.tipo_periodo === 'trimestre'
-      ? 'Trimestre'
-      : 'Parcial';
+    return this.configEvaluacion?.tipo_periodo === 'trimestre' ? 'Trimestre' : 'Parcial';
   }
 
   get filasFiltradas(): RatingGridRow[] {
-    const texto = this.textoBusquedaAlumno
-      .trim()
-      .toLocaleLowerCase('es');
-
+    const texto = this.textoBusquedaAlumno.trim().toLocaleLowerCase('es');
     return texto
       ? this.filas.filter(
           (fila) =>
@@ -252,18 +196,13 @@ export class RatingsComponent implements OnInit {
   get numeroCambiosPeriodo(): number {
     return this.cambiosDelPeriodo().length;
   }
-
   get totalCambios(): number {
     return this.filas.reduce(
       (total, fila) =>
-        total +
-        fila.calificaciones.filter((cal) =>
-          this.estaModificada(fila, cal),
-        ).length,
+        total + fila.calificaciones.filter((cal) => this.estaModificada(fila, cal)).length,
       0,
     );
   }
-
   get erroresCarga(): number {
     return this.filas.filter((fila) => fila.errorCarga).length;
   }
@@ -275,19 +214,15 @@ export class RatingsComponent implements OnInit {
         this.actualizarNivelActivo();
       },
     });
-
     this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
       next: (data) => {
         this.grupoMaterias = data;
         this.actualizarNivelActivo();
       },
     });
-
     this.evaluationsService
       .obtenerEvaluaciones()
-      .subscribe({
-        next: (data) => (this.evaluaciones = data),
-      });
+      .subscribe({ next: (data) => (this.evaluaciones = data) });
   }
 
   seleccionarNivel(nivel: string): void {
@@ -295,10 +230,7 @@ export class RatingsComponent implements OnInit {
   }
 
   async seleccionarGrupo(grupo: Grupo): Promise<void> {
-    if (this.isSaving || !(await this.confirmarDescartarCambios())) {
-      return;
-    }
-
+    if (this.isSaving || !(await this.confirmarDescartarCambios())) return;
     this.grupoSeleccionado = grupo.id;
     this.grupoMateriaSeleccionado = null;
     this.periodoSeleccionado = 1;
@@ -306,41 +238,25 @@ export class RatingsComponent implements OnInit {
     this.textoBusquedaAlumno = '';
     this.limpiarTabla();
     this.modalAbierto = true;
-
     await this.cargarAlumnos();
   }
 
   async cargarAlumnos(): Promise<void> {
     if (!this.grupoSeleccionado) return;
-
     const grupoId = this.grupoSeleccionado;
     const revision = this.revisionCarga;
-
     this.isLoadingAlumnos = true;
     this.errorCargaAlumnos = false;
-
     try {
-      const alumnos = await firstValueFrom(
-        this.studentsService.obtenerAlumnosPorGrupo(grupoId),
-      );
-
+      const alumnos = await firstValueFrom(this.studentsService.obtenerAlumnosPorGrupo(grupoId));
       if (revision !== this.revisionCarga) return;
-
-      this.alumnos = [
-        ...new Map(alumnos.map((alumno) => [alumno.id, alumno])).values(),
-      ].sort((a, b) =>
-        a.nombre.localeCompare(b.nombre, 'es', {
-          sensitivity: 'base',
-        }),
+      this.alumnos = [...new Map(alumnos.map((alumno) => [alumno.id, alumno])).values()].sort(
+        (a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }),
       );
     } catch {
-      if (revision === this.revisionCarga) {
-        this.errorCargaAlumnos = true;
-      }
+      if (revision === this.revisionCarga) this.errorCargaAlumnos = true;
     } finally {
-      if (revision === this.revisionCarga) {
-        this.isLoadingAlumnos = false;
-      }
+      if (revision === this.revisionCarga) this.isLoadingAlumnos = false;
     }
   }
 
@@ -350,23 +266,17 @@ export class RatingsComponent implements OnInit {
       this.isLoadingAlumnos ||
       materia.id === this.grupoMateriaSeleccionado?.id ||
       !(await this.confirmarDescartarCambios())
-    ) {
+    )
       return;
-    }
-
     this.grupoMateriaSeleccionado = materia;
     this.periodoSeleccionado = 1;
     this.textoBusquedaAlumno = '';
     this.limpiarTabla();
-
     await this.cargarCalificaciones();
   }
 
   async cerrarModal(): Promise<void> {
-    if (this.isSaving || !(await this.confirmarDescartarCambios())) {
-      return;
-    }
-
+    if (this.isSaving || !(await this.confirmarDescartarCambios())) return;
     this.modalAbierto = false;
     this.grupoMateriaSeleccionado = null;
     this.grupoSeleccionado = null;
@@ -376,7 +286,6 @@ export class RatingsComponent implements OnInit {
 
   seleccionarPeriodo(periodo: number): void {
     if (this.isSaving) return;
-
     this.periodoSeleccionado = periodo;
     this.etiquetaSeleccionada = '';
     this.actualizarColumnas();
@@ -384,117 +293,59 @@ export class RatingsComponent implements OnInit {
 
   filtrarEtiqueta(): void {
     this.gruposTareasVisibles = this.etiquetaSeleccionada
-      ? this.gruposTareas.filter(
-          (grupo) => grupo.clave === this.etiquetaSeleccionada,
-        )
+      ? this.gruposTareas.filter((grupo) => grupo.clave === this.etiquetaSeleccionada)
       : this.gruposTareas;
-
-    this.tareasVisibles = this.gruposTareasVisibles.flatMap(
-      (grupo) => grupo.tareas,
-    );
+    this.tareasVisibles = this.gruposTareasVisibles.flatMap((grupo) => grupo.tareas);
   }
 
   async cargarCalificaciones(): Promise<void> {
-    if (!this.grupoMateriaSeleccionado || !this.alumnos.length) {
-      return;
-    }
-
+    if (!this.grupoMateriaSeleccionado || !this.alumnos.length) return;
     const materiaId = this.grupoMateriaSeleccionado.id;
     const revision = ++this.revisionCarga;
     const escalaCien = this.usaEscalaCien;
-
     this.isLoading = true;
-
     try {
-      const tareas = await firstValueFrom(
-        this.tasksService
-          .obtenerTareasPorGrupoMateria(materiaId)
-          .pipe(catchError(() => of([]))),
-      );
-
       const filas = await firstValueFrom(
         from(this.alumnos).pipe(
           mergeMap(
             (alumno) =>
-              this.ratingsService
-                .obtenerCalificacionesPorAlumno(alumno.id, materiaId)
-                .pipe(
-                  map((ratings) =>
-                    createRatingGridRow(
-                      alumno,
-                      mergeRatingTaskMetadata(ratings, tareas),
-                      escalaCien,
-                    ),
-                  ),
-                  catchError(() =>
-                    of(createRatingGridRow(alumno, [], escalaCien, true)),
-                  ),
-                ),
+              this.ratingsService.obtenerCalificacionesPorAlumno(alumno.id, materiaId).pipe(
+                map((ratings) => createRatingGridRow(alumno, ratings, escalaCien)),
+                catchError(() => of(createRatingGridRow(alumno, [], escalaCien, true))),
+              ),
             REQUEST_CONCURRENCY,
           ),
           toArray(),
         ),
       );
-
       if (revision !== this.revisionCarga) return;
-
       this.filas = filas.sort((a, b) =>
-        a.alumno.nombre.localeCompare(b.alumno.nombre, 'es', {
-          sensitivity: 'base',
-        }),
+        a.alumno.nombre.localeCompare(b.alumno.nombre, 'es', { sensitivity: 'base' }),
       );
-
       this.reconstruirTareas();
     } finally {
-      if (revision === this.revisionCarga) {
-        this.isLoading = false;
-      }
+      if (revision === this.revisionCarga) this.isLoading = false;
     }
   }
 
   async reintentarAlumno(fila: RatingGridRow): Promise<void> {
-    if (
-      !this.grupoMateriaSeleccionado ||
-      fila.cargando ||
-      this.isSaving
-    ) {
-      return;
-    }
-
+    if (!this.grupoMateriaSeleccionado || fila.cargando || this.isSaving) return;
     const materiaId = this.grupoMateriaSeleccionado.id;
     const revision = this.revisionCarga;
-
     fila.cargando = true;
-
     try {
       const ratings = await firstValueFrom(
-        this.ratingsService.obtenerCalificacionesPorAlumno(
-          fila.alumno.id,
-          materiaId,
-        ),
+        this.ratingsService.obtenerCalificacionesPorAlumno(fila.alumno.id, materiaId),
       );
-
       if (revision !== this.revisionCarga) return;
-
-      Object.assign(
-        fila,
-        createRatingGridRow(
-          fila.alumno,
-          ratings,
-          this.usaEscalaCien,
-        ),
-      );
-
+      Object.assign(fila, createRatingGridRow(fila.alumno, ratings, this.usaEscalaCien));
       this.reconstruirTareas();
     } catch {
-      if (revision === this.revisionCarga) {
+      if (revision === this.revisionCarga)
         this.sweetAlert.error(
           'Error',
-          'No se pudieron cargar las calificaciones de ' +
-            fila.alumno.nombre +
-            '.',
+          'No se pudieron cargar las calificaciones de ' + fila.alumno.nombre + '.',
         );
-      }
     } finally {
       fila.cargando = false;
     }
@@ -502,25 +353,16 @@ export class RatingsComponent implements OnInit {
 
   onCalificacionChange(cal: Calificacion): void {
     cal.calificacion = normalizeNullableNumber(cal.calificacion);
-
-    if (this.esPorPuntos) {
+    if (this.esPorPuntos)
       cal.puntos_obtenidos =
         cal.calificacion === null
           ? null
-          : roundTo(
-              (cal.calificacion / 100) *
-                (Number(cal.valor_tarea) || 0),
-            );
-    }
+          : roundTo((cal.calificacion / 100) * (Number(cal.valor_tarea) || 0));
   }
 
-  estaModificada(
-    fila: RatingGridRow,
-    cal: Calificacion,
-  ): boolean {
+  estaModificada(fila: RatingGridRow, cal: Calificacion): boolean {
     return hasRatingChanged(cal, fila.estadoInicial);
   }
-
   esInvalida(cal: Calificacion): boolean {
     return (
       cal.calificacion !== null &&
@@ -532,47 +374,27 @@ export class RatingsComponent implements OnInit {
 
   getCalificacionPeriodo(fila: RatingGridRow): number {
     return this.calcularPeriodo(
-      fila.calificaciones.filter(
-        (cal) => (cal.periodo ?? 1) === this.periodoSeleccionado,
-      ),
+      fila.calificaciones.filter((cal) => (cal.periodo ?? 1) === this.periodoSeleccionado),
     );
   }
 
   getTotalPuntos(fila: RatingGridRow): number {
     return fila.calificaciones
-      .filter(
-        (cal) => (cal.periodo ?? 1) === this.periodoSeleccionado,
-      )
-      .reduce(
-        (total, cal) =>
-          total + (Number(cal.puntos_obtenidos) || 0),
-        0,
-      );
+      .filter((cal) => (cal.periodo ?? 1) === this.periodoSeleccionado)
+      .reduce((total, cal) => total + (Number(cal.puntos_obtenidos) || 0), 0);
   }
 
   getMaxPuntosPeriodo(): number {
     return this.tareas
-      .filter(
-        (cal) => (cal.periodo ?? 1) === this.periodoSeleccionado,
-      )
-      .reduce(
-        (total, cal) =>
-          total + (Number(cal.valor_tarea) || 0),
-        0,
-      );
+      .filter((cal) => (cal.periodo ?? 1) === this.periodoSeleccionado)
+      .reduce((total, cal) => total + (Number(cal.valor_tarea) || 0), 0);
   }
 
   async guardarTodo(): Promise<void> {
     if (this.isSaving || this.isExportandoBoletas) return;
-
     const modificadas = this.cambiosDelPeriodo();
-
     if (!modificadas.length) return;
-
-    const invalida = modificadas.find(({ cal }) =>
-      this.esInvalida(cal),
-    );
-
+    const invalida = modificadas.find(({ cal }) => this.esInvalida(cal));
     if (invalida) {
       this.sweetAlert.error(
         'Calificación inválida',
@@ -585,7 +407,6 @@ export class RatingsComponent implements OnInit {
       );
       return;
     }
-
     const result = await this.sweetAlert.confirm(
       '¿Guardar cambios?',
       'Se guardarán ' +
@@ -596,11 +417,8 @@ export class RatingsComponent implements OnInit {
         this.periodoSeleccionado +
         ', incluyendo las ocultas por los filtros.',
     );
-
     if (!result.isConfirmed) return;
-
     this.isSaving = true;
-
     try {
       const resultados = await firstValueFrom(
         from(modificadas).pipe(
@@ -615,11 +433,9 @@ export class RatingsComponent implements OnInit {
           toArray(),
         ),
       );
-
       const exitosas = resultados.filter(Boolean).length;
       const fallidas = resultados.length - exitosas;
-
-      if (fallidas) {
+      if (fallidas)
         this.sweetAlert.warning(
           'Guardado parcial',
           exitosas +
@@ -627,12 +443,7 @@ export class RatingsComponent implements OnInit {
             fallidas +
             ' pendientes. Puedes reintentar sin perder los cambios.',
         );
-      } else {
-        this.sweetAlert.toast(
-          exitosas + ' calificación(es) guardada(s)',
-          'success',
-        );
-      }
+      else this.sweetAlert.toast(exitosas + ' calificación(es) guardada(s)', 'success');
     } finally {
       this.isSaving = false;
     }
@@ -645,10 +456,8 @@ export class RatingsComponent implements OnInit {
       this.isLoadingAlumnos ||
       !this.grupoActivo ||
       !this.alumnos.length
-    ) {
+    )
       return;
-    }
-
     if (this.totalCambios) {
       const result = await this.sweetAlert.confirm(
         'Hay calificaciones sin guardar',
@@ -656,13 +465,10 @@ export class RatingsComponent implements OnInit {
         'Exportar guardadas',
         'Cancelar',
       );
-
       if (!result.isConfirmed) return;
     }
-
     const alumnos = [...this.alumnos];
     const grupo = { ...this.grupoActivo };
-
     const context: RatingReportContext = {
       grupoNombre: grupo.nombre,
       nivelAcademico: grupo.nivel_academico,
@@ -671,10 +477,8 @@ export class RatingsComponent implements OnInit {
       tipoPeriodo: this.configEvaluacion?.tipo_periodo,
       numeroPeriodos: this.configEvaluacion?.num_periodos,
     };
-
     this.isExportandoBoletas = true;
     this.progresoBoletas = 'Cargando boletas...';
-
     try {
       const reportes = await firstValueFrom(
         from(alumnos).pipe(
@@ -682,9 +486,7 @@ export class RatingsComponent implements OnInit {
             (alumno) =>
               this.ratingsService.obtenerBoleta(alumno.id).pipe(
                 map((boleta) => ({
-                  orden: alumnos.findIndex(
-                    (a) => a.id === alumno.id,
-                  ),
+                  orden: alumnos.findIndex((a) => a.id === alumno.id),
                   boleta,
                 })),
               ),
@@ -693,21 +495,13 @@ export class RatingsComponent implements OnInit {
           toArray(),
         ),
       );
-
       reportes.sort((a, b) => a.orden - b.orden);
-
       await this.generarPdfBoletas(
         reportes.map(({ boleta }) => boleta),
         context,
-        sanitizeFileName(
-          'Boletas_' + obtenerNombreGrupo(grupo) + '.pdf',
-        ),
+        sanitizeFileName('Boletas_' + obtenerNombreGrupo(grupo) + '.pdf'),
       );
-
-      this.sweetAlert.toast(
-        alumnos.length + ' boleta(s) exportada(s)',
-        'success',
-      );
+      this.sweetAlert.toast(alumnos.length + ' boleta(s) exportada(s)', 'success');
     } catch {
       this.sweetAlert.error(
         'Error',
@@ -724,11 +518,8 @@ export class RatingsComponent implements OnInit {
       item.tipo_evaluacion === 'promedio'
         ? Number(item.promedio_calificaciones) || 0
         : (Number(item.total_puntos_posibles) || 0) > 0
-          ? ((Number(item.total_puntos_obtenidos) || 0) /
-              Number(item.total_puntos_posibles)) *
-            10
+          ? ((Number(item.total_puntos_obtenidos) || 0) / Number(item.total_puntos_posibles)) * 10
           : 0;
-
     return roundFinalGrade(base);
   }
 
@@ -739,129 +530,72 @@ export class RatingsComponent implements OnInit {
       this.isExportando ||
       this.isSaving ||
       !this.alumnos.length
-    ) {
+    )
       return;
-    }
-
     const materia = this.grupoMateriaSeleccionado;
     const config = this.configEvaluacion;
     const escalaCien = this.usaEscalaCien;
     const nombreGrupo = this.grupoActivo?.nombre || 'Grupo';
-    const nombreGrupoCompleto = this.grupoActivo
-      ? obtenerNombreGrupo(this.grupoActivo)
-      : nombreGrupo;
+    const nombreGrupoCompleto = this.grupoActivo ? obtenerNombreGrupo(this.grupoActivo) : nombreGrupo;
     const nombrePeriodo = this.nombrePeriodo;
-
     this.isExportando = true;
-
     try {
+      // El archivo incluye las notas guardadas; los borradores permanecen en la tabla.
       const resultados = await firstValueFrom(
         from(this.alumnos).pipe(
           mergeMap(
             (alumno) =>
-              this.ratingsService
-                .obtenerCalificacionesPorAlumno(alumno.id, materia.id)
-                .pipe(
-                  map((ratings) => ({
-                    alumno,
-                    calificaciones: ratings.map((cal) =>
-                      ratingFromApi(cal, escalaCien),
-                    ),
-                  })),
-                ),
+              this.ratingsService.obtenerCalificacionesPorAlumno(alumno.id, materia.id).pipe(
+                map((ratings) => ({
+                  alumno,
+                  calificaciones: ratings.map((cal) => ratingFromApi(cal, escalaCien)),
+                })),
+              ),
             REQUEST_CONCURRENCY,
           ),
           toArray(),
         ),
       );
-
-      resultados.sort((a, b) =>
-        a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'),
-      );
-
-      const tareas = sortRatingTasks(
-        resultados.flatMap((r) => r.calificaciones),
-      );
-
-      const periodos = Array.from(
-        { length: config.num_periodos },
-        (_, i) => i + 1,
-      );
-
+      resultados.sort((a, b) => a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'));
+      const tareas = sortRatingTasks(resultados.flatMap((r) => r.calificaciones));
+      const periodos = Array.from({ length: config.num_periodos }, (_, i) => i + 1);
       const filas = resultados.map(({ alumno, calificaciones }) => {
         const porPeriodo = periodos.map((periodo) => {
-          const ratings = calificaciones.filter(
-            (cal) => (cal.periodo ?? 1) === periodo,
-          );
-
+          const ratings = calificaciones.filter((cal) => (cal.periodo ?? 1) === periodo);
           return {
-            conDatos: ratings.some(
-              (cal) => cal.calificacion !== null,
-            ),
-            valor: this.calcularPeriodo(
-              ratings,
-              config.tipo_evaluacion === 'puntos',
-              escalaCien,
-            ),
+            conDatos: ratings.some((cal) => cal.calificacion !== null),
+            valor: this.calcularPeriodo(ratings, config.tipo_evaluacion === 'puntos', escalaCien),
           };
         });
-
-        const conDatos = porPeriodo.filter(
-          (periodo) => periodo.conDatos,
-        );
-
+        const conDatos = porPeriodo.filter((periodo) => periodo.conDatos);
         return [
           alumno.nombre,
           alumno.matricula,
           ...tareas.map(
             (tarea) =>
-              calificaciones.find(
-                (cal) => cal.tarea_id === tarea.tarea_id,
-              )?.calificacion ?? '',
+              calificaciones.find((cal) => cal.tarea_id === tarea.tarea_id)?.calificacion ?? '',
           ),
-          ...porPeriodo.map((periodo) =>
-            periodo.conDatos
-              ? roundFinalGrade(periodo.valor)
-              : '',
-          ),
+          ...porPeriodo.map((periodo) => (periodo.conDatos ? roundFinalGrade(periodo.valor) : '')),
           conDatos.length
             ? roundFinalGrade(
-                conDatos.reduce(
-                  (sum, periodo) => sum + periodo.valor,
-                  0,
-                ) / conDatos.length,
+                conDatos.reduce((sum, periodo) => sum + periodo.valor, 0) / conDatos.length,
               )
             : '',
         ];
       });
-
-      const wb = buildRatingConcentrado(
-        filas,
-        tareas,
-        periodos,
-        {
-          materia: materia.materia_nombre || 'Materia',
-          grupo: nombreGrupoCompleto,
-          nombrePeriodo,
-          escalaCaptura: escalaCien ? 100 : 10,
-        },
-      );
-
+      const wb = buildRatingConcentrado(filas, tareas, periodos, {
+        materia: materia.materia_nombre || 'Materia',
+        grupo: nombreGrupoCompleto,
+        nombrePeriodo,
+        escalaCaptura: escalaCien ? 100 : 10,
+      });
       downloadRatingConcentrado(
         wb,
         sanitizeFileName(
-          'Concentrado_' +
-            nombreGrupo +
-            '_' +
-            (materia.materia_nombre || 'Materia') +
-            '.xlsx',
+          'Concentrado_' + nombreGrupo + '_' + (materia.materia_nombre || 'Materia') + '.xlsx',
         ),
       );
-
-      this.sweetAlert.toast(
-        'Concentrado de calificaciones guardadas generado',
-        'success',
-      );
+      this.sweetAlert.toast('Concentrado de calificaciones guardadas generado', 'success');
     } catch {
       this.sweetAlert.error(
         'Error',
@@ -872,80 +606,47 @@ export class RatingsComponent implements OnInit {
     }
   }
 
-  private async guardar(
-    fila: RatingGridRow,
-    cal: Calificacion,
-  ): Promise<void> {
+  private async guardar(fila: RatingGridRow, cal: Calificacion): Promise<void> {
     const request: CalificarRequest = {
       alumno_id: fila.alumno.id,
       tarea_id: cal.tarea_id,
-      calificacion: ratingForRequest(
-        cal.calificacion,
-        this.usaEscalaCien,
-      ),
-      puntos_obtenidos: this.esPorPuntos
-        ? normalizeNullableNumber(cal.puntos_obtenidos)
-        : null,
+      calificacion: ratingForRequest(cal.calificacion, this.usaEscalaCien),
+      puntos_obtenidos: this.esPorPuntos ? normalizeNullableNumber(cal.puntos_obtenidos) : null,
     };
-
     const guardada = ratingFromApi(
-      await firstValueFrom(
-        this.ratingsService.calificar(request),
-      ),
+      await firstValueFrom(this.ratingsService.calificar(request)),
       this.usaEscalaCien,
     );
-
     cal.id = guardada.id;
     cal.calificacion = guardada.calificacion;
     cal.puntos_obtenidos = guardada.puntos_obtenidos;
-
     fila.estadoInicial.set(cal.tarea_id, {
       calificacion: cal.calificacion,
       puntosObtenidos: cal.puntos_obtenidos,
     });
   }
 
-  private cambiosDelPeriodo(): {
-    fila: RatingGridRow;
-    cal: Calificacion;
-  }[] {
+  private cambiosDelPeriodo(): { fila: RatingGridRow; cal: Calificacion }[] {
     return this.filas.flatMap((fila) =>
       fila.calificaciones
         .filter(
           (cal) =>
-            (cal.periodo ?? 1) === this.periodoSeleccionado &&
-            this.estaModificada(fila, cal),
+            (cal.periodo ?? 1) === this.periodoSeleccionado && this.estaModificada(fila, cal),
         )
         .map((cal) => ({ fila, cal })),
     );
   }
 
   private reconstruirTareas(): void {
-    this.tareas = sortRatingTasks(
-      this.filas.flatMap((fila) => fila.calificaciones),
-    );
-
-    this.filas.forEach((fila) =>
-      completeRatingGridRow(fila, this.tareas),
-    );
-
+    this.tareas = sortRatingTasks(this.filas.flatMap((fila) => fila.calificaciones));
+    this.filas.forEach((fila) => completeRatingGridRow(fila, this.tareas));
     this.actualizarColumnas();
   }
 
   private actualizarColumnas(): void {
-    this.gruposTareas = groupRatingTasks(
-      this.tareas,
-      this.periodoSeleccionado,
-    );
-
-    if (
-      !this.gruposTareas.some(
-        (grupo) => grupo.clave === this.etiquetaSeleccionada,
-      )
-    ) {
+    this.gruposTareas = groupRatingTasks(this.tareas, this.periodoSeleccionado);
+    if (!this.gruposTareas.some((grupo) => grupo.clave === this.etiquetaSeleccionada))
       this.etiquetaSeleccionada = '';
-    }
-
     this.filtrarEtiqueta();
   }
 
@@ -962,23 +663,18 @@ export class RatingsComponent implements OnInit {
 
   private async confirmarDescartarCambios(): Promise<boolean> {
     if (!this.totalCambios) return true;
-
     const result = await this.sweetAlert.confirm(
       'Hay calificaciones sin guardar',
-      'Se perderán ' +
-        this.totalCambios +
-        ' cambio(s) pendiente(s).',
+      'Se perderán ' + this.totalCambios + ' cambio(s) pendiente(s).',
       'Descartar y continuar',
       'Seguir calificando',
     );
-
     return result.isConfirmed;
   }
 
   private actualizarNivelActivo(): void {
-    if (!this.nivelesEducativos.includes(this.nivelActivo)) {
+    if (!this.nivelesEducativos.includes(this.nivelActivo))
       this.nivelActivo = this.nivelesEducativos[0] ?? '';
-    }
   }
 
   private calcularPeriodo(
@@ -990,10 +686,7 @@ export class RatingsComponent implements OnInit {
       calificaciones.map((cal) => ({
         ...cal,
         calificacion:
-          cal.calificacion === null
-            ? null
-            : Number(cal.calificacion) /
-              (escalaCien ? 10 : 1),
+          cal.calificacion === null ? null : Number(cal.calificacion) / (escalaCien ? 10 : 1),
       })),
       porPuntos,
     );
@@ -1005,12 +698,10 @@ export class RatingsComponent implements OnInit {
     nombreArchivo: string,
   ): Promise<void> {
     const contenedor = document.createElement('div');
-
     contenedor.style.position = 'fixed';
     contenedor.style.top = '0';
     contenedor.style.left = '-10000px';
     contenedor.style.zIndex = '-1';
-
     document.body.appendChild(contenedor);
 
     try {
@@ -1018,49 +709,26 @@ export class RatingsComponent implements OnInit {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       let pagina = 0;
-
       for (const [index, boleta] of boletas.entries()) {
-        this.progresoBoletas =
-          'Generando ' + (index + 1) + ' de ' + boletas.length + '...';
-
+        this.progresoBoletas = 'Generando ' + (index + 1) + ' de ' + boletas.length + '...';
         for (const fragmento of buildRatingReportPages(
           boleta,
           (item) => this.calcularCalificacionFinal(item),
           context,
         )) {
           contenedor.innerHTML = fragmento;
-
           const hoja = contenedor.querySelector<HTMLElement>('.sheet');
-
-          if (!hoja) {
-            throw new Error(
-              'No se pudo preparar la boleta para exportar',
-            );
-          }
-
-          await Promise.all(
-            Array.from(
-              hoja.querySelectorAll('img'),
-              (imagen) => imagen.decode(),
-            ),
-          );
-
+          if (!hoja) throw new Error('No se pudo preparar la boleta para exportar');
+          await Promise.all(Array.from(hoja.querySelectorAll('img'), (imagen) => imagen.decode()));
           const canvas = await html2canvas(hoja, {
             scale: 2,
             useCORS: true,
             backgroundColor: '#ffffff',
           });
-
-          const escala = Math.min(
-            (pdfWidth - 20) / canvas.width,
-            (pdfHeight - 20) / canvas.height,
-          );
-
+          const escala = Math.min((pdfWidth - 20) / canvas.width, (pdfHeight - 20) / canvas.height);
           const ancho = canvas.width * escala;
           const alto = canvas.height * escala;
-
           if (pagina++) pdf.addPage();
-
           pdf.addImage(
             canvas.toDataURL('image/png'),
             'PNG',
@@ -1071,12 +739,10 @@ export class RatingsComponent implements OnInit {
             undefined,
             'FAST',
           );
-
           canvas.width = 0;
           canvas.height = 0;
         }
       }
-
       pdf.save(nombreArchivo);
     } finally {
       document.body.removeChild(contenedor);
