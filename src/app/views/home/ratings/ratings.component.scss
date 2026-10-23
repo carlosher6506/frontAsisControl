@@ -6,6 +6,9 @@
 }
 
 .page-heading {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
   margin: 0 0 1.5rem;
 
   h4 {
@@ -16,6 +19,31 @@
   p {
     color: #6b7280;
     margin: 0.25rem 0 0;
+  }
+}
+
+.teacher-filter {
+  position: relative;
+
+  &-menu {
+    background: #fff;
+    border: 1px solid #dce1e5;
+    border-radius: 0.6rem;
+    box-shadow: 0 0.65rem 1.5rem rgba(24, 39, 75, 0.14);
+    display: grid;
+    gap: 0.35rem;
+    min-width: 230px;
+    padding: 0.7rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.45rem);
+    z-index: 3;
+
+    span {
+      color: #63707c;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
   }
 }
 

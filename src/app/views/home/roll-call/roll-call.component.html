@@ -79,6 +79,18 @@
     <div class="modal-content-custom">
       <div class="modal-workspace">
         <aside class="subjects-sidebar">
+          <div class="attendance-date-picker">
+            <label for="attendance-date">Fecha del pase</label>
+            <input
+              id="attendance-date"
+              type="date"
+              class="form-control form-control-sm"
+              [(ngModel)]="fechaPaseSeleccionada"
+              [max]="fechaMaximaPase"
+              (change)="cambiarFechaPase()"
+            />
+            <small>Selecciona hoy o una fecha anterior.</small>
+          </div>
           <p>Selecciona una materia</p>
           @for (materia of materiasDelGrupoActivo; track materia.id) {
             <button
@@ -132,11 +144,9 @@
                     <i class="bi bi-camera-fill me-1"></i>Escanear
                   </button>
                 }
-                @if (esAdmin) {
-                  <button type="button" class="btn btn-outline-dark btn-sm" (click)="abrirHistorial()">
-                    <i class="bi bi-clock-history me-1"></i>Historial
-                  </button>
-                }
+                <button type="button" class="btn btn-outline-dark btn-sm" (click)="abrirHistorial()">
+                  <i class="bi bi-clock-history me-1"></i>Historial
+                </button>
               </div>
             </div>
 

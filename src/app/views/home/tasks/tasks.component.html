@@ -56,6 +56,27 @@
           </div>
         }
       </div>
+      @if (esAdmin) {
+        <div class="teacher-filter">
+          <button type="button" class="filters-button" [class.active]="maestroSeleccionadoId"
+            (click)="mostrarFiltroMaestro = !mostrarFiltroMaestro" [attr.aria-expanded]="mostrarFiltroMaestro">
+            <i class="bi bi-person-lines-fill"></i>Maestro<i class="bi"
+              [class.bi-chevron-up]="mostrarFiltroMaestro" [class.bi-chevron-down]="!mostrarFiltroMaestro"></i>
+          </button>
+          @if (mostrarFiltroMaestro) {
+            <label class="teacher-filter-menu">
+              <span>Filtrar grupos por maestro</span>
+              <select class="form-select form-select-sm" [value]="maestroSeleccionadoId ?? ''"
+                (change)="cambiarFiltroMaestro($any($event.target).value)">
+                <option value="">Todos los maestros</option>
+                @for (maestro of maestrosDisponibles; track maestro.id) {
+                  <option [value]="maestro.id">{{ maestro.nombre }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+      }
       @if (hayFiltrosActivos) {
         <button type="button" class="clear-filters" (click)="limpiarFiltros()">Limpiar</button>
       }

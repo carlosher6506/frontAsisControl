@@ -1,5 +1,35 @@
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
+.teacher-filter {
+  position: relative;
+
+  .btn.active {
+    background: #212529;
+    color: #fff;
+  }
+
+  &-menu {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: .6rem;
+    box-shadow: 0 .65rem 1.5rem rgba(24, 39, 75, .14);
+    display: grid;
+    gap: .35rem;
+    min-width: 230px;
+    padding: .7rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + .45rem);
+    z-index: 5;
+
+    span {
+      color: #63707c;
+      font-size: .76rem;
+      font-weight: 700;
+    }
+  }
+}
+
 .level-section-title {
   font-size: .78rem;
   font-weight: 700;

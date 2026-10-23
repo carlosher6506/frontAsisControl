@@ -3,6 +3,33 @@
     <div>
       <h4>Calificaciones</h4>
     </div>
+    @if (esAdmin) {
+      <div class="teacher-filter">
+        <button
+          type="button"
+          class="btn btn-outline-dark btn-sm"
+          (click)="mostrarFiltroMaestro = !mostrarFiltroMaestro"
+          [attr.aria-expanded]="mostrarFiltroMaestro"
+        >
+          <i class="bi bi-funnel me-1"></i>Filtrar por maestro
+        </button>
+        @if (mostrarFiltroMaestro) {
+          <label class="teacher-filter-menu">
+            <span>Maestro asignado</span>
+            <select
+              class="form-select form-select-sm"
+              [value]="maestroSeleccionadoId ?? ''"
+              (change)="cambiarFiltroMaestro($any($event.target).value)"
+            >
+              <option value="">Todos los maestros</option>
+              @for (maestro of maestrosDisponibles; track maestro.id) {
+                <option [value]="maestro.id">{{ maestro.nombre }}</option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+    }
   </header>
 
   <section class="groups-panel" aria-label="Grupos disponibles">
@@ -340,7 +367,7 @@
                                 @if (esPorPuntos) {
                                   <small
                                     >{{ formatearDosDecimales(getTotalPuntos(fila)) }} /
-                                    {{ formatearDosDecimales(getMaxPuntosPeriodo()) }} pts</small
+                                    {{ formatearDosDecimales(getMaxPuntosPeriodo(fila)) }} pts</small
                                   >
                                 }
                               } @else {

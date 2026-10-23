@@ -5,11 +5,14 @@ import { FormsModule } from '@angular/forms';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
 import { EtiquetasService } from '../../../core/services/etiquetas.service';
 import { GroupsService } from '../../../core/services/groups.service';
+import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
+import { UsersService } from '../../../core/services/users.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ConfiguracionEvaluacion, CrearEvaluacion, GrupoDeNivel, TipoCalculo, TipoEvaluacion, TipoPeriodo } from '../../../core/models/evaluation.model';
 import { Etiqueta, CrearEtiqueta } from '../../../core/models/label.model';
 import { Grupo } from '../../../core/models/group.model';
+import { GrupoMateria } from '../../../core/models/groupSubject.model';
 import { Usuario } from '../../../core/models/user.model';
 import { TIPOS_CALCULO, TIPOS_EVALUACION, TIPOS_PERIODO } from '../../../core/constants/evaluations.constants'
 import { agruparPorNivelAcademico } from '../../../core/utils/evaluations.utils'
@@ -25,12 +28,16 @@ export class EvaluationsComponent implements OnInit {
   evaluaciones: ConfiguracionEvaluacion[] = [];
   etiquetas: Etiqueta[] = [];
   grupos: Grupo[] = [];
+  grupoMaterias: GrupoMateria[] = [];
+  usuarios: Usuario[] = [];
   usuario: Usuario | null = null;
 
   isLoadingEvaluaciones = true;
   evaluacionActiva: ConfiguracionEvaluacion | null = null;
   etiquetaEditando: Etiqueta | null = null;
   nivelSeleccionado: string = 'Todos';
+  mostrarFiltroMaestro = false;
+  maestroSeleccionadoId: number | null = null;
 
   formEvaluacion: FormGroup;
   formEtiqueta: FormGroup;
@@ -43,6 +50,8 @@ export class EvaluationsComponent implements OnInit {
     private evaluationsService: EvaluationsService,
     private etiquetasService: EtiquetasService,
     private groupsService: GroupsService,
+    private grupoMateriasService: GrupoMateriasService,
+    private usersService: UsersService,
     private authService: AuthService,
     private sweetAlert: SweetAlertService,
     private fb: FormBuilder
@@ -88,8 +97,32 @@ export class EvaluationsComponent implements OnInit {
 
   get gruposDisponibles(): Grupo[] {
     const gruposConConfig = this.evaluaciones.map(e => e.grupo_id);
-    if (this.esAdmin) return this.grupos.filter(g => !gruposConConfig.includes(g.id));
+    if (this.esAdmin) return this.gruposFiltradosPorMaestro.filter(g => !gruposConConfig.includes(g.id));
     return this.grupos.filter(g => g.maestro_id === this.usuario?.id && !gruposConConfig.includes(g.id));
+  }
+
+  get maestrosDisponibles(): Usuario[] {
+    return this.usuarios
+      .filter(usuario => usuario.rol?.toLowerCase() === 'maestro')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  }
+
+  get gruposFiltradosPorMaestro(): Grupo[] {
+    if (!this.esAdmin || !this.maestroSeleccionadoId) return this.grupos;
+    const gruposDelMaestro = new Set(
+      this.grupoMaterias
+        .filter(materia => materia.maestro_id === this.maestroSeleccionadoId)
+        .map(materia => materia.grupo_id)
+    );
+    return this.grupos.filter(grupo =>
+      grupo.maestro_id === this.maestroSeleccionadoId || gruposDelMaestro.has(grupo.id)
+    );
+  }
+
+  get evaluacionesVisibles(): ConfiguracionEvaluacion[] {
+    if (!this.esAdmin || !this.maestroSeleccionadoId) return this.evaluaciones;
+    const gruposIds = new Set(this.gruposFiltradosPorMaestro.map(grupo => grupo.id));
+    return this.evaluaciones.filter(evaluacion => gruposIds.has(evaluacion.grupo_id));
   }
 
   get etiquetasFiltradas(): Etiqueta[] {
@@ -98,13 +131,13 @@ export class EvaluationsComponent implements OnInit {
   }
 
   get nivelesConEvaluaciones(): GrupoDeNivel[]{
-    return agruparPorNivelAcademico(this.evaluaciones);
+    return agruparPorNivelAcademico(this.evaluacionesVisibles);
   }
 
   get nivelesAcademicos(): string[] {
     return [
       'Todos',
-      ...new Set(this.evaluaciones.map(e => e.nivel_educativo!))
+      ...new Set(this.evaluacionesVisibles.map(e => e.nivel_educativo!))
     ];
   }
 
@@ -135,6 +168,18 @@ export class EvaluationsComponent implements OnInit {
     this.etiquetasService.obtenerEtiquetas().subscribe({
       next: (data) => this.etiquetas = data
     });
+    this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
+      next: (data) => this.grupoMaterias = data
+    });
+    this.usersService.obtenerUsuarios().subscribe({
+      next: (data) => this.usuarios = data
+    });
+  }
+
+  cambiarFiltroMaestro(valor: string): void {
+    this.maestroSeleccionadoId = valor ? Number(valor) : null;
+    if (!this.nivelesAcademicos.includes(this.nivelSeleccionado))
+      this.nivelSeleccionado = 'Todos';
   }
 
   seleccionarEvaluacion(evaluacion: ConfiguracionEvaluacion): void {

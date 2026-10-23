@@ -60,6 +60,14 @@ export function createRatingGridRow(
   };
 }
 
+/** Calcula los puntos con la nota y el valor actual de la tarea. */
+export function puntosDesdeCalificacion(calificacion: Calificacion): number | null {
+  if (calificacion.calificacion === null || calificacion.calificacion === undefined) return null;
+  return roundTo(
+    (Number(calificacion.calificacion) / 100) * (Number(calificacion.valor_tarea) || 0),
+  );
+}
+
 export function sortRatingTasks(ratings: readonly Calificacion[]): Calificacion[] {
   return [...new Map(ratings.map((rating) => [rating.tarea_id, rating])).values()].sort(
     (a, b) =>

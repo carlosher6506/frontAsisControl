@@ -42,6 +42,8 @@ export class TasksComponent implements OnInit {
   textoBusquedaTareas = '';
   nivelActivo = '';
   mostrarFiltros = false;
+  mostrarFiltroMaestro = false;
+  maestroSeleccionadoId: number | null = null;
   filtros: FiltrosGrupoTareas = { ...FILTROS_INICIALES };
   form: FormGroup;
 
@@ -93,7 +95,25 @@ export class TasksComponent implements OnInit {
     });
   }
   get gruposVisibles(): Grupo[] {
-    return this.esAdmin ? this.grupos : this.grupos.filter(g => g.maestro_id === this.usuario?.id);
+    if (!this.esAdmin) return this.grupos.filter(g => g.maestro_id === this.usuario?.id);
+    if (!this.maestroSeleccionadoId) return this.grupos;
+    const gruposDelMaestro = new Set(
+      this.grupoMaterias
+        .filter(materia => materia.maestro_id === this.maestroSeleccionadoId)
+        .map(materia => materia.grupo_id)
+    );
+    return this.grupos.filter(grupo => gruposDelMaestro.has(grupo.id));
+  }
+
+  get maestrosDisponibles(): { id: number; nombre: string }[] {
+    const maestros = new Map<number, string>();
+    this.grupoMaterias.forEach(materia => {
+      if (!maestros.has(materia.maestro_id))
+        maestros.set(materia.maestro_id, materia.maestro_nombre?.trim() || 'Maestro sin nombre');
+    });
+    return [...maestros.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
   }
   get gruposFiltrados(): Grupo[] {
     return this.gruposVisibles.filter(grupo =>
@@ -180,6 +200,12 @@ export class TasksComponent implements OnInit {
 
   alternarFiltros(): void {
     this.mostrarFiltros = !this.mostrarFiltros;
+  }
+
+  cambiarFiltroMaestro(valor: string): void {
+    this.maestroSeleccionadoId = valor ? Number(valor) : null;
+    if (!this.nivelesEducativos.includes(this.nivelActivo))
+      this.nivelActivo = this.nivelesEducativos[0] ?? '';
   }
 
   seleccionarGrupo(grupo: Grupo): void {

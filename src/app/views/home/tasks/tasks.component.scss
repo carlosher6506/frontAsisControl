@@ -95,6 +95,30 @@
   }
 }
 
+.teacher-filter {
+  position: relative;
+
+  &-menu {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    box-shadow: 0 .65rem 1.5rem rgba(24,39,75,.14);
+    display: grid;
+    gap: .35rem;
+    min-width: 230px;
+    padding: .7rem;
+    position: absolute;
+    top: calc(100% + .45rem);
+    z-index: 4;
+
+    span {
+      color: #63707c;
+      font-size: .76rem;
+      font-weight: 700;
+    }
+  }
+}
+
 .filters-dropdown-wrapper { position: relative; }
 
 .filters-drawer {

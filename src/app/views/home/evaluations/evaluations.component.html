@@ -6,10 +6,31 @@
       <h4 class="fw-bold mb-1">Tipo Evaluación</h4>
       <p class="text-muted small mb-0">Configuración de evaluaciones por grupo</p>
     </div>
-    <button class="btn btn-dark"
-      data-bs-toggle="modal" data-bs-target="#modalEvaluacion">
-      <i class="bi bi-plus-lg me-2"></i>Nueva configuración
-    </button>
+    <div class="d-flex align-items-start gap-2">
+      @if (esAdmin) {
+        <div class="teacher-filter">
+          <button type="button" class="btn btn-outline-dark btn-sm" [class.active]="maestroSeleccionadoId"
+            (click)="mostrarFiltroMaestro = !mostrarFiltroMaestro" [attr.aria-expanded]="mostrarFiltroMaestro">
+            <i class="bi bi-person-lines-fill me-1"></i>Maestro
+          </button>
+          @if (mostrarFiltroMaestro) {
+            <label class="teacher-filter-menu">
+              <span>Filtrar grupos por maestro</span>
+              <select class="form-select form-select-sm" [value]="maestroSeleccionadoId ?? ''"
+                (change)="cambiarFiltroMaestro($any($event.target).value)">
+                <option value="">Todos los maestros</option>
+                @for (maestro of maestrosDisponibles; track maestro.id) {
+                  <option [value]="maestro.id">{{ maestro.nombre }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+      }
+      <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEvaluacion">
+        <i class="bi bi-plus-lg me-2"></i>Nueva configuración
+      </button>
+    </div>
   </div>
 
   <ul class="nav nav-tabs border-0 mb-4">
@@ -31,7 +52,7 @@
     <div class="d-flex justify-content-center py-5">
       <div class="spinner-border spinner-border-sm text-dark"></div>
     </div>
-  } @else if (evaluaciones.length === 0) {
+  } @else if (evaluacionesVisibles.length === 0) {
     <div class="text-center py-5 text-muted">
       <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
       <p class="small mb-0">No hay configuraciones registradas</p>

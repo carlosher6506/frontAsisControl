@@ -9,6 +9,8 @@ import { GrupoMateriasService } from '../../../core/services/grupo-materias.serv
 import { GroupsService } from '../../../core/services/groups.service';
 import { StudentsService } from '../../../core/services/students.service';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
+import { EtiquetasService } from '../../../core/services/etiquetas.service';
+import { TasksService } from '../../../core/services/tasks.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
 import {
@@ -21,14 +23,16 @@ import { GrupoMateria } from '../../../core/models/groupSubject.model';
 import { Grupo } from '../../../core/models/group.model';
 import { Alumno } from '../../../core/models/student.model';
 import { ConfiguracionEvaluacion } from '../../../core/models/evaluation.model';
+import { Etiqueta } from '../../../core/models/label.model';
+import { Tarea } from '../../../core/models/task.model';
 import { Usuario } from '../../../core/models/user.model';
 import {
   calculatePeriodGrade,
+  createRatingSnapshot,
   formatTwoDecimals,
   hasRatingChanged,
   normalizeNullableNumber,
   roundFinalGrade,
-  roundTo,
   sanitizeFileName,
 } from '../../../core/utils/ratings.utils';
 import {
@@ -37,6 +41,7 @@ import {
   groupRatingTasks,
   ratingForRequest,
   ratingFromApi,
+  puntosDesdeCalificacion,
   RatingGridRow,
   RatingTaskGroup,
   sortRatingTasks,
@@ -70,6 +75,8 @@ export class RatingsComponent implements OnInit {
   evaluaciones: ConfiguracionEvaluacion[] = [];
   filas: RatingGridRow[] = [];
   tareas: Calificacion[] = [];
+  etiquetas: Etiqueta[] = [];
+  tareasVigentes: Tarea[] = [];
   gruposTareas: RatingTaskGroup[] = [];
   gruposTareasVisibles: RatingTaskGroup[] = [];
   tareasVisibles: Calificacion[] = [];
@@ -88,6 +95,8 @@ export class RatingsComponent implements OnInit {
   nivelActivo = '';
   textoBusquedaAlumno = '';
   etiquetaSeleccionada = '';
+  mostrarFiltroMaestro = false;
+  maestroSeleccionadoId: number | null = null;
   private revisionCarga = 0;
 
   constructor(
@@ -96,6 +105,8 @@ export class RatingsComponent implements OnInit {
     private readonly groupsService: GroupsService,
     private readonly studentsService: StudentsService,
     private readonly evaluationsService: EvaluationsService,
+    private readonly etiquetasService: EtiquetasService,
+    private readonly tasksService: TasksService,
     private readonly authService: AuthService,
     private readonly sweetAlert: SweetAlertService,
   ) {
@@ -133,13 +144,32 @@ export class RatingsComponent implements OnInit {
   }
 
   get gruposFiltrados(): Grupo[] {
-    if (this.esAdmin) return this.grupos;
+    if (this.esAdmin) {
+      if (!this.maestroSeleccionadoId) return this.grupos;
+      const gruposDelMaestro = new Set(
+        this.grupoMaterias
+          .filter((gm) => gm.maestro_id === this.maestroSeleccionadoId)
+          .map((gm) => gm.grupo_id),
+      );
+      return this.grupos.filter((grupo) => gruposDelMaestro.has(grupo.id));
+    }
     const ids = new Set(
       this.grupoMaterias
         .filter((gm) => gm.maestro_id === this.usuario?.id)
         .map((gm) => gm.grupo_id),
     );
     return this.grupos.filter((grupo) => ids.has(grupo.id));
+  }
+
+  get maestrosDisponibles(): { id: number; nombre: string }[] {
+    const maestros = new Map<number, string>();
+    this.grupoMaterias.forEach((materia) => {
+      if (!maestros.has(materia.maestro_id))
+        maestros.set(materia.maestro_id, materia.maestro_nombre?.trim() || 'Maestro sin nombre');
+    });
+    return [...maestros.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
   }
 
   get nivelesEducativos(): string[] {
@@ -223,10 +253,16 @@ export class RatingsComponent implements OnInit {
     this.evaluationsService
       .obtenerEvaluaciones()
       .subscribe({ next: (data) => (this.evaluaciones = data) });
+    this.etiquetasService.obtenerEtiquetas().subscribe({ next: (data) => (this.etiquetas = data) });
   }
 
   seleccionarNivel(nivel: string): void {
     this.nivelActivo = nivel;
+  }
+
+  cambiarFiltroMaestro(valor: string): void {
+    this.maestroSeleccionadoId = valor ? Number(valor) : null;
+    this.actualizarNivelActivo();
   }
 
   async seleccionarGrupo(grupo: Grupo): Promise<void> {
@@ -305,12 +341,29 @@ export class RatingsComponent implements OnInit {
     const escalaCien = this.usaEscalaCien;
     this.isLoading = true;
     try {
+      const configuracionId = this.configEvaluacion?.id;
+      const [tareasVigentes, etiquetasVigentes] = await Promise.all([
+        this.esPorPuntos
+          ? firstValueFrom(this.tasksService.obtenerTareasPorGrupoMateria(materiaId))
+          : Promise.resolve([] as Tarea[]),
+        this.esPorPuntos && configuracionId
+          ? firstValueFrom(this.etiquetasService.obtenerEtiquetasPorConfiguracion(configuracionId))
+          : Promise.resolve([] as Etiqueta[]),
+      ]);
+      this.tareasVigentes = tareasVigentes;
+      if (this.esPorPuntos) this.etiquetas = etiquetasVigentes;
       const filas = await firstValueFrom(
         from(this.alumnos).pipe(
           mergeMap(
             (alumno) =>
               this.ratingsService.obtenerCalificacionesPorAlumno(alumno.id, materiaId).pipe(
-                map((ratings) => createRatingGridRow(alumno, ratings, escalaCien)),
+                map((ratings) =>
+                  createRatingGridRow(
+                    alumno,
+                    this.aplicarValoresDeTareas(ratings, tareasVigentes),
+                    escalaCien,
+                  ),
+                ),
                 catchError(() => of(createRatingGridRow(alumno, [], escalaCien, true))),
               ),
             REQUEST_CONCURRENCY,
@@ -322,6 +375,8 @@ export class RatingsComponent implements OnInit {
       this.filas = filas.sort((a, b) =>
         a.alumno.nombre.localeCompare(b.alumno.nombre, 'es', { sensitivity: 'base' }),
       );
+      this.reconstruirTareas();
+      this.sincronizarPuntosConConfiguracionVigente();
       this.reconstruirTareas();
     } finally {
       if (revision === this.revisionCarga) this.isLoading = false;
@@ -338,7 +393,15 @@ export class RatingsComponent implements OnInit {
         this.ratingsService.obtenerCalificacionesPorAlumno(fila.alumno.id, materiaId),
       );
       if (revision !== this.revisionCarga) return;
-      Object.assign(fila, createRatingGridRow(fila.alumno, ratings, this.usaEscalaCien));
+      Object.assign(
+        fila,
+        createRatingGridRow(
+          fila.alumno,
+          this.aplicarValoresDeTareas(ratings, this.tareasVigentes),
+          this.usaEscalaCien,
+        ),
+      );
+      this.sincronizarPuntosFila(fila);
       this.reconstruirTareas();
     } catch {
       if (revision === this.revisionCarga)
@@ -354,10 +417,7 @@ export class RatingsComponent implements OnInit {
   onCalificacionChange(cal: Calificacion): void {
     cal.calificacion = normalizeNullableNumber(cal.calificacion);
     if (this.esPorPuntos)
-      cal.puntos_obtenidos =
-        cal.calificacion === null
-          ? null
-          : roundTo((cal.calificacion / 100) * (Number(cal.valor_tarea) || 0));
+      cal.puntos_obtenidos = puntosDesdeCalificacion(cal);
   }
 
   estaModificada(fila: RatingGridRow, cal: Calificacion): boolean {
@@ -381,13 +441,21 @@ export class RatingsComponent implements OnInit {
   getTotalPuntos(fila: RatingGridRow): number {
     return fila.calificaciones
       .filter((cal) => (cal.periodo ?? 1) === this.periodoSeleccionado)
-      .reduce((total, cal) => total + (Number(cal.puntos_obtenidos) || 0), 0);
+      .reduce((total, cal) => total + (puntosDesdeCalificacion(cal) ?? 0), 0);
   }
 
-  getMaxPuntosPeriodo(): number {
-    return this.tareas
-      .filter((cal) => (cal.periodo ?? 1) === this.periodoSeleccionado)
+  getMaxPuntosPeriodo(fila: RatingGridRow): number {
+    const calificaciones = fila.calificaciones.filter(
+      (cal) => (cal.periodo ?? 1) === this.periodoSeleccionado,
+    );
+    const etiquetasUsadas = new Set(calificaciones.map((cal) => cal.etiqueta_id).filter(Boolean));
+    const totalEtiquetas = this.etiquetas
+      .filter((etiqueta) => etiquetasUsadas.has(etiqueta.id))
+      .reduce((total, etiqueta) => total + (Number(etiqueta.valor_total) || 0), 0);
+    const sinEtiqueta = calificaciones
+      .filter((cal) => !cal.etiqueta_id)
       .reduce((total, cal) => total + (Number(cal.valor_tarea) || 0), 0);
+    return totalEtiquetas + sinEtiqueta;
   }
 
   async guardarTodo(): Promise<void> {
@@ -643,6 +711,42 @@ export class RatingsComponent implements OnInit {
     this.actualizarColumnas();
   }
 
+  private aplicarValoresDeTareas(ratings: Calificacion[], tareas: Tarea[]): Calificacion[] {
+    const porId = new Map(tareas.map((tarea) => [tarea.id, tarea]));
+    return ratings.map((calificacion) => {
+      const tarea = porId.get(calificacion.tarea_id);
+      return tarea?.valor_propio === null || tarea?.valor_propio === undefined
+        ? calificacion
+        : { ...calificacion, valor_tarea: tarea.valor_propio, valor_propio: tarea.valor_propio };
+    });
+  }
+
+  private sincronizarPuntosConConfiguracionVigente(): void {
+    if (!this.esPorPuntos) return;
+    this.filas.forEach((fila) => this.sincronizarPuntosFila(fila));
+  }
+
+  private sincronizarPuntosFila(fila: RatingGridRow): void {
+    if (!this.esPorPuntos) return;
+    const porEtiqueta = new Map<string, Calificacion[]>();
+    fila.calificaciones.forEach((calificacion) => {
+      if (!calificacion.etiqueta_id) return;
+      const clave = `${calificacion.periodo ?? 1}:${calificacion.etiqueta_id}`;
+      const tareas = porEtiqueta.get(clave) ?? [];
+      tareas.push(calificacion);
+      porEtiqueta.set(clave, tareas);
+    });
+    porEtiqueta.forEach((calificaciones) => {
+      const etiqueta = this.etiquetas.find((item) => item.id === calificaciones[0].etiqueta_id);
+      if (etiqueta && calificaciones.length === 1)
+        calificaciones[0].valor_tarea = Number(etiqueta.valor_total) || 0;
+    });
+    fila.calificaciones.forEach((calificacion) => {
+      calificacion.puntos_obtenidos = puntosDesdeCalificacion(calificacion);
+    });
+    fila.estadoInicial = createRatingSnapshot(fila.calificaciones);
+  }
+
   private actualizarColumnas(): void {
     this.gruposTareas = groupRatingTasks(this.tareas, this.periodoSeleccionado);
     if (!this.gruposTareas.some((grupo) => grupo.clave === this.etiquetaSeleccionada))
@@ -687,6 +791,7 @@ export class RatingsComponent implements OnInit {
         ...cal,
         calificacion:
           cal.calificacion === null ? null : Number(cal.calificacion) / (escalaCien ? 10 : 1),
+        puntos_obtenidos: porPuntos ? puntosDesdeCalificacion(cal) : cal.puntos_obtenidos,
       })),
       porPuntos,
     );

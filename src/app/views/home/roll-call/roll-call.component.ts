@@ -45,6 +45,7 @@ export class RollCallComponent implements OnInit {
   modalAbierto = false;
   grupoSeleccionado: number | null = null;
   materiaSeleccionada: GrupoMateria | null = null;
+  fechaPaseSeleccionada = this.obtenerFechaLocalActual();
 
   sesion: SesionAsistencia | null = null;
   alumnos: AlumnoListaAsistencia[] = [];
@@ -108,6 +109,10 @@ export class RollCallComponent implements OnInit {
 
   get esAdmin(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'admin';
+  }
+
+  get fechaMaximaPase(): string {
+    return this.obtenerFechaLocalActual();
   }
 
   get gruposFiltrados(): Grupo[] {
@@ -200,6 +205,7 @@ export class RollCallComponent implements OnInit {
     this.mostrarHistorial = false;
     this.sesionesHistoricas = [];
     this.textoBusquedaAlumno = '';
+    this.fechaPaseSeleccionada = this.obtenerFechaLocalActual();
     this.modalAbierto = true;
   }
 
@@ -217,9 +223,26 @@ export class RollCallComponent implements OnInit {
 
   seleccionarMateria(materia: GrupoMateria): void {
     this.materiaSeleccionada = materia;
-    this.isLoadingLista = true;
+    this.abrirSesionParaFecha();
+  }
 
-    this.attendanceService.abrirSesion({ grupo_materia_id: materia.id }).subscribe({
+  cambiarFechaPase(): void {
+    if (!this.fechaPaseSeleccionada || this.fechaPaseSeleccionada > this.obtenerFechaLocalActual()) {
+      this.fechaPaseSeleccionada = this.obtenerFechaLocalActual();
+    }
+    if (this.materiaSeleccionada) this.abrirSesionParaFecha();
+  }
+
+  private abrirSesionParaFecha(): void {
+    if (!this.materiaSeleccionada) return;
+    this.isLoadingLista = true;
+    this.sesion = null;
+    this.alumnos = [];
+
+    this.attendanceService.abrirSesion({
+      grupo_materia_id: this.materiaSeleccionada.id,
+      fecha: this.fechaPaseSeleccionada,
+    }).subscribe({
       next: ({ sesion_id }) => this.cargarListaSesion(sesion_id),
       error: () => {
         this.sweetAlert.error('Error', 'No se pudo abrir el pase de lista');
@@ -245,7 +268,7 @@ export class RollCallComponent implements OnInit {
   }
 
   abrirHistorial(): void {
-    if (!this.esAdmin || !this.materiaSeleccionada || this.cargandoHistorial) return;
+    if (!this.materiaSeleccionada || this.cargandoHistorial) return;
     this.mostrarHistorial = true;
     this.cargandoHistorial = true;
     this.attendanceService.obtenerSesiones(this.materiaSeleccionada.id).subscribe({
@@ -267,7 +290,15 @@ export class RollCallComponent implements OnInit {
   abrirSesionHistorica(sesion: SesionAsistencia): void {
     this.cerrarHistorial();
     this.isLoadingLista = true;
+    this.fechaPaseSeleccionada = sesion.fecha.slice(0, 10);
     this.cargarListaSesion(sesion.id);
+  }
+
+  private obtenerFechaLocalActual(): string {
+    const fecha = new Date();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${fecha.getFullYear()}-${mes}-${dia}`;
   }
 
   get alumnosFiltrados(): AlumnoListaAsistencia[] {
