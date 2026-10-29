@@ -171,9 +171,14 @@ export class EvaluationsComponent implements OnInit {
     this.grupoMateriasService.obtenerGrupoMaterias().subscribe({
       next: (data) => this.grupoMaterias = data
     });
-    this.usersService.obtenerUsuarios().subscribe({
-      next: (data) => this.usuarios = data
-    });
+    // El catálogo de usuarios solo se utiliza en el filtro de administrador.
+    // El endpoint rechaza con 403 las cuentas de maestro.
+    if (this.esAdmin) {
+      this.usersService.obtenerUsuarios().subscribe({
+        next: (data) => this.usuarios = data,
+        error: () => this.sweetAlert.error('Error', 'No se pudo cargar la lista de maestros')
+      });
+    }
   }
 
   cambiarFiltroMaestro(valor: string): void {

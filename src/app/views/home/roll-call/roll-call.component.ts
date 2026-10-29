@@ -1,16 +1,17 @@
-import { Component, HostListener, OnInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { BarcodeFormat } from '@zxing/library';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { catchError, concatMap, finalize, firstValueFrom, from, map, Observable, of, Subscription, switchMap, tap } from 'rxjs';
 import { AttendanceService } from '../../../core/services/attendance.service';
 import { GroupsService } from '../../../core/services/groups.service';
 import { GrupoMateriasService } from '../../../core/services/grupo-materias.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SweetAlertService } from '../../../core/services/sweet-alert.service';
-import { AlumnoListaAsistencia, SesionAsistencia, EstadoAsistencia, MetodoAsistencia, CredencialQr } from '../../../core/models/attendance.model';
+import { AlumnoListaAsistencia, SesionAsistencia, EstadoAsistencia, MetodoAsistencia, CredencialQr, ListaAsistenciaResponse } from '../../../core/models/attendance.model';
 import { Grupo } from '../../../core/models/group.model';
 import { GrupoMateria } from '../../../core/models/groupSubject.model';
 import { Usuario } from '../../../core/models/user.model';
@@ -26,7 +27,7 @@ import jsPDF from 'jspdf';
   templateUrl: './roll-call.component.html',
   styleUrl: './roll-call.component.scss'
 })
-export class RollCallComponent implements OnInit {
+export class RollCallComponent implements OnInit, OnDestroy {
 
   readonly estadosAsistencia = ESTADOS_ASISTENCIA;
   readonly obtenerConfigEstado = obtenerConfigEstado;
@@ -56,7 +57,14 @@ export class RollCallComponent implements OnInit {
 
   isLoadingLista = false;
   guardandoAlumnoId: number | null = null;
+  guardandoPendientes = false;
+  cerrandoSesion = false;
   textoBusquedaAlumno = '';
+  private cargaLista?: Subscription;
+  private cargaHistorial?: Subscription;
+  private guardado?: Subscription;
+  private revisionCarga = 0;
+  private destruido = false;
 
   mostrarModalQr = false;
   isGuardandoQr = false;
@@ -96,6 +104,14 @@ export class RollCallComponent implements OnInit {
     this.cargarDatos();
   }
 
+  ngOnDestroy(): void {
+    this.destruido = true;
+    this.revisionCarga++;
+    this.cargaLista?.unsubscribe();
+    this.cargaHistorial?.unsubscribe();
+    this.guardado?.unsubscribe();
+  }
+
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.mostrarModalCredencial) {
@@ -113,6 +129,24 @@ export class RollCallComponent implements OnInit {
 
   get fechaMaximaPase(): string {
     return this.obtenerFechaLocalActual();
+  }
+
+  get fechaPaseValida(): boolean {
+    const fecha = this.fechaPaseSeleccionada;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) return false;
+    const dia = new Date(`${fecha}T00:00:00Z`);
+    return Number.isFinite(dia.getTime()) && dia.toISOString().slice(0, 10) === fecha &&
+      fecha <= this.fechaMaximaPase;
+  }
+
+  get fechaPaseTexto(): string {
+    const fecha = this.sesion?.fecha.slice(0, 10) || this.fechaPaseSeleccionada;
+    return /^\d{4}-\d{2}-\d{2}$/.test(fecha || '')
+      ? fecha.split('-').reverse().join('/') : 'Fecha sin seleccionar';
+  }
+
+  get guardandoSesion(): boolean {
+    return this.guardandoAlumnoId !== null || this.guardandoPendientes || this.isGuardandoQr || this.cerrandoSesion;
   }
 
   get gruposFiltrados(): Grupo[] {
@@ -198,6 +232,8 @@ export class RollCallComponent implements OnInit {
   }
 
   seleccionarGrupo(grupo: Grupo): void {
+    if (this.guardandoSesion) return;
+    this.limpiarPase();
     this.grupoSeleccionado = grupo.id;
     this.materiaSeleccionada = null;
     this.sesion = null;
@@ -210,6 +246,8 @@ export class RollCallComponent implements OnInit {
   }
 
   cerrarModal(): void {
+    if (this.guardandoSesion) return;
+    this.limpiarPase();
     this.modalAbierto = false;
     this.grupoSeleccionado = null;
     this.materiaSeleccionada = null;
@@ -222,61 +260,85 @@ export class RollCallComponent implements OnInit {
   }
 
   seleccionarMateria(materia: GrupoMateria): void {
+    if (this.guardandoSesion) return;
+    this.limpiarPase();
     this.materiaSeleccionada = materia;
-    this.abrirSesionParaFecha();
   }
 
   cambiarFechaPase(): void {
-    if (!this.fechaPaseSeleccionada || this.fechaPaseSeleccionada > this.obtenerFechaLocalActual()) {
-      this.fechaPaseSeleccionada = this.obtenerFechaLocalActual();
-    }
-    if (this.materiaSeleccionada) this.abrirSesionParaFecha();
+    if (this.guardandoSesion) return;
+    this.limpiarPase();
   }
 
-  private abrirSesionParaFecha(): void {
-    if (!this.materiaSeleccionada) return;
-    this.isLoadingLista = true;
+  private limpiarPase(): void {
+    this.revisionCarga++;
+    this.cargaLista?.unsubscribe();
+    this.cerrarHistorial();
+    this.cerrarModalQr();
     this.sesion = null;
     this.alumnos = [];
-
-    this.attendanceService.abrirSesion({
-      grupo_materia_id: this.materiaSeleccionada.id,
-      fecha: this.fechaPaseSeleccionada,
-    }).subscribe({
-      next: ({ sesion_id }) => this.cargarListaSesion(sesion_id),
-      error: () => {
-        this.sweetAlert.error('Error', 'No se pudo abrir el pase de lista');
-        this.isLoadingLista = false;
-        this.materiaSeleccionada = null;
-      }
-    });
+    this.sesionesHistoricas = [];
+    this.textoBusquedaAlumno = '';
+    this.isLoadingLista = false;
   }
 
-  private cargarListaSesion(sesionId: number): void {
-    this.attendanceService.obtenerListaSesion(sesionId).subscribe({
+  abrirSesionParaFecha(): void {
+    if (!this.materiaSeleccionada || this.isLoadingLista || this.guardandoSesion) return;
+    if (!this.fechaPaseValida) {
+      this.sweetAlert.error('Fecha inválida', 'Selecciona una fecha válida, hoy o anterior.');
+      return;
+    }
+    const materiaId = this.materiaSeleccionada.id;
+    const fecha = this.fechaPaseSeleccionada;
+    this.limpiarPase();
+    const solicitud = this.attendanceService.abrirSesion({ grupo_materia_id: materiaId, fecha }).pipe(
+      switchMap(({ sesion_id }) => this.attendanceService.obtenerListaSesion(sesion_id).pipe(
+        map(respuesta => {
+          if (respuesta.sesion.id !== sesion_id) throw new Error('La sesión recibida no corresponde al pase solicitado');
+          return respuesta;
+        })
+      ))
+    );
+    this.cargarListaSesion(solicitud, materiaId, fecha);
+  }
+
+  private cargarListaSesion(solicitud: Observable<ListaAsistenciaResponse>, materiaId: number, fecha: string): void {
+    const revision = this.revisionCarga;
+    this.isLoadingLista = true;
+    this.cargaLista = solicitud.subscribe({
       next: ({ sesion, alumnos }) => {
+        if (revision !== this.revisionCarga) return;
+        this.isLoadingLista = false;
+        if (sesion.grupo_materia_id !== materiaId || sesion.fecha.slice(0, 10) !== fecha) {
+          this.sweetAlert.error('Pase incorrecto', 'No se cargó el pase porque su fecha o materia no coincide con tu selección. Vuelve a abrirlo.');
+          return;
+        }
         this.sesion = sesion;
         this.alumnos = alumnos;
         this.metodoActivo = sesion.metodo_default;
-        this.isLoadingLista = false;
       },
-      error: () => {
-        this.sweetAlert.error('Error', 'No se pudo cargar la lista de alumnos');
+      error: error => {
+        if (revision !== this.revisionCarga) return;
+        this.sweetAlert.error('Error', error?.error?.message || 'No se pudo abrir el pase de la fecha seleccionada. Inténtalo de nuevo.');
         this.isLoadingLista = false;
       }
     });
   }
 
   abrirHistorial(): void {
-    if (!this.materiaSeleccionada || this.cargandoHistorial) return;
+    if (!this.materiaSeleccionada || this.cargandoHistorial || this.guardandoSesion || this.isLoadingLista) return;
+    const materiaId = this.materiaSeleccionada.id;
+    const revision = this.revisionCarga;
     this.mostrarHistorial = true;
     this.cargandoHistorial = true;
-    this.attendanceService.obtenerSesiones(this.materiaSeleccionada.id).subscribe({
+    this.cargaHistorial = this.attendanceService.obtenerSesiones(materiaId).subscribe({
       next: (sesiones) => {
+        if (revision !== this.revisionCarga) return;
         this.sesionesHistoricas = sesiones;
         this.cargandoHistorial = false;
       },
       error: () => {
+        if (revision !== this.revisionCarga) return;
         this.cargandoHistorial = false;
         this.sweetAlert.error('Error', 'No se pudo cargar el historial de pases de lista');
       },
@@ -284,14 +346,21 @@ export class RollCallComponent implements OnInit {
   }
 
   cerrarHistorial(): void {
+    this.cargaHistorial?.unsubscribe();
+    this.cargandoHistorial = false;
     this.mostrarHistorial = false;
   }
 
   abrirSesionHistorica(sesion: SesionAsistencia): void {
-    this.cerrarHistorial();
-    this.isLoadingLista = true;
+    if (this.guardandoSesion || !this.materiaSeleccionada ||
+        sesion.grupo_materia_id !== this.materiaSeleccionada.id) return;
+    this.limpiarPase();
     this.fechaPaseSeleccionada = sesion.fecha.slice(0, 10);
-    this.cargarListaSesion(sesion.id);
+    const solicitud = this.attendanceService.obtenerListaSesion(sesion.id).pipe(map(respuesta => {
+      if (respuesta.sesion.id !== sesion.id) throw new Error('La sesión recibida no corresponde al historial seleccionado');
+      return respuesta;
+    }));
+    this.cargarListaSesion(solicitud, this.materiaSeleccionada.id, this.fechaPaseSeleccionada);
   }
 
   private obtenerFechaLocalActual(): string {
@@ -320,41 +389,79 @@ export class RollCallComponent implements OnInit {
 
   /** Los administradores pueden corregir una sesión incluso después del cierre. */
   get puedeEditarSesion(): boolean {
-    return !this.sesionCerrada || this.esAdmin;
+    return !!this.sesion && !this.isLoadingLista && this.fechaPaseValida &&
+      this.sesion.fecha.slice(0, 10) === this.fechaPaseSeleccionada &&
+      this.sesion.grupo_materia_id === this.materiaSeleccionada?.id &&
+      (!this.sesionCerrada || this.esAdmin);
   }
 
   cambiarMetodo(metodo: MetodoAsistencia): void {
+    if (this.guardandoSesion) return;
     this.metodoActivo = metodo;
   }
 
   marcarEstado(alumno: AlumnoListaAsistencia, estado: EstadoAsistencia): void {
-    if (!this.sesion || !this.puedeEditarSesion || this.guardandoAlumnoId) return;
+    if (!this.sesion || !this.puedeEditarSesion || this.guardandoSesion) return;
 
     const estadoAnterior = alumno.estado;
     alumno.estado = estado;
     this.guardandoAlumnoId = alumno.alumno_id;
 
-    this.attendanceService.registrarManual({
+    this.guardado = this.attendanceService.registrarManual({
       sesion_id: this.sesion.id,
       alumno_id: alumno.alumno_id,
       estado,
-    }).subscribe({
-      next: () => this.guardandoAlumnoId = null,
+    }).pipe(finalize(() => this.guardandoAlumnoId = null)).subscribe({
+      next: resultado => {
+        alumno.registro_id = resultado.registro_id;
+        alumno.metodo = 'manual';
+      },
       error: () => {
         alumno.estado = estadoAnterior;
-        this.guardandoAlumnoId = null;
         this.sweetAlert.error('Error', `No se pudo registrar la asistencia de ${alumno.alumno_nombre}`);
       }
     });
   }
 
   marcarTodosPresentes(): void {
-    if (!this.sesion || !this.puedeEditarSesion) return;
-    this.alumnos.filter(a => a.estado === null).forEach(alumno => this.marcarEstado(alumno, 'presente'));
+    if (!this.sesion || !this.puedeEditarSesion || this.guardandoSesion) return;
+    const pendientes = this.alumnos.filter(a => a.estado === null);
+    if (!pendientes.length) return;
+    const sesionId = this.sesion.id;
+    let guardados = 0;
+    let fallidos = 0;
+    this.guardandoPendientes = true;
+    this.guardado = from(pendientes).pipe(
+      concatMap(alumno => {
+        this.guardandoAlumnoId = alumno.alumno_id;
+        return this.attendanceService.registrarManual({
+          sesion_id: sesionId, alumno_id: alumno.alumno_id, estado: 'presente'
+        }).pipe(
+          tap(resultado => {
+            alumno.estado = 'presente';
+            alumno.metodo = 'manual';
+            alumno.registro_id = resultado.registro_id;
+            guardados++;
+          }),
+          catchError(() => { fallidos++; return of(null); })
+        );
+      }),
+      finalize(() => { this.guardandoPendientes = false; this.guardandoAlumnoId = null; })
+    ).subscribe({
+      complete: () => {
+        if (fallidos) {
+          this.sweetAlert.warning('Registro incompleto', `${guardados} asistencia${guardados === 1 ? '' : 's'} guardada${guardados === 1 ? '' : 's'} y ${fallidos} pendiente${fallidos === 1 ? '' : 's'}. Reintenta antes de cerrar el pase.`);
+        } else {
+          this.sweetAlert.toast(guardados === 1 ? '1 alumno registrado como presente' : `${guardados} alumnos registrados como presentes`, 'success');
+        }
+      },
+      error: () => this.sweetAlert.error('Error', 'No se pudieron guardar todos los pendientes. Revisa la lista antes de cerrar el pase.')
+    });
   }
 
   // Modo QR (escanear)
   abrirModalQr(): void {
+    if (!this.puedeEditarSesion || this.guardandoSesion) return;
     this.tokenManualQr = '';
     this.scannerError = null;
     this.ultimoTokenEscaneado = null;
@@ -450,10 +557,11 @@ export class RollCallComponent implements OnInit {
   }
 
   procesarTokenEscaneado(token: string): void {
-    if (!this.sesion || !this.puedeEditarSesion || !token.trim() || this.isGuardandoQr) return;
+    if (!this.sesion || !this.puedeEditarSesion || !token.trim() || this.guardandoSesion) return;
 
     this.isGuardandoQr = true;
-    this.attendanceService.registrarQr({ sesion_id: this.sesion.id, token: token.trim() }).subscribe({
+    this.guardado = this.attendanceService.registrarQr({ sesion_id: this.sesion.id, token: token.trim() })
+      .pipe(finalize(() => this.isGuardandoQr = false)).subscribe({
       next: (resultado) => {
         this.isGuardandoQr = false;
         this.actualizarAlumnoEnLista(resultado.alumno_id, resultado.estado);
@@ -483,23 +591,37 @@ export class RollCallComponent implements OnInit {
   }
 
   async cerrarSesion(): Promise<void> {
-    if (!this.sesion) return;
-
-    const result = await this.sweetAlert.confirm(
-      '¿Cerrar el pase de lista?',
-      'Ya no podrás editar los registros de esta sesión',
-      'Sí, cerrar',
-      'Cancelar'
-    );
-    if (!result.isConfirmed) return;
-
-    this.attendanceService.cerrarSesion(this.sesion.id).subscribe({
-      next: (sesion) => {
+    if (!this.sesion || !this.puedeEditarSesion || this.sesionCerrada || this.guardandoSesion) return;
+    const sesionId = this.sesion.id;
+    const fecha = this.fechaPaseTexto;
+    const materia = this.materiaSeleccionada?.materia_nombre || 'esta materia';
+    const grupo = this.grupoActivo ? obtenerNombreGrupo(this.grupoActivo) : '';
+    const sinMarcar = this.resumen.sinMarcar;
+    const avisoPendientes = sinMarcar === 0 ? '' : sinMarcar === 1
+      ? 'Queda 1 alumno sin marcar; se contabilizará como ausente. '
+      : `Quedan ${sinMarcar} alumnos sin marcar; se contabilizarán como ausentes. `;
+    this.cerrandoSesion = true;
+    try {
+      const result = await this.sweetAlert.confirm(
+        `¿Cerrar el pase del ${fecha}?`,
+        `${materia}${grupo ? ` · ${grupo}` : ''}. ${avisoPendientes}Después del cierre, las correcciones requieren un administrador.`,
+        'Sí, cerrar este pase', 'Seguir registrando'
+      );
+      if (!result.isConfirmed || this.destruido) return;
+      const sesion = await firstValueFrom(this.attendanceService.cerrarSesion(sesionId));
+      if (this.destruido) return;
+      if (sesion.id === sesionId && sesion.grupo_materia_id === this.materiaSeleccionada?.id &&
+          sesion.fecha.slice(0, 10) === this.fechaPaseSeleccionada) {
         this.sesion = sesion;
         this.sweetAlert.toast('Pase de lista cerrado', 'success');
-      },
-      error: () => this.sweetAlert.error('Error', 'No se pudo cerrar la sesión')
-    });
+      } else {
+        this.sweetAlert.error('Pase incorrecto', 'La respuesta no corresponde al pase que estabas cerrando. Vuelve a abrirlo para comprobar su estado.');
+      }
+    } catch {
+      if (!this.destruido) this.sweetAlert.error('Error', 'No se pudo cerrar la sesión');
+    } finally {
+      this.cerrandoSesion = false;
+    }
   }
 
   // Modal de credencial (mostrar/imprimir el QR del alumno)

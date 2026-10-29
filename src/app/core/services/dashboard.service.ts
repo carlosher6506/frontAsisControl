@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin, map, Observable, catchError, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { DashboardStats } from '../models/dashboard.model';
 import { ENV_ASIS } from '../../config/environment';
 
@@ -13,28 +13,8 @@ export class DashboardService {
 
   constructor(private http: HttpClient) {}
 
-  getStats(esAdmin: boolean = false): Observable<DashboardStats> {
-    const peticiones: any = {
-      estudiantes:  this.http.get<any>(`${this.apiUrl}/students`).pipe(catchError(() => of([]))),
-      grupos:       this.http.get<any>(`${this.apiUrl}/groups`).pipe(catchError(() => of([]))),
-      evaluaciones: this.http.get<any>(`${this.apiUrl}/evaluations`).pipe(catchError(() => of([]))),
-      tareas:       this.http.get<any>(`${this.apiUrl}/tasks`).pipe(catchError(() => of([]))),
-    };
-
-    // Solo admin puede ver usuarios
-    if (esAdmin) {
-      peticiones.usuarios = this.http.get<any>(`${this.apiUrl}/users`).pipe(catchError(() => of([])));
-    }
-
-    return forkJoin(peticiones).pipe(
-      map((data: any) => ({
-        totalEstudiantes:  Array.isArray(data.estudiantes)  ? data.estudiantes.length  : 0,
-        totalGrupos:       Array.isArray(data.grupos)       ? data.grupos.length       : 0,
-        totalEvaluaciones: Array.isArray(data.evaluaciones) ? data.evaluaciones.length : 0,
-        totalTareas:       Array.isArray(data.tareas)       ? data.tareas.length       : 0,
-        totalUsuarios:     esAdmin && Array.isArray(data.usuarios) ? data.usuarios.length : 0,
-      }))
-    );
+  getStats(): Observable<DashboardStats> {
+    return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`);
   }
 
   getUsuariosActividad(): Observable<any> {

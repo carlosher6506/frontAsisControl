@@ -125,7 +125,7 @@
       <div>
         <h5 id="task-modal-title">{{ obtenerNombreGrupo(grupoSeleccionado) }}</h5>
       </div>
-      <button type="button" class="close-button" (click)="cerrarModal()" aria-label="Cerrar creación de tareas">
+      <button type="button" class="close-button" [disabled]="isSubmitting" (click)="cerrarModal()" aria-label="Cerrar creación de tareas">
         <i class="bi bi-x-lg"></i>
       </button>
     </header>
@@ -148,7 +148,7 @@
           <aside class="subjects-sidebar">
             <p>Selecciona una materia</p>
             @for (materia of materiasFiltradas; track materia.id) {
-              <button type="button" [class.active]="grupoMateriaSeleccionado?.id === materia.id" (click)="seleccionarMateria(materia)">
+              <button type="button" [disabled]="isSubmitting" [class.active]="grupoMateriaSeleccionado?.id === materia.id" (click)="seleccionarMateria(materia)">
                 <strong>{{ materia.materia_nombre }}</strong>
                 <span>{{ materia.maestro_nombre }}</span>
               </button>
@@ -170,7 +170,7 @@
                   <h6>{{ grupoMateriaSeleccionado.materia_nombre }}</h6>
                   <div class="period-tabs">
                     @for (periodo of periodos; track periodo) {
-                      <button type="button" [class.active]="periodoSeleccionado === periodo"
+                      <button type="button" [disabled]="isSubmitting" [class.active]="periodoSeleccionado === periodo"
                         (click)="seleccionarPeriodo(periodo)">{{ nombrePeriodo }} {{ periodo }}
                       </button>
                     }
@@ -182,7 +182,19 @@
                 </div>
               </div>
               <div class="task-list">
-                @if (!tareasFiltradas.length) {
+                @if (isLoadingTareas) {
+                  <p class="text-muted text-center py-3 mb-0" role="status">Cargando tareas...</p>
+                }
+                @else if (errorCargaTareas) {
+                  <div class="alert alert-danger" role="alert">
+                    No se pudieron cargar las tareas de esta materia.
+                    <button type="button" class="btn btn-link btn-sm" (click)="cargarTareasMateria()">Reintentar</button>
+                  </div>
+                }
+                @else if (!tareasFiltradas.length && textoBusquedaTareas) {
+                  <p class="text-muted text-center py-3 mb-0">No hay tareas que coincidan con la búsqueda.</p>
+                }
+                @else if (!tareasFiltradas.length) {
                   <p class="text-muted text-center py-3 mb-0">Aún no hay tareas para este periodo.</p>
                 }
                 @else {
@@ -202,10 +214,10 @@
                         </div>
                       }
                       <div>
-                        <button class="icon-action" (click)="editarTarea(tarea)" aria-label="Editar tarea">
+                        <button class="icon-action" [disabled]="isSubmitting" (click)="editarTarea(tarea)" aria-label="Editar tarea">
                           <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="icon-action danger" (click)="eliminar(tarea)" aria-label="Eliminar tarea">
+                        <button class="icon-action danger" [disabled]="isSubmitting" (click)="eliminar(tarea)" aria-label="Eliminar tarea">
                           <i class="bi bi-trash"></i>
                         </button>
                       </div>
@@ -216,10 +228,10 @@
               <form class="task-form" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
                 <div class="form-title">{{ tareaEditando ? 'Editar tarea' : 'Nueva tarea' }}
                   @if (tareaEditando) {
-                    <button type="button" (click)="cancelarEdicion()" class="btn btn-sm btn-link">Cancelar</button>
+                    <button type="button" [disabled]="isSubmitting" (click)="cancelarEdicion()" class="btn btn-sm btn-link">Cancelar</button>
                   }
                 </div>
-                <div class="form-grid">
+                <fieldset class="form-grid" [disabled]="isSubmitting || isLoadingTareas || errorCargaTareas">
                   <div>
                     <label>Nombre</label>
                     <input formControlName="nombre" class="form-control" maxlength="150" placeholder="Nombre de la tarea"
@@ -252,9 +264,9 @@
                       </div>
                     }
                     <button type="submit" class="btn btn-dark submit-button"
-                      [disabled]="isSubmitting">{{ isSubmitting ? 'Guardando...' : (tareaEditando ? 'Guardar cambios' : 'Agregar tarea') }}
+                      [disabled]="isSubmitting || isLoadingTareas || errorCargaTareas">{{ isSubmitting ? 'Guardando...' : (tareaEditando ? 'Guardar cambios' : 'Agregar tarea') }}
                     </button>
-                  </div>
+                </fieldset>
               </form>
             }
           </main>

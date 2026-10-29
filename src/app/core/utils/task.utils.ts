@@ -1,6 +1,19 @@
 import { Grupo } from '../models/group.model';
 import { GrupoMateria } from '../models/groupSubject.model';
-import { FiltrosGrupoTareas } from '../models/task.model';
+import { FiltrosGrupoTareas, Tarea } from '../models/task.model';
+
+// Unifica identificadores/decimales serializados como texto y el periodo
+// predeterminado que también usa el apartado de calificaciones.
+export function normalizarTarea(tarea: Tarea): Tarea {
+  return {
+    ...tarea,
+    id: Number(tarea.id),
+    grupo_materia_id: Number(tarea.grupo_materia_id),
+    periodo: Number(tarea.periodo ?? 1),
+    etiqueta_id: tarea.etiqueta_id == null ? null : Number(tarea.etiqueta_id),
+    valor_propio: tarea.valor_propio == null ? null : Number(tarea.valor_propio)
+  };
+}
 
 export function normalizarTexto(valor: string | null | undefined): string {
   return (valor ?? '')

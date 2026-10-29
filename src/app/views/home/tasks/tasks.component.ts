@@ -1,7 +1,7 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { EtiquetasService } from '../../../core/services/etiquetas.service';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
@@ -24,7 +24,7 @@ import { gradoAOrdinal, grupoCoincideConFiltros, normalizarTexto } from '../../.
   templateUrl: './tasks.component.html',
   styleUrl: './tasks.component.scss'
 })
-export class TasksComponent implements OnInit {
+export class TasksComponent implements OnInit, OnDestroy {
   tareas: Tarea[] = [];
   grupoMaterias: GrupoMateria[] = [];
   grupos: Grupo[] = [];
@@ -34,6 +34,9 @@ export class TasksComponent implements OnInit {
 
   isLoading = true;
   isSubmitting = false;
+  isLoadingTareas = false;
+  errorCargaTareas = false;
+  private cargaTareas?: Subscription;
   modalAbierto = false;
   tareaEditando: Tarea | null = null;
   grupoSeleccionado: Grupo | null = null;
@@ -68,6 +71,10 @@ export class TasksComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarDatos();
+  }
+
+  ngOnDestroy(): void {
+    this.cargaTareas?.unsubscribe();
   }
 
   @HostListener('document:keydown.escape')
@@ -154,13 +161,18 @@ export class TasksComponent implements OnInit {
   get etiquetasFiltradas(): Etiqueta[] {
     return this.configEvaluacion ? this.etiquetas.filter(e => e.configuracion_id === this.configEvaluacion!.id) : [];
   }
-  get tareasFiltradas(): Tarea[] {
+  get tareasDelPeriodo(): Tarea[] {
     if (!this.grupoMateriaSeleccionado) return [];
+    return this.tareas.filter(t =>
+      t.grupo_materia_id === this.grupoMateriaSeleccionado!.id &&
+      t.periodo === this.periodoSeleccionado
+    );
+  }
+
+  get tareasFiltradas(): Tarea[] {
     const busqueda = normalizarTexto(this.textoBusquedaTareas);
-    return this.tareas.filter(
-      t => t.grupo_materia_id === this.grupoMateriaSeleccionado!.id && t.periodo === this.periodoSeleccionado && (
-        !busqueda || normalizarTexto(t.nombre).includes(busqueda)
-      )
+    return this.tareasDelPeriodo.filter(
+      t => !busqueda || normalizarTexto(t.nombre).includes(busqueda)
     );
   }
 
@@ -174,17 +186,15 @@ export class TasksComponent implements OnInit {
       grupos: this.groupsService.obtenerGrupos(),
       grupoMaterias: this.grupoMateriasService.obtenerGrupoMaterias(),
       evaluaciones: this.evaluationsService.obtenerEvaluaciones(),
-      etiquetas: this.etiquetasService.obtenerEtiquetas(),
-      tareas: this.tasksService.obtenerTareas()
+      etiquetas: this.etiquetasService.obtenerEtiquetas()
     }).subscribe({
-      next: ({ grupos, grupoMaterias, evaluaciones, etiquetas, tareas }) => {
+      next: ({ grupos, grupoMaterias, evaluaciones, etiquetas }) => {
         this.grupos = grupos;
         this.grupoMaterias = this.esAdmin ? grupoMaterias : grupoMaterias.filter(
           gm => gm.maestro_id === this.usuario?.id
         );
         this.evaluaciones = evaluaciones;
         this.etiquetas = etiquetas;
-        this.tareas = tareas;
         if (!this.nivelActivo) this.nivelActivo = this.nivelesEducativos[0] ?? '';
         this.isLoading = false;
       },
@@ -209,6 +219,8 @@ export class TasksComponent implements OnInit {
   }
 
   seleccionarGrupo(grupo: Grupo): void {
+    if (this.isSubmitting) return;
+    this.limpiarTareas();
     this.grupoSeleccionado = grupo;
     this.grupoMateriaSeleccionado = null;
     this.periodoSeleccionado = 1;
@@ -218,6 +230,8 @@ export class TasksComponent implements OnInit {
   }
 
   cerrarModal(): void {
+    if (this.isSubmitting) return;
+    this.limpiarTareas();
     this.modalAbierto = false;
     this.grupoSeleccionado = null;
     this.grupoMateriaSeleccionado = null;
@@ -227,14 +241,54 @@ export class TasksComponent implements OnInit {
   }
 
   seleccionarMateria(materia: GrupoMateria): void {
+    if (this.isSubmitting) return;
     this.grupoMateriaSeleccionado = materia;
     this.periodoSeleccionado = 1;
     this.tareaEditando = null;
     this.form.reset();
+    this.textoBusquedaTareas = '';
+    this.cargarTareasMateria();
   }
 
   seleccionarPeriodo(periodo: number): void {
-    this.periodoSeleccionado = periodo; this.cancelarEdicion();
+    if (this.isSubmitting) return;
+    this.periodoSeleccionado = periodo;
+    this.textoBusquedaTareas = '';
+    this.cancelarEdicion();
+  }
+
+  cargarTareasMateria(): void {
+    this.limpiarTareas();
+    if (!this.grupoMateriaSeleccionado) return;
+    this.isLoadingTareas = true;
+    this.cargaTareas = this.tasksService.obtenerTareasPorGrupoMateria(
+      this.grupoMateriaSeleccionado.id
+    ).subscribe({
+      next: tareas => {
+        this.tareas = tareas.map(tarea => this.conEtiqueta(tarea));
+        this.isLoadingTareas = false;
+      },
+      error: () => {
+        this.errorCargaTareas = true;
+        this.isLoadingTareas = false;
+      }
+    });
+  }
+
+  private limpiarTareas(): void {
+    this.cargaTareas?.unsubscribe();
+    this.tareas = [];
+    this.isLoadingTareas = false;
+    this.errorCargaTareas = false;
+  }
+
+  private conEtiqueta(tarea: Tarea): Tarea {
+    const etiqueta = this.etiquetas.find(e => e.id === tarea.etiqueta_id);
+    return {
+      ...tarea,
+      etiqueta_nombre: etiqueta?.nombre ?? tarea.etiqueta_nombre,
+      valor_total: etiqueta?.valor_total ?? tarea.valor_total
+    };
   }
 
   limpiarFiltros(): void {
@@ -254,17 +308,19 @@ export class TasksComponent implements OnInit {
   }
 
   getPuntosDisponibles(): number | null {
+    if (this.isLoadingTareas || this.errorCargaTareas) return null;
     const etiquetaId = Number(this.form.value.etiqueta_id);
     if (!etiquetaId) return null;
     const etiqueta = this.etiquetasFiltradas.find(e => e.id === etiquetaId);
     if (!etiqueta) return null;
-    const asignados = this.tareasFiltradas.filter(
+    const asignados = this.tareasDelPeriodo.filter(
       t => t.etiqueta_id === etiquetaId && t.valor_propio !== null && t.id !== this.tareaEditando?.id)
       .reduce((total, tarea) => total + (Number(tarea.valor_propio) || 0), 0);
     return Math.max(0, Number(etiqueta.valor_total) - asignados);
   }
 
   guardar(): void {
+    if (this.isSubmitting || this.isLoadingTareas || this.errorCargaTareas) return;
     if (this.form.invalid || !this.grupoMateriaSeleccionado) { this.form.markAllAsTouched(); return; }
     const nombre = String(this.form.value.nombre ?? '').trim();
     if (!nombre) {
@@ -274,7 +330,7 @@ export class TasksComponent implements OnInit {
     }
     const disponible = this.getPuntosDisponibles();
     const valorPropio = this.form.value.valor_propio === null || this.form.value.valor_propio === '' ? null : Number(this.form.value.valor_propio);
-    if (valorPropio !== null && (Number.isNaN(valorPropio) || (disponible !== null && valorPropio > disponible))) {
+    if (valorPropio !== null && (!Number.isFinite(valorPropio) || (disponible !== null && valorPropio > disponible))) {
       this.sweetAlert.error('Valor inválido', 'Los puntos asignados no pueden superar los puntos disponibles.');
       return;
     }
@@ -289,20 +345,28 @@ export class TasksComponent implements OnInit {
     this.isSubmitting = true;
     const solicitud = this.tareaEditando ? this.tasksService.actualizarTarea(this.tareaEditando.id, data) : this.tasksService.crearTarea(data);
     solicitud.subscribe({
-      next: () => {
+      next: tarea => {
+        // La respuesta guardada es la fuente inmediata de la lista; no depende
+        // de volver a cargar el catálogo global con otros filtros de permisos.
+        const guardada = this.conEtiqueta(tarea);
+        const existe = this.tareas.some(t => t.id === guardada.id);
+        this.tareas = existe
+          ? this.tareas.map(t => t.id === guardada.id ? guardada : t)
+          : [...this.tareas, guardada];
+        this.textoBusquedaTareas = '';
         this.sweetAlert.toast(this.tareaEditando ? 'Tarea actualizada' : 'Tarea creada', 'success');
         this.cancelarEdicion();
-        this.cargarDatos();
         this.isSubmitting = false;
       },
-      error: () => {
-        this.sweetAlert.error('Error', 'No se pudo guardar la tarea');
+      error: err => {
+        this.sweetAlert.error('Error', err.error?.message || 'No se pudo guardar la tarea');
         this.isSubmitting = false;
       }
     });
   }
 
   editarTarea(tarea: Tarea): void {
+    if (this.isSubmitting) return;
     this.tareaEditando = tarea;
     this.form.patchValue({
       nombre: tarea.nombre,
@@ -317,14 +381,23 @@ export class TasksComponent implements OnInit {
   }
 
   async eliminar(tarea: Tarea): Promise<void> {
+    if (this.isSubmitting) return;
+    const materiaId = this.grupoMateriaSeleccionado?.id;
     const result = await this.sweetAlert.confirmDelete(`¿Eliminar tarea "${tarea.nombre}"?`);
-    if (!result.isConfirmed) return;
+    if (!result.isConfirmed || this.isSubmitting || materiaId !== this.grupoMateriaSeleccionado?.id) return;
+    this.isSubmitting = true;
     this.tasksService.eliminarTarea(tarea.id).subscribe({
       next: () => {
         this.sweetAlert.toast('Tarea eliminada', 'success');
-        this.cargarDatos();
+        this.tareas = this.tareas.filter(t => t.id !== tarea.id);
+        if (this.tareaEditando?.id === tarea.id) this.cancelarEdicion();
+        this.isSubmitting = false;
       },
-      error: () => this.sweetAlert.error('Error', 'No se pudo eliminar la tarea') });
+      error: err => {
+        this.sweetAlert.error('Error', err.error?.message || 'No se pudo eliminar la tarea');
+        this.isSubmitting = false;
+      }
+    });
   }
 
   private opcionesUnicas(

@@ -71,7 +71,7 @@
       <div>
         <h5 id="roll-call-modal-title">{{ obtenerNombreGrupo(grupoActivo) }}</h5>
       </div>
-      <button type="button" class="close-button" (click)="cerrarModal()" aria-label="Cerrar pase de lista">
+      <button type="button" class="close-button" [disabled]="guardandoSesion" (click)="cerrarModal()" aria-label="Cerrar pase de lista">
         <i class="bi bi-x-lg"></i>
       </button>
     </header>
@@ -80,22 +80,29 @@
       <div class="modal-workspace">
         <aside class="subjects-sidebar">
           <div class="attendance-date-picker">
-            <label for="attendance-date">Fecha del pase</label>
+            <label for="attendance-date">1. Fecha del pase</label>
             <input
               id="attendance-date"
               type="date"
               class="form-control form-control-sm"
               [(ngModel)]="fechaPaseSeleccionada"
               [max]="fechaMaximaPase"
+              [disabled]="guardandoSesion"
+              [class.is-invalid]="!fechaPaseValida"
               (change)="cambiarFechaPase()"
             />
-            <small>Selecciona hoy o una fecha anterior.</small>
+            @if (!fechaPaseValida) {
+              <small class="text-danger">Selecciona una fecha válida, hoy o anterior.</small>
+            } @else {
+              <small>Para una asistencia pasada, elige la fecha antes de abrir el pase.</small>
+            }
           </div>
-          <p>Selecciona una materia</p>
+          <p>2. Selecciona una materia</p>
           @for (materia of materiasDelGrupoActivo; track materia.id) {
             <button
               type="button"
               [class.active]="materiaSeleccionada?.id === materia.id"
+              [disabled]="guardandoSesion"
               (click)="seleccionarMateria(materia)"
             >
               <strong>{{ materia.materia_nombre }}</strong>
@@ -110,11 +117,12 @@
           @if (!materiaSeleccionada) {
             <div class="empty-state compact">
               <i class="bi bi-arrow-left"></i>
-              <p>Selecciona una materia para pasar lista.</p>
+              <p>Elige la fecha y una materia para continuar.</p>
             </div>
           } @else if (isLoadingLista) {
             <div class="empty-state compact">
               <span class="spinner-border"></span>
+              <p role="status">Abriendo el pase del {{ fechaPaseTexto }}...</p>
             </div>
           } @else {
 
@@ -122,7 +130,7 @@
               <div>
                 <h6>{{ materiaSeleccionada.materia_nombre }}</h6>
                 <p>
-                  {{ sesion?.fecha }}
+                  <strong>Pase del {{ fechaPaseTexto }}</strong>
                   @if (sesionCerrada) {
                     <span class="badge bg-secondary ms-1">Cerrada</span>
                   }
@@ -130,26 +138,54 @@
               </div>
 
               <div class="d-flex align-items-center gap-2">
+                @if (sesion) {
                 <div class="metodo-toggle">
-                  <button type="button" class="metodo-btn" [class.active]="metodoActivo === 'manual'" (click)="cambiarMetodo('manual')">
+                  <button type="button" class="metodo-btn" [disabled]="guardandoSesion" [class.active]="metodoActivo === 'manual'" (click)="cambiarMetodo('manual')">
                     <i class="bi bi-list-check me-1"></i>Manual
                   </button>
-                  <button type="button" class="metodo-btn" [class.active]="metodoActivo === 'qr'" (click)="cambiarMetodo('qr')">
+                  <button type="button" class="metodo-btn" [disabled]="guardandoSesion" [class.active]="metodoActivo === 'qr'" (click)="cambiarMetodo('qr')">
                     <i class="bi bi-qr-code-scan me-1"></i>QR
                   </button>
                 </div>
 
                 @if (metodoActivo === 'qr' && puedeEditarSesion) {
-                  <button type="button" class="btn btn-dark btn-sm" (click)="abrirModalQr()">
+                  <button type="button" class="btn btn-dark btn-sm" [disabled]="guardandoSesion" (click)="abrirModalQr()">
                     <i class="bi bi-camera-fill me-1"></i>Escanear
                   </button>
                 }
-                <button type="button" class="btn btn-outline-dark btn-sm" (click)="abrirHistorial()">
+                }
+                <button type="button" class="btn btn-outline-dark btn-sm" [disabled]="guardandoSesion" (click)="abrirHistorial()">
                   <i class="bi bi-clock-history me-1"></i>Historial
                 </button>
               </div>
             </div>
 
+            @if (!sesion) {
+              <div class="empty-state compact">
+                <i class="bi bi-calendar-check"></i>
+                <h6>3. Revisa la fecha y abre el pase</h6>
+                <p>{{ materiaSeleccionada.materia_nombre }} · {{ fechaPaseTexto }}</p>
+                <p>Si ya existe un pase para esta fecha, se cargarán sus registros.</p>
+                <button type="button" class="btn btn-dark" [disabled]="!fechaPaseValida || guardandoSesion"
+                  (click)="abrirSesionParaFecha()">
+                  Abrir pase del {{ fechaPaseTexto }}
+                </button>
+              </div>
+            } @else {
+            @if (sesionCerrada) {
+              <div class="alert alert-secondary" role="status">
+                @if (esAdmin) {
+                  Estás corrigiendo un pase cerrado del {{ fechaPaseTexto }}. Los cambios se guardan en esta fecha.
+                } @else {
+                  Este pase del {{ fechaPaseTexto }} está cerrado. Para corregirlo, solicita el apoyo de un administrador.
+                }
+              </div>
+            }
+            @if (guardandoSesion) {
+              <p class="small text-muted" role="status">
+                {{ cerrandoSesion ? 'Cerrando pase...' : 'Guardando asistencias. Espera antes de cambiar la fecha o cerrar el pase.' }}
+              </p>
+            }
             <div class="resumen-bar">
               <span class="resumen-chip estado-presente"><i class="bi bi-check-circle-fill"></i>{{ resumen.presente }}</span>
               <span class="resumen-chip estado-retardo"><i class="bi bi-clock-fill"></i>{{ resumen.retardo }}</span>
@@ -159,12 +195,12 @@
 
               <div class="ms-auto d-flex gap-2">
                 @if (metodoActivo === 'manual' && puedeEditarSesion) {
-                  <button type="button" class="btn btn-outline-dark btn-sm" (click)="marcarTodosPresentes()">
-                    <i class="bi bi-check-all me-1"></i>Marcar pendientes presentes
+                  <button type="button" class="btn btn-outline-dark btn-sm" [disabled]="guardandoSesion || resumen.sinMarcar === 0" (click)="marcarTodosPresentes()">
+                    <i class="bi bi-check-all me-1"></i>Marcar pendientes como presentes ({{ resumen.sinMarcar }})
                   </button>
                 }
                 @if (!sesionCerrada) {
-                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="cerrarSesion()">
+                  <button type="button" class="btn btn-outline-danger btn-sm" [disabled]="guardandoSesion || !puedeEditarSesion" (click)="cerrarSesion()">
                     <i class="bi bi-lock-fill me-1"></i>Cerrar pase de lista
                   </button>
                 }
@@ -212,7 +248,7 @@
                           class="estado-btn"
                           [ngClass]="opcion.colorClass"
                           [class.active]="alumno.estado === opcion.value"
-                          [disabled]="!puedeEditarSesion || guardandoAlumnoId === alumno.alumno_id"
+                          [disabled]="!puedeEditarSesion || guardandoSesion"
                           [title]="opcion.label"
                           (click)="marcarEstado(alumno, opcion.value)"
                         >
@@ -223,6 +259,7 @@
                   </div>
                 }
               </div>
+            }
             }
           }
         </main>
