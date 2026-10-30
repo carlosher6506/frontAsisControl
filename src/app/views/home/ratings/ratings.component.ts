@@ -523,6 +523,7 @@ export class RatingsComponent implements OnInit {
       this.isSaving ||
       this.isLoadingAlumnos ||
       !this.grupoActivo ||
+      !this.configEvaluacion ||
       !this.alumnos.length
     )
       return;
@@ -537,6 +538,8 @@ export class RatingsComponent implements OnInit {
     }
     const alumnos = [...this.alumnos];
     const grupo = { ...this.grupoActivo };
+    const configuracion = { ...this.configEvaluacion! };
+    const materias = this.grupoMaterias.filter((materia) => materia.grupo_id === grupo.id);
     const context: RatingReportContext = {
       grupoNombre: grupo.nombre,
       nivelAcademico: grupo.nivel_academico,
@@ -548,24 +551,14 @@ export class RatingsComponent implements OnInit {
     this.isExportandoBoletas = true;
     this.progresoBoletas = 'Cargando boletas...';
     try {
-      const reportes = await firstValueFrom(
-        from(alumnos).pipe(
-          mergeMap(
-            (alumno) =>
-              this.ratingsService.obtenerBoleta(alumno.id).pipe(
-                map((boleta) => ({
-                  orden: alumnos.findIndex((a) => a.id === alumno.id),
-                  boleta,
-                })),
-              ),
-            REQUEST_CONCURRENCY,
-          ),
-          toArray(),
-        ),
+      const reportes = await this.cargarBoletasDesdeCaptura(
+        alumnos,
+        grupo,
+        configuracion,
+        materias,
       );
-      reportes.sort((a, b) => a.orden - b.orden);
       await this.generarPdfBoletas(
-        reportes.map(({ boleta }) => boleta),
+        reportes,
         context,
         sanitizeFileName('Boletas_' + obtenerNombreGrupo(grupo) + '.pdf'),
       );
@@ -582,13 +575,99 @@ export class RatingsComponent implements OnInit {
   }
 
   calcularCalificacionFinal(item: BoletaMateria): number {
-    const base =
-      item.tipo_evaluacion === 'promedio'
-        ? Number(item.promedio_calificaciones) || 0
-        : (Number(item.total_puntos_posibles) || 0) > 0
-          ? ((Number(item.total_puntos_obtenidos) || 0) / Number(item.total_puntos_posibles)) * 10
-          : 0;
-    return roundFinalGrade(base);
+    return item.calificacion_final ?? 0;
+  }
+
+  private async cargarBoletasDesdeCaptura(
+    alumnos: Alumno[],
+    grupo: Grupo,
+    configuracion: ConfiguracionEvaluacion,
+    materias: GrupoMateria[],
+  ): Promise<Boleta[]> {
+    if (!materias.length) throw new Error('No hay materias disponibles para generar las boletas');
+    const porPuntos = configuracion.tipo_evaluacion === 'puntos';
+    const escalaCien = porPuntos || grupo.nivel_educativo?.trim().toLowerCase() === 'primaria';
+    const etiquetas = porPuntos
+      ? await firstValueFrom(
+          this.etiquetasService.obtenerEtiquetasPorConfiguracion(configuracion.id),
+        )
+      : [];
+    const tareasPorMateria = await firstValueFrom(
+      from(materias).pipe(
+        mergeMap(
+          async (materia) => ({
+            materia,
+            tareas: porPuntos
+              ? await firstValueFrom(this.tasksService.obtenerTareasPorGrupoMateria(materia.id))
+              : [],
+          }),
+          REQUEST_CONCURRENCY,
+        ),
+        toArray(),
+      ),
+    );
+    // Se leen las notas guardadas, sin usar borradores ni los totales de /boleta.
+    const resultados = await firstValueFrom(
+      from(
+        tareasPorMateria.flatMap(({ materia, tareas }) =>
+          alumnos.map((alumno) => ({ materia, tareas, alumno })),
+        ),
+      ).pipe(
+        mergeMap(async ({ materia, tareas, alumno }) => {
+          const ratings = await firstValueFrom(
+            this.ratingsService.obtenerCalificacionesPorAlumno(alumno.id, materia.id),
+          );
+          return {
+            materia,
+            fila: createRatingGridRow(
+              alumno,
+              this.aplicarValoresDeTareas(ratings, tareas),
+              escalaCien,
+            ),
+          };
+        }, REQUEST_CONCURRENCY),
+        toArray(),
+      ),
+    );
+    const boletas: Boleta[] = alumnos.map((alumno) => ({
+      alumno: {
+        ...alumno,
+        grupo_nombre: grupo.nombre,
+        nivel_academico: grupo.nivel_academico ?? alumno.nivel_academico,
+        nivel_educativo: grupo.nivel_educativo ?? alumno.nivel_educativo,
+        ciclo_escolar: grupo.ciclo_escolar ?? alumno.ciclo_escolar,
+      },
+      calificaciones: [],
+    }));
+    for (const materia of materias) {
+      const filas = resultados.filter((resultado) => resultado.materia.id === materia.id);
+      const tareas = sortRatingTasks(filas.flatMap(({ fila }) => fila.calificaciones));
+      for (const { fila } of filas) {
+        completeRatingGridRow(fila, tareas);
+        this.sincronizarPuntosFila(fila, porPuntos, etiquetas);
+        const boleta = boletas.find((reporte) => reporte.alumno.id === fila.alumno.id)!;
+        const periodos = [...new Set(fila.calificaciones.map((cal) => cal.periodo ?? 1))];
+        for (const periodo of periodos) {
+          const calificaciones = fila.calificaciones.filter(
+            (cal) => (cal.periodo ?? 1) === periodo,
+          );
+          boleta.calificaciones.push({
+            materia_nombre: materia.materia_nombre ?? 'Materia',
+            periodo,
+            ...configuracion,
+            calificacion_minima_aprobatoria: 0,
+            forzar_minimo: false,
+            promedio_calificaciones: null,
+            total_puntos_obtenidos: null,
+            total_puntos_posibles: null,
+            calificacion_final: roundFinalGrade(
+              this.calcularPeriodo(calificaciones, porPuntos, escalaCien),
+            ),
+          });
+        }
+      }
+    }
+    return boletas;
   }
 
   async exportarCalificaciones(): Promise<void> {
@@ -726,8 +805,12 @@ export class RatingsComponent implements OnInit {
     this.filas.forEach((fila) => this.sincronizarPuntosFila(fila));
   }
 
-  private sincronizarPuntosFila(fila: RatingGridRow): void {
-    if (!this.esPorPuntos) return;
+  private sincronizarPuntosFila(
+    fila: RatingGridRow,
+    porPuntos = this.esPorPuntos,
+    etiquetas = this.etiquetas,
+  ): void {
+    if (!porPuntos) return;
     const porEtiqueta = new Map<string, Calificacion[]>();
     fila.calificaciones.forEach((calificacion) => {
       if (!calificacion.etiqueta_id) return;
@@ -737,7 +820,7 @@ export class RatingsComponent implements OnInit {
       porEtiqueta.set(clave, tareas);
     });
     porEtiqueta.forEach((calificaciones) => {
-      const etiqueta = this.etiquetas.find((item) => item.id === calificaciones[0].etiqueta_id);
+      const etiqueta = etiquetas.find((item) => item.id === calificaciones[0].etiqueta_id);
       if (etiqueta && calificaciones.length === 1)
         calificaciones[0].valor_tarea = Number(etiqueta.valor_total) || 0;
     });

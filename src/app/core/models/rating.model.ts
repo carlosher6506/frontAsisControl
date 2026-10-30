@@ -24,6 +24,8 @@ export interface CalificarRequest {
 }
 
 export interface BoletaMateria {
+  /** Nota resuelta con la misma lógica de la tabla de captura. */
+  calificacion_final?: number;
   materia_nombre: string;
   periodo: number;
   tipo_evaluacion: string;
