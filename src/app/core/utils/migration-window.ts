@@ -1,4 +1,4 @@
-export const migrationTitle = 'Evento especial · Migración del sistema';
+export const migrationTitle = 'Aviso de migración';
 export const migrationMessage =
   'Estamos migrando AsisControl a un nuevo sistema. El acceso estará inhabilitado el 17 de noviembre de 2026, de 6:00 a. m. a 8:00 p. m. (hora de Cancún).';
 
