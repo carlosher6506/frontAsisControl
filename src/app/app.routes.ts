@@ -1,11 +1,16 @@
-import { Routes } from '@angular/router';
+import { CanActivateFn, Router, Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { migrationActive } from './core/utils/migration-window';
 import { LoginComponent } from './views/auth/login/login.component';
 import { authGuard } from './views/guards/auth.guard';
 import { noAuthGuard } from './views/guards/no-auth.guard';
 import { StudentGradesComponent } from './views/auth/student-grades/student-grades.component';
 import { AuthCallbackComponent } from './views/auth/auth-callback/auth-callback.component';
 
-export const routes: Routes = [
+const migrationGuard: CanActivateFn = () =>
+  migrationActive() ? inject(Router).createUrlTree(['/login']) : true;
+
+const appRoutes: Routes = [
   {
     path: '',
     redirectTo: 'login',
@@ -114,3 +119,15 @@ export const routes: Routes = [
     redirectTo: 'login'
   }
 ];
+
+export const routes: Routes = appRoutes.map(route =>
+  route.redirectTo !== undefined || route.path === 'login'
+    ? route
+    : route.path === 'dashboard'
+      ? { ...route, canActivateChild: [authGuard] }
+    : {
+        ...route,
+        canActivate: [migrationGuard, ...(route.canActivate ?? [])],
+        canActivateChild: [migrationGuard, ...(route.canActivateChild ?? [])],
+      },
+);

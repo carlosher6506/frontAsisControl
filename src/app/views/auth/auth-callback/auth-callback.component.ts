@@ -41,7 +41,9 @@ export class AuthCallbackComponent implements OnInit {
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
-        this.sweetAlert.error('Error', err.error?.message || 'No se pudo autenticar con Google');
+        if (err.error?.code !== 'SYSTEM_MIGRATION') {
+          this.sweetAlert.error('Error', err.error?.message || 'No se pudo autenticar con Google');
+        }
         this.router.navigate(['/login']);
       }
     });

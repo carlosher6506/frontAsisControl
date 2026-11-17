@@ -9,11 +9,12 @@ import { SweetAlertService } from '../../../core/services/sweet-alert.service';
 import { RegisterService } from '../../../core/services/register.service';
 import { LoginRequest, RegistroRequest } from '../../../core/models/auth.model';
 import { GOOGLE_REDIRECT_URI, ID_CLIENT } from '../../../config/environment';
+import { migrationActive, migrationMessage, migrationTitle, showMigrationAnnouncement } from '../../../core/utils/migration-window';
 
 type Tab = 'login' | 'registro' | 'recuperar';
 
 interface AuthErrorResponse {
-  code?: 'AUTH_LOCKED' | 'EMAIL_NOT_VERIFIED';
+  code?: 'AUTH_LOCKED' | 'EMAIL_NOT_VERIFIED' | 'SYSTEM_MIGRATION';
   retryAfterSeconds?: number;
 }
 
@@ -49,6 +50,11 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   readonly maxFailedAttempts = MAX_FAILED_ATTEMPTS;
   readonly googleClientId = ID_CLIENT;
+  readonly migrationTitle = migrationTitle;
+  readonly migrationMessage = migrationMessage;
+  get mostrarAnuncioMigracion(): boolean {
+    return showMigrationAnnouncement();
+  }
 
   private bloqueoTimer?: ReturnType<typeof setInterval>;
 
@@ -113,6 +119,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    if (this.avisarMigracion()) return;
     if (this.isLoading || this.loginBloqueado) return;
 
     if (this.loginForm.invalid) {
@@ -147,6 +154,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   onSolicitarReset(): void {
+    if (this.avisarMigracion()) return;
     if (this.solicitandoReset) return;
 
     if (this.resetForm.invalid) {
@@ -195,6 +203,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   onRegistro(): void {
+    if (this.avisarMigracion()) return;
     if (this.isLoadingRegistro) return;
 
     if (this.registroForm.invalid) {
@@ -229,6 +238,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   async loginConGoogle(): Promise<void> {
+    if (this.avisarMigracion()) return;
     if (this.isLoadingGoogle) return;
 
     try {
@@ -253,6 +263,10 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   private manejarErrorLogin(error: HttpErrorResponse): void {
     const payload = error.error as AuthErrorResponse | null;
+    if (payload?.code === 'SYSTEM_MIGRATION') {
+      this.sweetAlert.warning(migrationTitle, migrationMessage);
+      return;
+    }
 
     if (error.status === 429 || payload?.code === 'AUTH_LOCKED') {
       this.iniciarBloqueo(payload?.retryAfterSeconds ?? DEFAULT_LOCK_SECONDS);
@@ -281,6 +295,12 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.segundosBloqueo--;
       if (this.segundosBloqueo <= 0) this.detenerBloqueo();
     }, 1000);
+  }
+
+  private avisarMigracion(): boolean {
+    if (!migrationActive()) return false;
+    this.sweetAlert.warning(migrationTitle, migrationMessage);
+    return true;
   }
 
   private detenerBloqueo(): void {
